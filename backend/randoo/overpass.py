@@ -20,6 +20,11 @@ OVERPASS_ENDPOINTS = [
 TIMEOUT_S = 25
 QUERY_TIMEOUT_S = 20
 
+# Overpass's usage policy asks clients to identify themselves — some instances
+# also reject the default httpx/urllib user agent outright (406) as a basic
+# bot filter, so a generic library UA won't get past them at all.
+USER_AGENT = "randoo-backend/0.1"
+
 
 @dataclass(frozen=True)
 class Poi:
@@ -67,7 +72,9 @@ async def query_pois(
     query = _build_query(bbox, categories)
 
     failures: list[str] = []
-    async with httpx.AsyncClient(timeout=TIMEOUT_S) as client:
+    async with httpx.AsyncClient(
+        timeout=TIMEOUT_S, headers={"User-Agent": USER_AGENT}
+    ) as client:
         for endpoint in OVERPASS_ENDPOINTS:
             try:
                 response = await client.post(endpoint, data={"data": query})
