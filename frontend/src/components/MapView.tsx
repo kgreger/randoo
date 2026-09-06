@@ -28,7 +28,14 @@ export function MapView({ route, pois }: Props) {
     mapRef.current = map;
     layerRef.current = L.layerGroup().addTo(map);
 
+    // The container's real size can settle after this runs (web fonts loading,
+    // flex layout reflow), and Leaflet has no way to notice on its own — it
+    // just keeps rendering at whatever size it measured on creation.
+    const resizeObserver = new ResizeObserver(() => map.invalidateSize());
+    resizeObserver.observe(containerRef.current);
+
     return () => {
+      resizeObserver.disconnect();
       map.remove();
       mapRef.current = null;
     };
