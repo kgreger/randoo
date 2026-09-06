@@ -1,8 +1,9 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AccountControl } from "./components/AccountControl";
 import { CategoryFilter } from "./components/CategoryFilter";
 import { MapView } from "./components/MapView";
 import { PoiList } from "./components/PoiList";
+import { SignInDialog } from "./components/SignInDialog";
 import { analyzeRoute, exportGpx, type Poi } from "./lib/api";
 import { routeLengthM } from "./lib/geo";
 import { parseGpxPreview, type LatLon } from "./lib/gpxPreview";
@@ -23,6 +24,11 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [signInOpen, setSignInOpen] = useState(false);
+
+  useEffect(() => {
+    if (user) setSignInOpen(false);
+  }, [user]);
 
   async function handleFile(selected: File) {
     setFile(selected);
@@ -67,7 +73,7 @@ export default function App() {
     const { data } = supabase ? await supabase.auth.getSession() : { data: { session: null } };
     const accessToken = data.session?.access_token;
     if (!accessToken) {
-      setError("Sign in to export — use the Sign in button in the top right.");
+      setSignInOpen(true);
       return;
     }
 
@@ -127,7 +133,7 @@ export default function App() {
           <button className="btn btn-primary" onClick={handleExport} disabled={pois.length === 0 || exporting}>
             {exporting ? "Exporting…" : user ? "Export GPX" : "Sign in to export"}
           </button>
-          <AccountControl />
+          <AccountControl onRequestSignIn={() => setSignInOpen(true)} />
         </div>
       </div>
 
@@ -135,7 +141,9 @@ export default function App() {
 
       <div className="content-row">
         <div className="map-panel">
-          {!file && (
+          {signInOpen && <SignInDialog onClose={() => setSignInOpen(false)} />}
+
+          {!file && !signInOpen && (
             <div className="map-empty">
               <div className="map-empty-card">
                 <div className="icon">
