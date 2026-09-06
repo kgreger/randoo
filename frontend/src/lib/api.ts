@@ -46,12 +46,17 @@ export async function exportGpx(
   file: File,
   categoryIds: string[],
   radiusM: number,
+  accessToken: string,
 ): Promise<Blob> {
   const response = await fetch(`${API_URL}/api/export`, {
     method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
     body: buildFormData(file, categoryIds, radiusM),
   });
 
+  if (response.status === 401) {
+    throw new Error("Your session expired — sign in again to export.");
+  }
   if (!response.ok) {
     const detail = await response.text();
     throw new Error(`export failed: ${detail}`);

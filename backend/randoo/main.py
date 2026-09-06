@@ -1,8 +1,9 @@
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 
 from . import categories, geometry, gpx, overpass, poi_filter
+from .auth import require_user
 from .export import build_gpx
 from .schemas import AnalyzeResponse, PoiOut
 
@@ -74,6 +75,7 @@ async def export(
     file: UploadFile = File(...),
     categories_param: list[str] = Form(..., alias="categories"),
     radius_m: float = Form(500),
+    _user: dict = Depends(require_user),
 ) -> Response:
     ranked, _ = await _find_pois(file, categories_param, radius_m)
     xml = build_gpx(ranked)

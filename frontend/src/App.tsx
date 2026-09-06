@@ -6,10 +6,13 @@ import { PoiList } from "./components/PoiList";
 import { analyzeRoute, exportGpx, type Poi } from "./lib/api";
 import { routeLengthM } from "./lib/geo";
 import { parseGpxPreview, type LatLon } from "./lib/gpxPreview";
+import { supabase } from "./lib/supabase";
+import { useAuth } from "./lib/useAuth";
 
 const DEFAULT_CATEGORIES = ["water", "food"];
 
 export default function App() {
+  const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [routeName, setRouteName] = useState<string | null>(null);
@@ -60,9 +63,17 @@ export default function App() {
 
   async function handleExport() {
     if (!file) return;
+
+    const { data } = supabase ? await supabase.auth.getSession() : { data: { session: null } };
+    const accessToken = data.session?.access_token;
+    if (!accessToken) {
+      setError("Sign in to export — use the Sign in button in the top right.");
+      return;
+    }
+
     setExporting(true);
     try {
-      const blob = await exportGpx(file, Array.from(selectedCategories), radiusM);
+      const blob = await exportGpx(file, Array.from(selectedCategories), radiusM, accessToken);
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -114,7 +125,7 @@ export default function App() {
             {file ? "Change route" : "Upload GPX"}
           </button>
           <button className="btn btn-primary" onClick={handleExport} disabled={pois.length === 0 || exporting}>
-            {exporting ? "Exporting…" : "Export GPX"}
+            {exporting ? "Exporting…" : user ? "Export GPX" : "Sign in to export"}
           </button>
           <AccountControl />
         </div>
