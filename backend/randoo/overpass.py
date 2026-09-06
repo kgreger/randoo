@@ -66,7 +66,7 @@ async def query_pois(
     """
     query = _build_query(bbox, categories)
 
-    last_error: Exception | None = None
+    failures: list[str] = []
     async with httpx.AsyncClient(timeout=TIMEOUT_S) as client:
         for endpoint in OVERPASS_ENDPOINTS:
             try:
@@ -74,10 +74,10 @@ async def query_pois(
                 response.raise_for_status()
                 return _parse_elements(response.json()["elements"], categories)
             except (httpx.HTTPError, KeyError) as exc:
-                last_error = exc
+                failures.append(f"{endpoint}: {type(exc).__name__}: {exc!r}")
                 continue
 
-    raise RuntimeError(f"all Overpass endpoints failed: {last_error}")
+    raise RuntimeError("all Overpass endpoints failed:\n" + "\n".join(failures))
 
 
 def _parse_elements(elements: list[dict], categories: list[Category]) -> list[Poi]:
