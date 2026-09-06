@@ -5,6 +5,7 @@
   --border: rgba(255, 255, 255, 0.12);
   --ink: #fff7ec;
   --ink-muted: #c8b7c9;
+  --ink-faint: #8a7a8c;
   --accent: #ffb35c;
   --accent-ink: #2a1740;
 }
@@ -21,12 +22,23 @@ body,
 }
 
 body {
-  background:
-    radial-gradient(ellipse 700px 500px at 12% 8%, rgba(255, 179, 92, 0.16), transparent 60%),
-    radial-gradient(ellipse 800px 600px at 82% 22%, rgba(232, 115, 79, 0.14), transparent 60%),
-    var(--bg);
+  position: relative;
+  background: var(--bg);
   color: var(--ink);
   font-family: "Instrument Sans", system-ui, sans-serif;
+  overflow: hidden;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(ellipse 700px 500px at 12% 8%, rgba(255, 179, 92, 0.18), transparent 60%),
+    radial-gradient(ellipse 800px 600px at 82% 22%, rgba(232, 115, 79, 0.16), transparent 60%),
+    radial-gradient(ellipse 900px 700px at 45% 100%, rgba(122, 58, 94, 0.3), transparent 65%),
+    var(--bg);
 }
 
 h1,
@@ -36,39 +48,124 @@ h3,
   font-family: "Onest", system-ui, sans-serif;
 }
 
-.app {
-  display: flex;
-  height: 100vh;
-  padding: 24px;
-  gap: 24px;
+button {
+  font-family: inherit;
 }
 
-.main-column {
-  flex: 1;
-  min-width: 0;
+/* ---------- layout ---------- */
+
+.app {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  height: 100vh;
+  padding: 20px 24px 24px;
+  gap: 18px;
 }
 
 .topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 20px;
 }
 
-.topbar h1 {
-  font-size: 20px;
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand .mark {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.brand h1 {
+  font-size: 17px;
   font-weight: 700;
   margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.route-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding-left: 6px;
+}
+
+.route-meta .name {
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.route-meta .stat {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12.5px;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+}
+
+.btn {
+  font-family: "Onest", system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 16px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-ghost {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--border);
+}
+
+.btn-ghost:hover {
+  background: var(--surface-strong);
 }
 
 .content-row {
   flex: 1;
   display: flex;
-  gap: 24px;
+  gap: 20px;
   min-height: 0;
 }
+
+/* ---------- map ---------- */
 
 .map-panel {
   flex: 1;
@@ -85,12 +182,54 @@ h3,
   background: #150c1f;
 }
 
+.map-empty {
+  position: absolute;
+  inset: 0;
+  z-index: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(21, 12, 31, 0.72);
+  backdrop-filter: blur(6px);
+}
+
+.map-empty-card {
+  text-align: center;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.map-empty-card p {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.map-empty-card .icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.file-input {
+  display: none;
+}
+
 .controls-panel {
   position: absolute;
   left: 16px;
   top: 16px;
   z-index: 500;
-  width: 280px;
+  width: 270px;
   background: var(--surface-strong);
   backdrop-filter: blur(20px);
   border: 1px solid var(--border);
@@ -99,6 +238,7 @@ h3,
   display: flex;
   flex-direction: column;
   gap: 14px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
 }
 
 .controls-panel .section-label {
@@ -138,23 +278,17 @@ h3,
   margin-bottom: 6px;
 }
 
+.radius-row .value {
+  font-family: "JetBrains Mono", monospace;
+  color: var(--accent);
+}
+
 .radius-row input[type="range"] {
   width: 100%;
   accent-color: var(--accent);
 }
 
-.upload-panel {
-  border: 1px dashed var(--border);
-  border-radius: 12px;
-  padding: 14px;
-  text-align: center;
-  font-size: 13px;
-  color: var(--ink-muted);
-}
-
-.upload-panel input {
-  color: var(--ink);
-}
+/* ---------- side panel ---------- */
 
 .side-panel {
   width: 320px;
@@ -167,11 +301,23 @@ h3,
   overflow: hidden;
 }
 
-.side-panel h2 {
+.side-panel-head {
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.side-panel-head h2 {
   font-size: 14.5px;
   margin: 0;
-  padding: 18px 18px 10px;
-  border-bottom: 1px solid var(--border);
+}
+
+.side-panel-head .count {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11.5px;
+  color: var(--ink-faint);
 }
 
 .poi-list {
@@ -200,8 +346,7 @@ h3,
   align-items: center;
   justify-content: center;
   flex: none;
-  font-size: 11px;
-  color: var(--ink-muted);
+  color: var(--accent);
 }
 
 .poi-card .name {
@@ -218,22 +363,17 @@ h3,
   margin-top: 2px;
 }
 
-.export-button {
-  margin: 12px 14px 14px;
-  background: var(--accent);
-  color: var(--accent-ink);
-  border: none;
-  border-radius: 10px;
-  padding: 11px 16px;
-  font-family: "Onest", system-ui, sans-serif;
-  font-weight: 600;
-  font-size: 13.5px;
-  cursor: pointer;
+.export-row {
+  padding: 12px 14px 14px;
 }
 
-.export-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.error-banner {
+  background: rgba(226, 138, 121, 0.14);
+  border: 1px solid rgba(226, 138, 121, 0.4);
+  color: #e28a79;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
 }
 
 .empty-state {

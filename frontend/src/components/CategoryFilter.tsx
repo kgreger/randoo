@@ -28,7 +28,7 @@ export function CategoryFilter({ selected, onToggle, radiusM, onRadiusChange }: 
       <div className="radius-row">
         <label>
           <span>Radius</span>
-          <span>{radiusM} m</span>
+          <span className="value">{radiusM} m</span>
         </label>
         <input
           type="range"

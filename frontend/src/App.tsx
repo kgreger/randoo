@@ -1,15 +1,17 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { CategoryFilter } from "./components/CategoryFilter";
 import { MapView } from "./components/MapView";
 import { PoiList } from "./components/PoiList";
-import { UploadPanel } from "./components/UploadPanel";
 import { analyzeRoute, exportGpx, type Poi } from "./lib/api";
+import { routeLengthM } from "./lib/geo";
 import { parseGpxPreview, type LatLon } from "./lib/gpxPreview";
 
 const DEFAULT_CATEGORIES = ["water", "food"];
 
 export default function App() {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [routeName, setRouteName] = useState<string | null>(null);
   const [route, setRoute] = useState<LatLon[]>([]);
   const [pois, setPois] = useState<Poi[]>([]);
   const [selectedCategories, setSelectedCategories] = useState(new Set(DEFAULT_CATEGORIES));
@@ -20,12 +22,15 @@ export default function App() {
 
   async function handleFile(selected: File) {
     setFile(selected);
+    setRouteName(selected.name.replace(/\.gpx$/i, ""));
+    setPois([]);
     setError(null);
     try {
       const preview = await parseGpxPreview(selected);
       setRoute(preview);
     } catch {
       setError("Could not read that GPX file.");
+      setRoute([]);
     }
   }
 
@@ -70,18 +75,71 @@ export default function App() {
     }
   }
 
+  const distanceKm = route.length > 1 ? routeLengthM(route) / 1000 : null;
+
   return (
     <div className="app">
-      <div className="main-column">
-        <div className="topbar">
+      <input
+        ref={fileInputRef}
+        className="file-input"
+        type="file"
+        accept=".gpx"
+        onChange={(e) => {
+          const selected = e.target.files?.[0];
+          if (selected) handleFile(selected);
+        }}
+      />
+
+      <div className="topbar">
+        <div className="brand">
+          <div className="mark">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path d="M12 3 C8 8 6 11 6 14 a6 6 0 0 0 12 0 c0-3-4-6-6-11z" fill="#2a1740" />
+            </svg>
+          </div>
           <h1>Randoo</h1>
-          <UploadPanel onFileSelected={handleFile} fileName={file?.name ?? null} />
         </div>
 
-        {error && <div style={{ color: "#e28a79" }}>{error}</div>}
+        {routeName && (
+          <div className="route-meta">
+            <span className="name">{routeName}</span>
+            {distanceKm !== null && <span className="stat">{distanceKm.toFixed(1)} km</span>}
+            {pois.length > 0 && <span className="stat">{pois.length} points found</span>}
+          </div>
+        )}
 
-        <div className="content-row">
-          <div className="map-panel">
+        <div className="topbar-actions">
+          <button className="btn btn-ghost" onClick={() => fileInputRef.current?.click()}>
+            {file ? "Change route" : "Upload GPX"}
+          </button>
+          <button className="btn btn-primary" onClick={handleExport} disabled={pois.length === 0 || exporting}>
+            {exporting ? "Exporting…" : "Export GPX"}
+          </button>
+        </div>
+      </div>
+
+      {error && <div className="error-banner">{error}</div>}
+
+      <div className="content-row">
+        <div className="map-panel">
+          {!file && (
+            <div className="map-empty">
+              <div className="map-empty-card">
+                <div className="icon">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffb35c" strokeWidth="1.8">
+                    <path d="M12 15V3M7 8l5-5 5 5" />
+                    <path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" />
+                  </svg>
+                </div>
+                <p>Upload a GPX track to see water, food, fuel, and other stops along it.</p>
+                <button className="btn btn-primary" onClick={() => fileInputRef.current?.click()}>
+                  Choose a GPX file
+                </button>
+              </div>
+            </div>
+          )}
+
+          {file && (
             <div className="controls-panel">
               <CategoryFilter
                 selected={selectedCategories}
@@ -90,18 +148,19 @@ export default function App() {
                 onRadiusChange={setRadiusM}
               />
               <button
-                className="export-button"
+                className="btn btn-primary"
                 onClick={runSearch}
-                disabled={!file || selectedCategories.size === 0 || loading}
-                style={{ margin: 0 }}
+                disabled={selectedCategories.size === 0 || loading}
               >
                 {loading ? "Searching…" : "Find points"}
               </button>
             </div>
-            <MapView route={route} pois={pois} />
-          </div>
-          <PoiList pois={pois} onExport={handleExport} exporting={exporting} />
+          )}
+
+          <MapView route={route} pois={pois} />
         </div>
+
+        <PoiList pois={pois} />
       </div>
     </div>
   );
