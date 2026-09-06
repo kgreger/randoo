@@ -367,6 +367,49 @@ button {
   padding: 12px 14px 14px;
 }
 
+.account-control {
+  position: relative;
+}
+
+.account-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 700;
+  width: 260px;
+  background: #1d1226;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.account-popover p {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--ink-muted);
+}
+
+.account-popover input {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 11px;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.account-popover input:focus {
+  outline: 1px solid var(--accent);
+}
+
+.account-error {
+  color: #e28a79 !important;
+}
+
 .error-banner {
   background: rgba(226, 138, 121, 0.14);
   border: 1px solid rgba(226, 138, 121, 0.4);

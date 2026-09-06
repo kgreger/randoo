@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { AccountControl } from "./components/AccountControl";
 import { CategoryFilter } from "./components/CategoryFilter";
 import { MapView } from "./components/MapView";
 import { PoiList } from "./components/PoiList";
@@ -115,6 +116,7 @@ export default function App() {
           <button className="btn btn-primary" onClick={handleExport} disabled={pois.length === 0 || exporting}>
             {exporting ? "Exporting…" : "Export GPX"}
           </button>
+          <AccountControl />
         </div>
       </div>
 

@@ -10,6 +10,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.45.4",
     "@tmcw/togeojson": "^5.8.1",
     "leaflet": "^1.9.4",
     "react": "^18.3.1",
