@@ -13,7 +13,7 @@ import { useAuth } from "./lib/useAuth";
 const DEFAULT_CATEGORIES = ["water", "food"];
 
 export default function App() {
-  const { user } = useAuth();
+  const { user, recoveryMode, clearRecoveryMode } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [routeName, setRouteName] = useState<string | null>(null);
@@ -27,8 +27,12 @@ export default function App() {
   const [signInOpen, setSignInOpen] = useState(false);
 
   useEffect(() => {
-    if (user) setSignInOpen(false);
-  }, [user]);
+    if (user && !recoveryMode) setSignInOpen(false);
+  }, [user, recoveryMode]);
+
+  useEffect(() => {
+    if (recoveryMode) setSignInOpen(true);
+  }, [recoveryMode]);
 
   async function handleFile(selected: File) {
     setFile(selected);
@@ -141,7 +145,16 @@ export default function App() {
 
       <div className="content-row">
         <div className="map-panel">
-          {signInOpen && <SignInDialog onClose={() => setSignInOpen(false)} />}
+          {signInOpen && (
+            <SignInDialog
+              onClose={() => setSignInOpen(false)}
+              recoveryMode={recoveryMode}
+              onRecoveryDone={() => {
+                clearRecoveryMode();
+                setSignInOpen(false);
+              }}
+            />
+          )}
 
           {!file && !signInOpen && (
             <div className="map-empty">

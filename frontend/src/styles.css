@@ -276,6 +276,55 @@ button {
   font-size: 12.5px !important;
 }
 
+.dialog-tabs {
+  display: flex;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 3px;
+  width: 100%;
+}
+
+.dialog-tab {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--ink-muted);
+  font-family: "Onest", system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.dialog-tab.active {
+  background: var(--surface-strong);
+  color: var(--ink);
+}
+
+.dialog-links {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  margin-top: -4px;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: var(--ink-faint);
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 2px 0;
+}
+
+.link-button:hover {
+  color: var(--ink-muted);
+}
+
 .controls-panel {
   position: absolute;
   left: 16px;
