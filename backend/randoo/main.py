@@ -41,8 +41,9 @@ async def _find_pois(
 
     buffer_polygon = geometry.route_buffer(points, radius_m)
     bbox = geometry.bounding_box(buffer_polygon)
+    poly = geometry.poly_filter(buffer_polygon)
 
-    pois = await overpass.query_pois(bbox, selected)
+    pois = await overpass.query_pois(bbox, poly, selected)
     ranked = poi_filter.filter_and_rank(pois, points, buffer_polygon)
     return ranked, points
 

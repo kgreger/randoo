@@ -1,9 +1,10 @@
 """Overpass API client.
 
-Uses a public Overpass instance. Queries are scoped to the route's bounding box
-(cheap for Overpass to evaluate) — the caller is responsible for the finer-grained
-filter against the actual buffer polygon, since Overpass doesn't take arbitrary
-polygons cheaply.
+Uses a public Overpass instance. Queries are scoped to the route buffer's
+actual shape via Overpass's `poly:` filter, with the bounding box supplied
+too as a cheap global pre-filter — bbox alone would search the full rectangle
+spanning the route, which for a long or diagonal track is far bigger than the
+corridor we actually care about and slow enough to time out.
 """
 
 from dataclasses import dataclass
@@ -38,17 +39,19 @@ class Poi:
 
 
 def _build_query(
-    bbox: tuple[float, float, float, float], categories: list[Category]
+    bbox: tuple[float, float, float, float],
+    poly: str,
+    categories: list[Category],
 ) -> str:
     south, west, north, east = bbox
     clauses = []
     for cat in categories:
         for key, value in cat.tags:
-            clauses.append(f'node["{key}"="{value}"]({south},{west},{north},{east});')
-            clauses.append(f'way["{key}"="{value}"]({south},{west},{north},{east});')
+            clauses.append(f'node["{key}"="{value}"](poly:"{poly}");')
+            clauses.append(f'way["{key}"="{value}"](poly:"{poly}");')
 
     return (
-        f"[out:json][timeout:{QUERY_TIMEOUT_S}];\n"
+        f"[out:json][timeout:{QUERY_TIMEOUT_S}][bbox:{south},{west},{north},{east}];\n"
         f"(\n  {chr(10).join(clauses)}\n);\n"
         "out center tags;"
     )
@@ -63,13 +66,15 @@ def _tag_to_category(tags: dict[str, str], categories: list[Category]) -> str | 
 
 
 async def query_pois(
-    bbox: tuple[float, float, float, float], categories: list[Category]
+    bbox: tuple[float, float, float, float],
+    poly: str,
+    categories: list[Category],
 ) -> list[Poi]:
-    """Fetch POIs in bbox matching any of the given categories.
+    """Fetch POIs within the route buffer polygon, matching any of the given categories.
 
     Tries each configured Overpass endpoint in order until one responds.
     """
-    query = _build_query(bbox, categories)
+    query = _build_query(bbox, poly, categories)
 
     failures: list[str] = []
     async with httpx.AsyncClient(
