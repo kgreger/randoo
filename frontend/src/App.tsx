@@ -134,8 +134,19 @@ export default function App() {
           <button className="btn btn-ghost" onClick={() => fileInputRef.current?.click()}>
             {file ? "Change route" : "Upload GPX"}
           </button>
-          <button className="btn btn-primary" onClick={handleExport} disabled={pois.length === 0 || exporting}>
-            {exporting ? "Exporting…" : user ? "Export GPX" : "Sign in to export"}
+          <button
+            className={`btn btn-primary ${!user ? "btn-locked" : ""}`}
+            onClick={handleExport}
+            disabled={pois.length === 0 || exporting}
+            title={user ? undefined : "Sign in to export"}
+          >
+            {exporting ? "Exporting…" : "Export"}
+            {!user && (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="5" y="11" width="14" height="9" rx="2" />
+                <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+              </svg>
+            )}
           </button>
           <AccountControl onRequestSignIn={() => setSignInOpen(true)} />
         </div>

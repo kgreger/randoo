@@ -16,8 +16,10 @@ export function MapView({ route, pois }: Props) {
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
+    // Default view before a route is loaded. Fixed to Düsseldorf for now —
+    // centering on the signed-in user's home location is a later step.
     const map = L.map(containerRef.current, { attributionControl: true }).setView(
-      [47.999, 7.85],
+      [51.2277, 6.7735],
       12,
     );
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {

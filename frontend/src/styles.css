@@ -148,6 +148,15 @@ button {
   cursor: not-allowed;
 }
 
+.btn-locked:not(:disabled) {
+  background: var(--surface-strong);
+  color: var(--ink-muted);
+}
+
+.btn-locked:not(:disabled):hover {
+  color: var(--ink);
+}
+
 .btn-ghost {
   background: var(--surface);
   color: var(--ink);
