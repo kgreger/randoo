@@ -22,9 +22,14 @@ export function MapView({ route, pois }: Props) {
       [51.2277, 6.7735],
       12,
     );
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "&copy; OpenStreetMap contributors",
-      maxZoom: 19,
+    // CARTO's dark basemap, built from OpenStreetMap data — matches the
+    // app's dark UI and gives the floating panels enough contrast to read,
+    // which the default light OSM tiles didn't.
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      subdomains: "abcd",
+      maxZoom: 20,
     }).addTo(map);
 
     mapRef.current = map;

@@ -9,6 +9,11 @@
   --accent: #ff8f6b;
   --accent-2: #ffbd6b;
   --accent-ink: #241a30;
+  /* Deliberately dark (not the light-tinted --surface-strong) — this sits
+     over the map tiles, which can be light regardless of tile style, and
+     needs to stay readable on its own rather than relying on a dark
+     backdrop showing through the blur. */
+  --map-overlay-bg: rgba(10, 8, 18, 0.66);
 }
 
 * {
@@ -351,7 +356,7 @@ button {
   top: 16px;
   z-index: 500;
   width: 280px;
-  background: var(--surface-strong);
+  background: var(--map-overlay-bg);
   backdrop-filter: blur(22px);
   border: 1px solid var(--border);
   border-radius: 20px;
