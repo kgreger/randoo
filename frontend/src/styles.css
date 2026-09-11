@@ -1,13 +1,14 @@
 :root {
-  --bg: #150c1f;
-  --surface: rgba(255, 255, 255, 0.05);
+  --bg: #0e0c18;
+  --surface: rgba(255, 255, 255, 0.06);
   --surface-strong: rgba(255, 255, 255, 0.09);
-  --border: rgba(255, 255, 255, 0.12);
-  --ink: #fff7ec;
-  --ink-muted: #c8b7c9;
-  --ink-faint: #8a7a8c;
-  --accent: #ffb35c;
-  --accent-ink: #2a1740;
+  --border: rgba(255, 255, 255, 0.13);
+  --ink: #f7f1ef;
+  --ink-muted: #c6bcce;
+  --ink-faint: #a89bab;
+  --accent: #ff8f6b;
+  --accent-2: #ffbd6b;
+  --accent-ink: #241a30;
 }
 
 * {
@@ -35,10 +36,20 @@ body::before {
   inset: 0;
   z-index: -1;
   background:
-    radial-gradient(ellipse 700px 500px at 12% 8%, rgba(255, 179, 92, 0.18), transparent 60%),
-    radial-gradient(ellipse 800px 600px at 82% 22%, rgba(232, 115, 79, 0.16), transparent 60%),
-    radial-gradient(ellipse 900px 700px at 45% 100%, rgba(122, 58, 94, 0.3), transparent 65%),
+    radial-gradient(ellipse 1000px 750px at 10% 10%, rgba(76, 58, 158, 0.42), transparent 60%),
+    radial-gradient(ellipse 900px 700px at 32% 45%, rgba(58, 46, 120, 0.3), transparent 58%),
+    radial-gradient(ellipse 950px 700px at 90% 78%, rgba(52, 118, 102, 0.2), transparent 60%),
+    radial-gradient(ellipse 700px 550px at 78% 15%, rgba(224, 110, 80, 0.14), transparent 62%),
     var(--bg);
+}
+
+.grain-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.5;
+  pointer-events: none;
+  filter: url(#grain);
 }
 
 h1,
@@ -79,7 +90,7 @@ button {
   width: 30px;
   height: 30px;
   border-radius: 9px;
-  background: var(--accent);
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -139,7 +150,7 @@ button {
 }
 
 .btn-primary {
-  background: var(--accent);
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
   color: var(--accent-ink);
 }
 
@@ -188,7 +199,7 @@ button {
 .map-panel .leaflet-container {
   width: 100%;
   height: 100%;
-  background: #150c1f;
+  background: var(--bg);
 }
 
 .map-empty {
@@ -198,7 +209,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(21, 12, 31, 0.72);
+  background: rgba(14, 12, 24, 0.72);
   backdrop-filter: blur(6px);
 }
 
@@ -339,16 +350,37 @@ button {
   left: 16px;
   top: 16px;
   z-index: 500;
-  width: 270px;
+  width: 280px;
   background: var(--surface-strong);
-  backdrop-filter: blur(20px);
+  backdrop-filter: blur(22px);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 16px;
+  border-radius: 20px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+}
+
+.category-ring {
+  display: flex;
+  align-items: center;
   gap: 14px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+  padding-bottom: 18px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.category-ring .label {
+  font-family: "Onest", system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.category-ring .sub {
+  font-size: 11.5px;
+  color: var(--ink-muted);
+  margin-top: 2px;
 }
 
 .controls-panel .section-label {
@@ -375,8 +407,9 @@ button {
 }
 
 .chip.active {
-  background: var(--accent);
-  color: var(--accent-ink);
+  background: rgba(255, 143, 107, 0.16);
+  color: #ffb497;
+  border-color: rgba(255, 143, 107, 0.32);
   font-weight: 600;
 }
 
@@ -407,8 +440,9 @@ button {
   flex-direction: column;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius: 22px;
   overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
 }
 
 .side-panel-head {
@@ -444,7 +478,18 @@ button {
   gap: 11px;
   align-items: center;
   padding: 12px;
-  border-radius: 12px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+}
+
+.poi-card.nearest {
+  background: rgba(255, 143, 107, 0.1);
+  border-color: rgba(255, 143, 107, 0.26);
+}
+
+.poi-card.nearest .badge {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: var(--accent-ink);
 }
 
 .poi-card .badge {

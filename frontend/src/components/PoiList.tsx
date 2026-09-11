@@ -20,8 +20,11 @@ export function PoiList({ pois }: Props) {
         {pois.length === 0 && (
           <div className="empty-state">Points along your route will show up here.</div>
         )}
-        {pois.map((poi) => (
-          <div className="poi-card" key={`${poi.osm_type}-${poi.osm_id}`}>
+        {pois.map((poi, index) => (
+          <div
+            className={`poi-card ${index === 0 ? "nearest" : ""}`}
+            key={`${poi.osm_type}-${poi.osm_id}`}
+          >
             <div className="badge">{categoryLabel(poi.category_id).slice(0, 2)}</div>
             <div>
               <div className="name">{poi.name ?? categoryLabel(poi.category_id)}</div>

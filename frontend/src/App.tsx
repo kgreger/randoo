@@ -116,7 +116,7 @@ export default function App() {
         <div className="brand">
           <div className="mark">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <path d="M12 3 C8 8 6 11 6 14 a6 6 0 0 0 12 0 c0-3-4-6-6-11z" fill="#2a1740" />
+              <path d="M12 3 C8 8 6 11 6 14 a6 6 0 0 0 12 0 c0-3-4-6-6-11z" fill="#241a30" />
             </svg>
           </div>
           <h1>Randoo</h1>
@@ -171,7 +171,7 @@ export default function App() {
             <div className="map-empty">
               <div className="map-empty-card">
                 <div className="icon">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffb35c" strokeWidth="1.8">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff8f6b" strokeWidth="1.8">
                     <path d="M12 15V3M7 8l5-5 5 5" />
                     <path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" />
                   </svg>

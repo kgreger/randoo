@@ -51,16 +51,16 @@ export function MapView({ route, pois }: Props) {
     layer.clearLayers();
 
     if (route.length > 1) {
-      const polyline = L.polyline(route, { color: "#ffb35c", weight: 3 }).addTo(layer);
+      const polyline = L.polyline(route, { color: "#ff8f6b", weight: 3 }).addTo(layer);
       map.fitBounds(polyline.getBounds(), { padding: [40, 40] });
     }
 
     for (const poi of pois) {
       L.circleMarker([poi.lat, poi.lon], {
         radius: 7,
-        color: "#2a1740",
+        color: "#241a30",
         weight: 2,
-        fillColor: "#ffb35c",
+        fillColor: "#ff8f6b",
         fillOpacity: 1,
       })
         .bindPopup(`<b>${poi.name ?? poi.category_id}</b><br>${Math.round(poi.distance_to_route_m)} m from route`)

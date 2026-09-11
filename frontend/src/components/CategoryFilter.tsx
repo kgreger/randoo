@@ -7,9 +7,42 @@ interface Props {
   onRadiusChange: (value: number) => void;
 }
 
+const RING_RADIUS = 24;
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+
 export function CategoryFilter({ selected, onToggle, radiusM, onRadiusChange }: Props) {
+  const active = selected.size;
+  const total = CATEGORIES.length;
+  const filled = RING_CIRCUMFERENCE * (active / total);
+
   return (
     <>
+      <div className="category-ring">
+        <svg width="58" height="58" viewBox="0 0 58 58" style={{ flex: "none" }}>
+          <circle cx="29" cy="29" r={RING_RADIUS} fill="none" stroke="rgba(255,255,255,.12)" strokeWidth="6" />
+          <circle
+            cx="29"
+            cy="29"
+            r={RING_RADIUS}
+            fill="none"
+            stroke="var(--accent)"
+            strokeWidth="6"
+            strokeLinecap="round"
+            strokeDasharray={`${filled} ${RING_CIRCUMFERENCE - filled}`}
+            transform="rotate(-90 29 29)"
+          />
+          <text x="29" y="34" textAnchor="middle" fontFamily="Onest" fontWeight="700" fontSize="15" fill="var(--ink)">
+            {active}/{total}
+          </text>
+        </svg>
+        <div>
+          <div className="label">Categories active</div>
+          <div className="sub">
+            {active} of {total} selected
+          </div>
+        </div>
+      </div>
+
       <div>
         <div className="section-label">Categories</div>
         <div className="chip-row">
