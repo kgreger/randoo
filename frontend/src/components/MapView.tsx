@@ -4,7 +4,7 @@ import type { LatLon } from "../lib/gpxPreview";
 import type { Poi } from "../lib/api";
 
 interface Props {
-  route: LatLon[];
+  route: LatLon[][];
   pois: Poi[];
 }
 
@@ -57,12 +57,21 @@ export function MapView({ route, pois }: Props) {
 
     layer.clearLayers();
 
-    if (route.length > 1) {
-      // A soft wide halo under the actual line — a plain 3px stroke got lost
-      // against the map tiles, especially over busy or light-toned areas.
-      L.polyline(route, { color: "#ff8f6b", weight: 10, opacity: 0.28 }).addTo(layer);
-      const polyline = L.polyline(route, { color: "#ff8f6b", weight: 5, opacity: 1 }).addTo(layer);
-      map.fitBounds(polyline.getBounds(), { padding: [40, 40] });
+    // Each recorded segment gets its own line, never connected to the next —
+    // a segment break is a real gap in the ride, not a road the rider took.
+    const segmentLines = route
+      .filter((segment) => segment.length > 1)
+      .map((segment) => {
+        // A soft wide halo under the actual line — a plain 3px stroke got lost
+        // against the map tiles, especially over busy or light-toned areas.
+        L.polyline(segment, { color: "#ff8f6b", weight: 10, opacity: 0.28 }).addTo(layer);
+        return L.polyline(segment, { color: "#ff8f6b", weight: 5, opacity: 1 }).addTo(layer);
+      });
+
+    if (segmentLines.length > 0) {
+      const bounds = segmentLines[0].getBounds();
+      for (const line of segmentLines.slice(1)) bounds.extend(line.getBounds());
+      map.fitBounds(bounds, { padding: [40, 40] });
     }
 
     for (const poi of pois) {

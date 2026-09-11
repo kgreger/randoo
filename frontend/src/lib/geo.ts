@@ -17,11 +17,15 @@ function haversineM(a: LatLon, b: LatLon): number {
   return 2 * EARTH_RADIUS_M * Math.asin(Math.sqrt(s));
 }
 
-/** Total route length in metres, summing point-to-point distance. */
-export function routeLengthM(route: LatLon[]): number {
+/** Total route length in metres, summing point-to-point distance within each
+ * segment — never across a segment break, which marks a real gap in
+ * recording rather than travelled distance. */
+export function routeLengthM(segments: LatLon[][]): number {
   let total = 0;
-  for (let i = 1; i < route.length; i++) {
-    total += haversineM(route[i - 1], route[i]);
+  for (const segment of segments) {
+    for (let i = 1; i < segment.length; i++) {
+      total += haversineM(segment[i - 1], segment[i]);
+    }
   }
   return total;
 }

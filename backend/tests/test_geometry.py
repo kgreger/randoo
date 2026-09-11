@@ -23,27 +23,27 @@ LONG_WIGGLY_ROUTE = [
 
 
 def test_route_buffer_contains_nearby_point():
-    polygon = route_buffer(ROUTE, radius_m=1000)
+    polygon = route_buffer([ROUTE], radius_m=1000)
     # roughly 50m off the route start
     nearby = ShapelyPoint(8.0005, 48.0)
     assert polygon.contains(nearby)
 
 
 def test_route_buffer_excludes_distant_point():
-    polygon = route_buffer(ROUTE, radius_m=500)
+    polygon = route_buffer([ROUTE], radius_m=500)
     far_away = ShapelyPoint(9.0, 49.0)
     assert not polygon.contains(far_away)
 
 
 def test_bounding_box_orders_coordinates_correctly():
-    polygon = route_buffer(ROUTE, radius_m=500)
+    polygon = route_buffer([ROUTE], radius_m=500)
     south, west, north, east = bounding_box(polygon)
     assert south < north
     assert west < east
 
 
 def test_poly_filter_formats_as_lat_lon_pairs():
-    polygon = route_buffer(ROUTE, radius_m=500)
+    polygon = route_buffer([ROUTE], radius_m=500)
     poly = poly_filter(polygon)
     parts = poly.split(" ")
     assert len(parts) % 2 == 0
@@ -54,7 +54,7 @@ def test_poly_filter_formats_as_lat_lon_pairs():
 
 
 def test_long_route_buffer_stays_within_vertex_budget():
-    polygon = route_buffer(LONG_WIGGLY_ROUTE, radius_m=500)
+    polygon = route_buffer([LONG_WIGGLY_ROUTE], radius_m=500)
     assert len(polygon.exterior.coords) <= 150
 
 
@@ -95,7 +95,7 @@ def test_far_end_of_long_route_stays_geodesically_accurate():
     # by the time you reach either end.
     long_route = [Point(47.0 + i * (5.0 / 200), 7.0 + i * (6.0 / 200)) for i in range(201)]
     radius_m = 100
-    polygon = route_buffer(long_route, radius_m=radius_m)
+    polygon = route_buffer([long_route], radius_m=radius_m)
 
     geod = Geod(ellps="WGS84")
     far_end = long_route[-1]
@@ -125,3 +125,23 @@ def test_simplify_tolerance_scales_with_radius():
     # radius-scaled tolerance should stay far tighter than that.
     deviation = simplified.hausdorff_distance(buffered)
     assert deviation < 20
+
+
+def test_segment_gap_is_not_bridged_into_the_buffer():
+    # Two segments ~100km apart — a paused-and-resumed recording, not a
+    # continuous ride. A point sitting on the straight line between them
+    # (e.g. a gas station where the rider stopped) must not be treated as
+    # near the route just because it's near that imaginary connector.
+    first_segment = [Point(48.0, 8.0), Point(48.01, 8.01)]
+    second_segment = [Point(49.0, 9.0), Point(49.01, 9.01)]
+
+    polygon = route_buffer([first_segment, second_segment], radius_m=100)
+
+    # Roughly the midpoint of the straight line connecting the two segments —
+    # nowhere near either actual segment.
+    midpoint = ShapelyPoint(8.505, 48.505)
+    assert not polygon.contains(midpoint)
+
+    # Sanity check: the buffer still covers the segments themselves.
+    assert polygon.contains(ShapelyPoint(8.0, 48.0))
+    assert polygon.contains(ShapelyPoint(9.0, 49.0))

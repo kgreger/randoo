@@ -24,7 +24,7 @@ async def health() -> dict[str, str]:
 
 async def _find_pois(
     file: UploadFile, category_ids: list[str], radius_m: float
-) -> tuple[list[poi_filter.RankedPoi], list[gpx.Point]]:
+) -> tuple[list[poi_filter.RankedPoi], list[list[gpx.Point]]]:
     if radius_m <= 0 or radius_m > 5000:
         raise HTTPException(400, "radius_m must be between 0 and 5000")
 
@@ -35,17 +35,17 @@ async def _find_pois(
 
     raw = await file.read()
     try:
-        points = gpx.parse_track(raw)
+        segments = gpx.parse_track(raw)
     except gpx.InvalidGpxError as exc:
         raise HTTPException(400, str(exc)) from exc
 
-    buffer_polygon = geometry.route_buffer(points, radius_m)
-    bbox = geometry.bounding_box(buffer_polygon)
-    poly = geometry.poly_filter(buffer_polygon)
+    buffer_geometry = geometry.route_buffer(segments, radius_m)
+    bbox = geometry.bounding_box(buffer_geometry)
+    poly = geometry.poly_filter(buffer_geometry)
 
     pois = await overpass.query_pois(bbox, poly, selected)
-    ranked = poi_filter.filter_and_rank(pois, points, buffer_polygon)
-    return ranked, points
+    ranked = poi_filter.filter_and_rank(pois, segments, buffer_geometry)
+    return ranked, segments
 
 
 @app.post("/api/analyze", response_model=AnalyzeResponse)

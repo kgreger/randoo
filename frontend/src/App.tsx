@@ -17,7 +17,7 @@ export default function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [routeName, setRouteName] = useState<string | null>(null);
-  const [route, setRoute] = useState<LatLon[]>([]);
+  const [route, setRoute] = useState<LatLon[][]>([]);
   const [pois, setPois] = useState<Poi[]>([]);
   const [selectedCategories, setSelectedCategories] = useState(new Set(DEFAULT_CATEGORIES));
   const [radiusM, setRadiusM] = useState(500);
@@ -97,7 +97,8 @@ export default function App() {
     }
   }
 
-  const distanceKm = route.length > 1 ? routeLengthM(route) / 1000 : null;
+  const hasRoute = route.some((segment) => segment.length > 1);
+  const distanceKm = hasRoute ? routeLengthM(route) / 1000 : null;
 
   return (
     <div className="app">
