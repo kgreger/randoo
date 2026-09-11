@@ -208,7 +208,7 @@ button {
 }
 
 .map-tiles-dark {
-  filter: invert(100%) hue-rotate(180deg) brightness(0.94) contrast(0.9) saturate(0.7);
+  filter: invert(88%) hue-rotate(180deg) brightness(0.88) contrast(0.72) saturate(0.45);
 }
 
 /* A faint wash of the app's own palette over the tiles, so real map

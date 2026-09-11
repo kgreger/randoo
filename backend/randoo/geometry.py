@@ -48,15 +48,16 @@ def route_buffer(points: list[Point], radius_m: float) -> Polygon:
 
 
 def _simplify_to_vertex_budget(
-    polygon: Polygon, radius_m: float, max_vertices: int = 300
+    polygon: Polygon, radius_m: float, max_vertices: int = 150
 ) -> Polygon:
     if len(polygon.exterior.coords) <= max_vertices:
         return polygon
 
+    tolerance_cap = radius_m * 2
     tolerance = max(2.0, radius_m * 0.05)
     simplified = polygon.simplify(tolerance, preserve_topology=True)
-    while len(simplified.exterior.coords) > max_vertices and tolerance < radius_m * 2:
-        tolerance *= 2
+    while len(simplified.exterior.coords) > max_vertices and tolerance < tolerance_cap:
+        tolerance = min(tolerance * 2, tolerance_cap)
         simplified = polygon.simplify(tolerance, preserve_topology=True)
     return simplified
 

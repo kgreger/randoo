@@ -46,7 +46,7 @@ def test_poly_filter_formats_as_lat_lon_pairs():
 
 def test_long_route_buffer_stays_within_vertex_budget():
     polygon = route_buffer(LONG_WIGGLY_ROUTE, radius_m=500)
-    assert len(polygon.exterior.coords) <= 300
+    assert len(polygon.exterior.coords) <= 150
 
 
 def test_simplify_skips_polygons_already_under_budget():
