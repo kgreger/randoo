@@ -1,7 +1,16 @@
+from pyproj import Geod
 from shapely.geometry import LineString, Point as ShapelyPoint
 
-from randoo.geometry import _simplify_to_vertex_budget, bounding_box, poly_filter, route_buffer
+from randoo.geometry import (
+    _simplify_to_vertex_budget,
+    bounding_box,
+    poly_filter,
+    route_buffer,
+    utm_epsg,
+)
 from randoo.gpx import Point
+
+METERS_PER_DEGREE_LAT = 111_320
 
 ROUTE = [Point(48.0, 8.0), Point(48.1, 8.1)]
 
@@ -55,6 +64,53 @@ def test_simplify_skips_polygons_already_under_budget():
     line = LineString([(0, 0), (1000, 1000)])
     buffered = line.buffer(100, cap_style="round", join_style="round")
     assert _simplify_to_vertex_budget(buffered, radius_m=100) is buffered
+
+
+def test_utm_epsg_picks_zone_32n_for_southwest_germany():
+    # Freiburg-ish coordinates — squarely zone 32N.
+    assert utm_epsg(ROUTE) == 32632
+
+
+def test_utm_epsg_picks_zone_33n_for_eastern_germany():
+    dresden_ish = [Point(51.0, 13.7), Point(51.1, 13.8)]
+    assert utm_epsg(dresden_ish) == 32633
+
+
+def test_utm_epsg_follows_point_majority_across_a_zone_boundary():
+    # Mostly in zone 32 (up to 12°E), a handful of points just into zone 33.
+    points = [Point(48.0, 7.0 + i * 0.1) for i in range(55)] + [
+        Point(48.0, 12.5 + i * 0.1) for i in range(5)
+    ]
+    assert utm_epsg(points) == 32632
+
+
+def test_utm_epsg_picks_southern_hemisphere_zone():
+    santiago_ish = [Point(-33.4, -70.6), Point(-33.5, -70.7)]
+    assert utm_epsg(santiago_ish) == 32719
+
+
+def test_far_end_of_long_route_stays_geodesically_accurate():
+    # ~600km, north-east, crossing a UTM zone boundary along the way — long
+    # enough that a projection with its scale centered elsewhere would drift
+    # by the time you reach either end.
+    long_route = [Point(47.0 + i * (5.0 / 200), 7.0 + i * (6.0 / 200)) for i in range(201)]
+    radius_m = 100
+    polygon = route_buffer(long_route, radius_m=radius_m)
+
+    geod = Geod(ellps="WGS84")
+    far_end = long_route[-1]
+
+    def true_distance_to_far_end(lat: float, lon: float) -> float:
+        _, _, distance = geod.inv(far_end.lon, far_end.lat, lon, lat)
+        return distance
+
+    inside_lat = far_end.lat + (radius_m - 20) / METERS_PER_DEGREE_LAT
+    assert true_distance_to_far_end(inside_lat, far_end.lon) < radius_m
+    assert polygon.contains(ShapelyPoint(far_end.lon, inside_lat))
+
+    outside_lat = far_end.lat + (radius_m + 100) / METERS_PER_DEGREE_LAT
+    assert true_distance_to_far_end(outside_lat, far_end.lon) > radius_m
+    assert not polygon.contains(ShapelyPoint(far_end.lon, outside_lat))
 
 
 def test_simplify_tolerance_scales_with_radius():
