@@ -28,25 +28,34 @@ def route_buffer(points: list[Point], radius_m: float) -> Polygon:
     This is a beeline buffer, not a road-network buffer — it can include areas
     that are actually much further away by road. Good enough for a first pass.
 
-    Simplified in the local metric CRS (50m tolerance, tightened further if the
-    route is complex enough to still leave an unwieldy vertex count) — a long
-    or winding track otherwise produces a buffer with thousands of points,
-    which is both wasteful to ship to Overpass and slow for it to evaluate.
+    Simplified in the local metric CRS only when the vertex count actually
+    warrants it, with a tolerance scaled to the requested radius — a long or
+    winding track can otherwise produce a buffer with thousands of points,
+    wasteful to ship to Overpass and slow for it to evaluate. A fixed
+    tolerance doesn't work here: 50m is negligible against a 2km search
+    radius but distorts a 100m one enough to pull in points well outside it,
+    since simplify() can bulge the boundary outward by close to the
+    tolerance value.
     """
     to_local, to_wgs84 = local_crs_transformer(points)
 
     local_coords = [to_local.transform(p.lon, p.lat) for p in points]
     line = LineString(local_coords)
     buffered = line.buffer(radius_m, cap_style="round", join_style="round")
-    buffered = _simplify_to_vertex_budget(buffered)
+    buffered = _simplify_to_vertex_budget(buffered, radius_m)
 
     return transform(lambda x, y: to_wgs84.transform(x, y), buffered)
 
 
-def _simplify_to_vertex_budget(polygon: Polygon, max_vertices: int = 300) -> Polygon:
-    tolerance = 50.0
+def _simplify_to_vertex_budget(
+    polygon: Polygon, radius_m: float, max_vertices: int = 300
+) -> Polygon:
+    if len(polygon.exterior.coords) <= max_vertices:
+        return polygon
+
+    tolerance = max(2.0, radius_m * 0.05)
     simplified = polygon.simplify(tolerance, preserve_topology=True)
-    while len(simplified.exterior.coords) > max_vertices and tolerance < 1000:
+    while len(simplified.exterior.coords) > max_vertices and tolerance < radius_m * 2:
         tolerance *= 2
         simplified = polygon.simplify(tolerance, preserve_topology=True)
     return simplified

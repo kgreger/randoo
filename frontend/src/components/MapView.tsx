@@ -58,7 +58,10 @@ export function MapView({ route, pois }: Props) {
     layer.clearLayers();
 
     if (route.length > 1) {
-      const polyline = L.polyline(route, { color: "#ff8f6b", weight: 3 }).addTo(layer);
+      // A soft wide halo under the actual line — a plain 3px stroke got lost
+      // against the map tiles, especially over busy or light-toned areas.
+      L.polyline(route, { color: "#ff8f6b", weight: 10, opacity: 0.28 }).addTo(layer);
+      const polyline = L.polyline(route, { color: "#ff8f6b", weight: 5, opacity: 1 }).addTo(layer);
       map.fitBounds(polyline.getBounds(), { padding: [40, 40] });
     }
 

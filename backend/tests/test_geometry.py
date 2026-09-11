@@ -1,6 +1,6 @@
-from shapely.geometry import Point as ShapelyPoint
+from shapely.geometry import LineString, Point as ShapelyPoint
 
-from randoo.geometry import bounding_box, poly_filter, route_buffer
+from randoo.geometry import _simplify_to_vertex_budget, bounding_box, poly_filter, route_buffer
 from randoo.gpx import Point
 
 ROUTE = [Point(48.0, 8.0), Point(48.1, 8.1)]
@@ -47,3 +47,25 @@ def test_poly_filter_formats_as_lat_lon_pairs():
 def test_long_route_buffer_stays_within_vertex_budget():
     polygon = route_buffer(LONG_WIGGLY_ROUTE, radius_m=500)
     assert len(polygon.exterior.coords) <= 300
+
+
+def test_simplify_skips_polygons_already_under_budget():
+    # A plain two-point buffer has far fewer vertices than the budget —
+    # simplifying it anyway would only add pointless distortion.
+    line = LineString([(0, 0), (1000, 1000)])
+    buffered = line.buffer(100, cap_style="round", join_style="round")
+    assert _simplify_to_vertex_budget(buffered, radius_m=100) is buffered
+
+
+def test_simplify_tolerance_scales_with_radius():
+    # A deliberately complex line so simplification actually has to kick in.
+    line = LineString([(i * 10, (i % 2) * 30) for i in range(400)])
+    buffered = line.buffer(100, cap_style="round", join_style="round")
+    simplified = _simplify_to_vertex_budget(buffered, radius_m=100, max_vertices=50)
+
+    # A fixed 50m tolerance (the previous behaviour) on a 100m search radius
+    # can bulge the boundary out by close to half the radius — exactly what
+    # let POIs well outside the requested distance turn up in results. The
+    # radius-scaled tolerance should stay far tighter than that.
+    deviation = simplified.hausdorff_distance(buffered)
+    assert deviation < 20
