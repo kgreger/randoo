@@ -16,9 +16,11 @@ from collections import Counter
 from shapely.geometry import LineString, Point as ShapelyPoint, Polygon
 from shapely.geometry.base import BaseGeometry
 from shapely.ops import transform, unary_union
-from pyproj import Transformer
+from pyproj import Geod, Transformer
 
 from .gpx import Point
+
+_GEOD = Geod(ellps="WGS84")
 
 # How much a dense GPX track's points get thinned before buffering, capped
 # relative to the search radius so thinning never eats a meaningful slice of
@@ -122,6 +124,36 @@ def _vertex_count(geometry: BaseGeometry) -> int:
     if geometry.geom_type == "MultiPolygon":
         return sum(len(g.exterior.coords) for g in geometry.geoms)
     return len(geometry.exterior.coords)
+
+
+def chunk_by_distance(points: list[Point], max_chunk_m: float) -> list[list[Point]]:
+    """Split one segment into pieces of roughly max_chunk_m of route length each.
+
+    Distance-based rather than point-count-based, since GPS recording density
+    varies wildly between devices and doesn't say anything about how big the
+    resulting query's bounding box will be — a chunk should stay a chunk
+    whether it was recorded once every 5 metres or once every 50. Consecutive
+    chunks share their boundary point so nothing at a chunk edge falls
+    through the gap.
+    """
+    if len(points) < 2:
+        return [points] if points else []
+
+    chunks: list[list[Point]] = []
+    current = [points[0]]
+    current_length = 0.0
+    for prev, point in zip(points, points[1:]):
+        _, _, step = _GEOD.inv(prev.lon, prev.lat, point.lon, point.lat)
+        current.append(point)
+        current_length += step
+        if current_length >= max_chunk_m:
+            chunks.append(current)
+            current = [point]
+            current_length = 0.0
+
+    if len(current) > 1 or not chunks:
+        chunks.append(current)
+    return chunks
 
 
 def bounding_box(geometry: BaseGeometry) -> tuple[float, float, float, float]:

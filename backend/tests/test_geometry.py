@@ -4,6 +4,7 @@ from shapely.geometry import LineString, Point as ShapelyPoint
 from randoo.geometry import (
     _simplify_to_vertex_budget,
     bounding_box,
+    chunk_by_distance,
     poly_filter,
     route_buffer,
     utm_epsg,
@@ -125,6 +126,39 @@ def test_simplify_tolerance_scales_with_radius():
     # radius-scaled tolerance should stay far tighter than that.
     deviation = simplified.hausdorff_distance(buffered)
     assert deviation < 20
+
+
+def test_chunk_by_distance_keeps_a_short_route_as_one_chunk():
+    short_route = [Point(48.0, 8.0), Point(48.001, 8.001), Point(48.002, 8.002)]
+    chunks = chunk_by_distance(short_route, max_chunk_m=80_000)
+    assert chunks == [short_route]
+
+
+def test_chunk_by_distance_splits_a_long_route_with_overlapping_boundaries():
+    # ~500km north, comfortably more than six 80km chunks.
+    long_route = [Point(45.0 + i * 0.05, 8.0) for i in range(101)]
+    chunks = chunk_by_distance(long_route, max_chunk_m=80_000)
+
+    assert len(chunks) > 1
+    # every point is covered by some chunk, and consecutive chunks share
+    # exactly their boundary point so nothing between them is skipped
+    for a, b in zip(chunks, chunks[1:]):
+        assert a[-1] == b[0]
+
+    geod = Geod(ellps="WGS84")
+    for chunk in chunks[:-1]:
+        lons = [p.lon for p in chunk]
+        lats = [p.lat for p in chunk]
+        _, _, dists = geod.inv(lons[:-1], lats[:-1], lons[1:], lats[1:])
+        # a chunk stops as soon as it crosses the budget, so it can overshoot
+        # by at most one point-to-point step, never come in far short of it
+        assert sum(dists) >= 80_000
+
+
+def test_chunk_by_distance_handles_trivial_inputs():
+    assert chunk_by_distance([], max_chunk_m=1000) == []
+    single = [Point(48.0, 8.0)]
+    assert chunk_by_distance(single, max_chunk_m=1000) == [single]
 
 
 def test_segment_gap_is_not_bridged_into_the_buffer():

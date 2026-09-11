@@ -40,10 +40,7 @@ async def _find_pois(
         raise HTTPException(400, str(exc)) from exc
 
     buffer_geometry = geometry.route_buffer(segments, radius_m)
-    bbox = geometry.bounding_box(buffer_geometry)
-    poly = geometry.poly_filter(buffer_geometry)
-
-    pois = await overpass.query_pois(bbox, poly, selected)
+    pois = await overpass.query_pois_for_route(segments, radius_m, selected)
     ranked = poi_filter.filter_and_rank(pois, segments, buffer_geometry)
     return ranked, segments
 
