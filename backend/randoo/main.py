@@ -78,8 +78,8 @@ async def export(
     radius_m: float = Form(500),
     _user: dict = Depends(require_user),
 ) -> Response:
-    ranked, _ = await _find_pois(file, categories_param, radius_m)
-    xml = build_gpx(ranked)
+    ranked, segments = await _find_pois(file, categories_param, radius_m)
+    xml = build_gpx(ranked, segments)
     return Response(
         content=xml,
         media_type="application/gpx+xml",
