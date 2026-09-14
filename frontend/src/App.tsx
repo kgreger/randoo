@@ -62,7 +62,13 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
-      const results = await analyzeRoute(file, Array.from(selectedCategories), radiusM);
+      // Sent along when there's a session, but search runs fine without one
+      // too - this only ever upgrades a signed-in premium caller's results,
+      // never gates the search itself the way export's sign-in does.
+      const { data } = supabase ? await supabase.auth.getSession() : { data: { session: null } };
+      const accessToken = data.session?.access_token;
+
+      const results = await analyzeRoute(file, Array.from(selectedCategories), radiusM, accessToken);
       setPois(results);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Search failed.");

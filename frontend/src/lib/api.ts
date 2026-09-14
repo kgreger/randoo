@@ -33,9 +33,14 @@ export async function analyzeRoute(
   file: File,
   categoryIds: string[],
   radiusM: number,
+  accessToken?: string,
 ): Promise<Poi[]> {
+  // Search stays fully anonymous-friendly - the token is only sent along
+  // when there is one, purely so a signed-in premium caller gets identified.
+  // No token at all is a normal, expected case here, unlike export.
   const response = await fetch(`${API_URL}/api/analyze`, {
     method: "POST",
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
     body: buildFormData(file, categoryIds, radiusM),
   });
 
