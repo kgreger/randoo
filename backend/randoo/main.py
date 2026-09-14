@@ -2,9 +2,10 @@ from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 
-from . import categories, geometry, gpx, overpass, poi_filter
+from . import categories, geometry, gpx, poi_filter
 from .auth import require_user
 from .export import build_gpx
+from .poi_source import get_poi_source
 from .schemas import AnalyzeResponse, PoiOut
 
 app = FastAPI(title="Randoo API")
@@ -40,7 +41,7 @@ async def _find_pois(
         raise HTTPException(400, str(exc)) from exc
 
     buffer_geometry = geometry.route_buffer(segments, radius_m)
-    pois = await overpass.query_pois_for_route(segments, radius_m, selected)
+    pois = await get_poi_source().query(segments, radius_m, selected)
     ranked = poi_filter.filter_and_rank(pois, segments, buffer_geometry)
     return ranked, segments
 
