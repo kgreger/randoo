@@ -111,6 +111,14 @@ class BRouterTurnoffLocator:
         feature = response.json()["features"][0]
         distance_m = float(feature["properties"]["track-length"])
         path = [Point(lat, lon) for lon, lat, *_ in feature["geometry"]["coordinates"]]
+
+        # BRouter snaps the requested start to the nearest routable node in
+        # its own road graph, which can sit a little off the point we asked
+        # from - anchor the path to the point actually on our track instead,
+        # so the drawn connector never leaves a visible gap before it.
+        if not path or path[0] != from_point:
+            path.insert(0, from_point)
+
         return distance_m, path
 
 

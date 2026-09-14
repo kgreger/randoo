@@ -109,6 +109,23 @@ async def test_brouter_locator_trims_a_routed_path_that_starts_along_the_track(m
     assert result.path == [Point(48.0, 8.006), Point(48.01, 8.006)]
 
 
+async def test_brouter_locator_anchors_the_path_when_brouter_snaps_the_start_elsewhere(monkeypatch):
+    # BRouter answers with a route that starts ~55m off the point we asked
+    # from (it snapped to its own nearest graph node) and never comes back
+    # near the track before reaching the POI - without anchoring, the drawn
+    # connector would visibly stop short of the track instead of touching it.
+    def handler(request: httpx.Request) -> httpx.Response:
+        return _brouter_response(500.0, [(8.0054, 48.0005), (8.006, 48.0)])
+
+    monkeypatch.setattr("randoo.turnoff.httpx.AsyncClient", _mock_async_client(handler))
+
+    locator = BRouterTurnoffLocator(base_url="https://example.test/brouter", profile="trekking")
+    result = await locator.refine(_poi(48.0, 8.006), SEGMENTS, FALLBACK)
+
+    assert result.path[0] == FALLBACK.meeting_point
+    assert result.meeting_point == FALLBACK.meeting_point
+
+
 async def test_brouter_locator_falls_back_when_every_candidate_fails(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(500)
