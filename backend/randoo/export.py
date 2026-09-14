@@ -1,9 +1,22 @@
 """Build a GPX file with the route and its POIs, ready to load onto a bike computer.
 
 The track lets the file double as the course itself, not just a list of
-points to cross-reference against a separately loaded route. Waypoints carry
-two things aimed specifically at Garmin devices, since that's the most common
-target and the GPX 1.1 base schema has no proximity-alert concept of its own:
+points to cross-reference against a separately loaded route. Each POI is
+written out twice:
+
+- once at its real position, so every device and map app shows it where it
+  actually is;
+- once more at the nearest point on the route itself — a synthetic "turnoff"
+  marker, not a real place. Garmin Connect has been observed to silently
+  drop a waypoint from its course-point view once it's more than roughly
+  30-80m from the track (undocumented, and the exact cutoff isn't known),
+  presumably because it tries to snap waypoints onto the course and gives up
+  past some tolerance. Sitting exactly on the track, the turnoff marker is
+  never far enough away to hit that cutoff, whatever it actually is.
+
+Waypoints carry two things aimed specifically at Garmin devices, since
+that's the most common target and the GPX 1.1 base schema has no
+proximity-alert concept of its own:
 
 - `<sym>` with one of Garmin's own waypoint icon names, so the point shows up
   with a recognisable symbol instead of a generic pin — this part of plain
@@ -68,18 +81,39 @@ def build_gpx(ranked_pois: list[RankedPoi], segments: list[list[Point]]) -> str:
         gpx.tracks[0].segments.append(track_segment)
 
     for ranked in ranked_pois:
-        poi = ranked.poi
-        wpt = gpxpy.gpx.GPXWaypoint(
-            latitude=poi.lat,
-            longitude=poi.lon,
-            name=poi.name or poi.category_id,
-            comment=f"{poi.category_id} · {round(ranked.distance_to_route_m)} m from route",
-            symbol=GARMIN_SYMBOLS.get(poi.category_id),
-        )
-        wpt.extensions.append(_garmin_proximity_extension(GARMIN_PROXIMITY_M))
-        gpx.waypoints.append(wpt)
+        gpx.waypoints.append(_poi_waypoint(ranked))
+        gpx.waypoints.append(_turnoff_waypoint(ranked))
 
     return gpx.to_xml()
+
+
+def _poi_waypoint(ranked: RankedPoi) -> gpxpy.gpx.GPXWaypoint:
+    poi = ranked.poi
+    wpt = gpxpy.gpx.GPXWaypoint(
+        latitude=poi.lat,
+        longitude=poi.lon,
+        name=poi.name or poi.category_id,
+        comment=f"{poi.category_id} · {round(ranked.distance_to_route_m)} m from route",
+        symbol=GARMIN_SYMBOLS.get(poi.category_id),
+    )
+    wpt.extensions.append(_garmin_proximity_extension(GARMIN_PROXIMITY_M))
+    return wpt
+
+
+def _turnoff_waypoint(ranked: RankedPoi) -> gpxpy.gpx.GPXWaypoint:
+    """A synthetic marker sitting exactly on the route, at the point closest
+    to the real POI — see the module docstring for why this exists."""
+    poi = ranked.poi
+    on_route = ranked.nearest_route_point
+    wpt = gpxpy.gpx.GPXWaypoint(
+        latitude=on_route.lat,
+        longitude=on_route.lon,
+        name=f"{poi.name or poi.category_id} (turnoff)",
+        comment=f"{poi.category_id} · actual spot {round(ranked.distance_to_route_m)} m off-route here",
+        symbol=GARMIN_SYMBOLS.get(poi.category_id),
+    )
+    wpt.extensions.append(_garmin_proximity_extension(GARMIN_PROXIMITY_M))
+    return wpt
 
 
 def _garmin_proximity_extension(proximity_m: float) -> ET.Element:

@@ -1,3 +1,5 @@
+import pytest
+
 from randoo.geometry import route_buffer
 from randoo.gpx import Point
 from randoo.overpass import Poi
@@ -30,3 +32,18 @@ def test_poi_near_the_actual_route_is_kept_and_ranked():
     ranked = filter_and_rank([near_start], segments, buffer_geometry)
     assert len(ranked) == 1
     assert ranked[0].distance_to_route_m < 200
+
+
+def test_ranked_poi_carries_the_nearest_point_on_the_route():
+    # A straight north-south segment - the nearest point to something east
+    # of its midpoint should be that midpoint itself, not either endpoint.
+    segments = [[Point(48.0, 8.0), Point(48.02, 8.0)]]
+    buffer_geometry = route_buffer(segments, radius_m=500)
+
+    east_of_midpoint = _poi(48.01, 8.003)
+    ranked = filter_and_rank([east_of_midpoint], segments, buffer_geometry)
+
+    assert len(ranked) == 1
+    on_route = ranked[0].nearest_route_point
+    assert on_route.lat == pytest.approx(48.01, abs=1e-3)
+    assert on_route.lon == pytest.approx(8.0, abs=1e-3)
