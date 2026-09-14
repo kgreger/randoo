@@ -93,6 +93,22 @@ async def test_brouter_locator_weighs_in_how_far_a_candidate_is_from_the_route(m
     assert result.meeting_point.lon == pytest.approx(8.005, abs=1e-6)
 
 
+async def test_brouter_locator_trims_a_routed_path_that_starts_along_the_track(monkeypatch):
+    # BRouter's route runs (48.0, 8.005) -> (48.0, 8.006) -> (48.01, 8.006):
+    # the first leg sits right on SEGMENTS (lat 48.0 from lon 8.001 to 8.009),
+    # only the second leg actually turns off toward the POI.
+    def handler(request: httpx.Request) -> httpx.Response:
+        return _brouter_response(1000.0, [(8.005, 48.0), (8.006, 48.0), (8.006, 48.01)])
+
+    monkeypatch.setattr("randoo.turnoff.httpx.AsyncClient", _mock_async_client(handler))
+
+    locator = BRouterTurnoffLocator(base_url="https://example.test/brouter", profile="trekking")
+    result = await locator.refine(_poi(48.01, 8.006), SEGMENTS, FALLBACK)
+
+    assert result.meeting_point == Point(48.0, 8.006)
+    assert result.path == [Point(48.0, 8.006), Point(48.01, 8.006)]
+
+
 async def test_brouter_locator_falls_back_when_every_candidate_fails(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(500)

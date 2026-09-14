@@ -18,15 +18,23 @@ self-hosted instance; see the concept document for the planned move.
 
 import httpx
 from pyproj import Geod
+from shapely.geometry import LineString, Point as ShapelyPoint
 from typing import Protocol
 
 from . import config
 from .entitlements import PREMIUM
+from .geometry import local_crs_transformer
 from .gpx import Point
 from .overpass import Poi
 from .poi_filter import Connector
 
 _GEOD = Geod(ellps="WGS84")
+
+# How close a routed point has to sit to the recorded track to still count as
+# "on the route" when trimming a path's redundant leading stretch - loose
+# enough to absorb the gap between the track as recorded and the road/path
+# BRouter actually routes along.
+_ON_ROUTE_TOLERANCE_M = 20.0
 
 # How far from the geometric meeting point to look for a real turnoff, and
 # how far apart candidates should be within that window - not a global
@@ -83,7 +91,9 @@ class BRouterTurnoffLocator:
                 if best is None or total_m < best[0]:
                     best = (total_m, Connector(meeting_point=candidate, path=path))
 
-        return best[1] if best is not None else fallback
+        if best is None:
+            return fallback
+        return _trim_to_route_departure(best[1], segments)
 
     async def _route(
         self, client: httpx.AsyncClient, from_point: Point, to_poi: Poi
@@ -102,6 +112,44 @@ class BRouterTurnoffLocator:
         distance_m = float(feature["properties"]["track-length"])
         path = [Point(lat, lon) for lon, lat, *_ in feature["geometry"]["coordinates"]]
         return distance_m, path
+
+
+def _trim_to_route_departure(connector: Connector, segments: list[list[Point]]) -> Connector:
+    """A routed path can legitimately start by following the recorded track
+    itself for a stretch - real road, just redundant to show, since the
+    rider is already on it - before actually turning off toward the POI.
+    Cuts that stretch away: finds the last point in the path that's still
+    essentially on the route and keeps only from there onward, rather than
+    starting the connector wherever the winning candidate happened to sit.
+    """
+    path = connector.path
+    if len(path) < 2:
+        return connector
+
+    # One shared projection for both the track and the routed path - each
+    # built in its own local CRS, distances between the two would be
+    # meaningless even where the numbers happen to look plausible.
+    to_local, _ = local_crs_transformer([p for segment in segments for p in segment] + path)
+    lines = [
+        LineString([to_local.transform(p.lon, p.lat) for p in segment])
+        for segment in segments
+        if len(segment) > 1
+    ]
+    if not lines:
+        return connector
+
+    # Never past len(path) - 2: the POI itself (the last point) always stays,
+    # even on the rare route where it sits within tolerance of the track too.
+    last_on_route = 0
+    for i, point in enumerate(path[:-1]):
+        local_point = ShapelyPoint(to_local.transform(point.lon, point.lat))
+        if min(line.distance(local_point) for line in lines) <= _ON_ROUTE_TOLERANCE_M:
+            last_on_route = i
+
+    if last_on_route == 0:
+        return connector
+    trimmed = path[last_on_route:]
+    return Connector(meeting_point=trimmed[0], path=trimmed)
 
 
 def _candidate_points(
