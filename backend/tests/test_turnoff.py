@@ -94,19 +94,21 @@ async def test_brouter_locator_weighs_in_how_far_a_candidate_is_from_the_route(m
 
 
 async def test_brouter_locator_trims_a_routed_path_that_starts_along_the_track(monkeypatch):
-    # BRouter's route runs (48.0, 8.005) -> (48.0, 8.006) -> (48.01, 8.006):
-    # the first leg sits right on SEGMENTS (lat 48.0 from lon 8.001 to 8.009),
-    # only the second leg actually turns off toward the POI.
+    # BRouter's route runs (48.0, 8.005) -> (48.0, 8.0053) -> (48.0, 8.006)
+    # -> (48.01, 8.006): the first two legs sit right on SEGMENTS (lat 48.0
+    # from lon 8.001 to 8.009), only the last leg actually turns off toward
+    # the POI. The anchor itself must stay the connector's start (no gap to
+    # the track), the redundant point in between is what should disappear.
     def handler(request: httpx.Request) -> httpx.Response:
-        return _brouter_response(1000.0, [(8.005, 48.0), (8.006, 48.0), (8.006, 48.01)])
+        return _brouter_response(1000.0, [(8.005, 48.0), (8.0053, 48.0), (8.006, 48.0), (8.006, 48.01)])
 
     monkeypatch.setattr("randoo.turnoff.httpx.AsyncClient", _mock_async_client(handler))
 
     locator = BRouterTurnoffLocator(base_url="https://example.test/brouter", profile="trekking")
     result = await locator.refine(_poi(48.01, 8.006), SEGMENTS, FALLBACK)
 
-    assert result.meeting_point == Point(48.0, 8.006)
-    assert result.path == [Point(48.0, 8.006), Point(48.01, 8.006)]
+    assert result.meeting_point == Point(48.0, 8.005)
+    assert result.path == [Point(48.0, 8.005), Point(48.0, 8.006), Point(48.01, 8.006)]
 
 
 async def test_brouter_locator_anchors_the_path_when_brouter_snaps_the_start_elsewhere(monkeypatch):

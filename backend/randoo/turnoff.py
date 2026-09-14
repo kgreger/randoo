@@ -126,9 +126,15 @@ def _trim_to_route_departure(connector: Connector, segments: list[list[Point]]) 
     """A routed path can legitimately start by following the recorded track
     itself for a stretch - real road, just redundant to show, since the
     rider is already on it - before actually turning off toward the POI.
-    Cuts that stretch away: finds the last point in the path that's still
-    essentially on the route and keeps only from there onward, rather than
-    starting the connector wherever the winning candidate happened to sit.
+    Cuts that redundant middle away: keeps the exact anchor point (see
+    _route) as the very first point no matter what, so the connector always
+    visibly touches the track with no gap, and jumps straight from there to
+    the last point still essentially on the route, skipping past whatever
+    lies between instead of drawing through the whole overlapping stretch.
+
+    Deliberately never changes where the connector starts (meeting_point,
+    already the exact anchor) - only which of the path's own points get
+    drawn between that anchor and the real departure.
     """
     path = connector.path
     if len(path) < 2:
@@ -154,10 +160,12 @@ def _trim_to_route_departure(connector: Connector, segments: list[list[Point]]) 
         if min(line.distance(local_point) for line in lines) <= _ON_ROUTE_TOLERANCE_M:
             last_on_route = i
 
-    if last_on_route == 0:
+    # <= 1 covers "nothing to skip" (0) and "skipping just the point right
+    # after the anchor" (1, where keeping it changes nothing) alike.
+    if last_on_route <= 1:
         return connector
-    trimmed = path[last_on_route:]
-    return Connector(meeting_point=trimmed[0], path=trimmed)
+    trimmed = [path[0], *path[last_on_route:]]
+    return Connector(meeting_point=connector.meeting_point, path=trimmed)
 
 
 def _candidate_points(
