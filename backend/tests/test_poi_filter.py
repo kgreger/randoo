@@ -73,7 +73,7 @@ def test_distance_along_route_accumulates_across_segments():
     assert ranked[0].distance_along_route_m > 500
 
 
-def test_ranked_poi_carries_the_nearest_point_on_the_route():
+def test_ranked_poi_carries_a_geometric_connector_to_the_route():
     # A straight north-south segment - the nearest point to something east
     # of its midpoint should be that midpoint itself, not either endpoint.
     segments = [[Point(48.0, 8.0), Point(48.02, 8.0)]]
@@ -83,6 +83,9 @@ def test_ranked_poi_carries_the_nearest_point_on_the_route():
     ranked = filter_and_rank([east_of_midpoint], segments, buffer_geometry)
 
     assert len(ranked) == 1
-    on_route = ranked[0].nearest_route_point
-    assert on_route.lat == pytest.approx(48.01, abs=1e-3)
-    assert on_route.lon == pytest.approx(8.0, abs=1e-3)
+    meeting_point = ranked[0].connector.meeting_point
+    assert meeting_point.lat == pytest.approx(48.01, abs=1e-3)
+    assert meeting_point.lon == pytest.approx(8.0, abs=1e-3)
+
+    # geometric mode: a straight line, meeting point to the POI itself
+    assert ranked[0].connector.path == [meeting_point, Point(east_of_midpoint.lat, east_of_midpoint.lon)]

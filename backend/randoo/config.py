@@ -22,3 +22,10 @@ LOCAL_POI_PARQUET_PATH = os.environ.get("RANDOO_LOCAL_POI_PARQUET_PATH")
 # always answers with this tier. Never set in production - it bypasses real
 # entitlement checking for everyone.
 FORCE_TIER = os.environ.get("RANDOO_FORCE_TIER")
+
+# BRouter routing endpoint for premium-tier turnoff points (see turnoff.py).
+# Defaults to BRouter's own public server - a first pass, not the
+# self-hosted instance planned for later. Empty/unset disables routed
+# turnoffs entirely, same effect as an unconfigured local POI source.
+BROUTER_URL = os.environ.get("RANDOO_BROUTER_URL", "https://brouter.de/brouter")
+BROUTER_PROFILE = os.environ.get("RANDOO_BROUTER_PROFILE", "trekking")

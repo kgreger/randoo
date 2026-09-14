@@ -93,7 +93,7 @@ def _poi_waypoint(ranked: RankedPoi) -> gpxpy.gpx.GPXWaypoint:
         latitude=poi.lat,
         longitude=poi.lon,
         name=poi.name or poi.category_id,
-        comment=f"{poi.category_id} · {round(ranked.distance_to_route_m)} m from route",
+        comment=f"{poi.category_id}, {round(ranked.distance_to_route_m)} m from route",
         symbol=GARMIN_SYMBOLS.get(poi.category_id),
     )
     wpt.extensions.append(_garmin_proximity_extension(GARMIN_PROXIMITY_M))
@@ -101,15 +101,16 @@ def _poi_waypoint(ranked: RankedPoi) -> gpxpy.gpx.GPXWaypoint:
 
 
 def _turnoff_waypoint(ranked: RankedPoi) -> gpxpy.gpx.GPXWaypoint:
-    """A synthetic marker sitting exactly on the route, at the point closest
-    to the real POI. See the module docstring for why this exists."""
+    """A synthetic marker sitting on the route (or, for a premium search,
+    along the real routed path to the POI) at the point closest to the real
+    POI. See the module docstring for why this exists."""
     poi = ranked.poi
-    on_route = ranked.nearest_route_point
+    on_route = ranked.connector.meeting_point
     wpt = gpxpy.gpx.GPXWaypoint(
         latitude=on_route.lat,
         longitude=on_route.lon,
         name=f"{poi.name or poi.category_id} (turnoff)",
-        comment=f"{poi.category_id} · actual spot {round(ranked.distance_to_route_m)} m off-route here",
+        comment=f"{poi.category_id}, actual spot {round(ranked.distance_to_route_m)} m off-route here",
         symbol=GARMIN_SYMBOLS.get(poi.category_id),
     )
     wpt.extensions.append(_garmin_proximity_extension(GARMIN_PROXIMITY_M))

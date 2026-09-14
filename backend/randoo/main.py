@@ -1,3 +1,5 @@
+import dataclasses
+
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
@@ -8,6 +10,7 @@ from .entitlements import get_tier
 from .export import build_gpx
 from .poi_source import get_poi_source
 from .schemas import AnalyzeResponse, PoiOut
+from .turnoff import get_turnoff_locator
 
 app = FastAPI(title="Randoo API")
 
@@ -60,9 +63,26 @@ async def _find_pois(
     buffer_geometry = geometry.route_buffer(segments, radius_m)
     pois = await get_poi_source(tier).query(segments, radius_m, selected)
     ranked = poi_filter.filter_and_rank(pois, segments, buffer_geometry)
+    ranked = await _refine_connectors(ranked, segments, tier)
 
     search_cache.set(cache_key, ranked, segments)
     return ranked, segments
+
+
+async def _refine_connectors(
+    ranked: list[poi_filter.RankedPoi], segments: list[list[gpx.Point]], tier: str
+) -> list[poi_filter.RankedPoi]:
+    """Replaces each POI's straight-line connector with a routed one where
+    the caller's tier allows it - done here, before the result is cached,
+    so a routing call (BRouter has no bulk endpoint, this is one request per
+    POI) only ever happens once per search, not again on every export of it.
+    """
+    locator = get_turnoff_locator(tier)
+    refined = []
+    for r in ranked:
+        connector = await locator.refine(r.poi, segments, r.connector)
+        refined.append(dataclasses.replace(r, connector=connector))
+    return refined
 
 
 @app.post("/api/analyze", response_model=AnalyzeResponse)

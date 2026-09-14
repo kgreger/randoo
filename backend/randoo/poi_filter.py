@@ -13,6 +13,21 @@ from .overpass import Poi
 
 
 @dataclass(frozen=True)
+class Connector:
+    """How to get from the route to a POI: where you'd turn off, and the
+    path from there to the POI itself, POI as the last point.
+
+    The geometric version (what filter_and_rank always fills in) is just a
+    straight line, meeting_point to the POI. A routed one (see turnoff.py)
+    replaces both with the real path a routing engine found - same shape
+    either way, so nothing downstream needs to know which kind it got.
+    """
+
+    meeting_point: Point
+    path: list[Point]
+
+
+@dataclass(frozen=True)
 class RankedPoi:
     poi: Poi
     distance_to_route_m: float
@@ -21,11 +36,7 @@ class RankedPoi:
     # sorted by, so it reads in the order a rider passes things, not by
     # who happens to be closest to the line.
     distance_along_route_m: float
-    # Where on the route this POI is closest to: the point you'd actually
-    # turn off at, not the POI's own position. Used for the Garmin course-point
-    # marker in the export, which needs to sit right on the track to survive
-    # Garmin Connect's own (tight, undocumented) snap-to-track tolerance.
-    nearest_route_point: Point
+    connector: Connector
 
 
 def filter_and_rank(
@@ -73,13 +84,14 @@ def filter_and_rank(
         progress = nearest_line.project(point)
         on_route = nearest_line.interpolate(progress)
         route_lon, route_lat = to_wgs84.transform(on_route.x, on_route.y)
+        meeting_point = Point(route_lat, route_lon)
 
         ranked.append(
             RankedPoi(
                 poi=poi,
                 distance_to_route_m=distances[nearest_idx],
                 distance_along_route_m=offsets[nearest_idx] + progress,
-                nearest_route_point=Point(route_lat, route_lon),
+                connector=Connector(meeting_point=meeting_point, path=[meeting_point, Point(poi.lat, poi.lon)]),
             )
         )
 

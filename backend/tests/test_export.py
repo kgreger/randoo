@@ -3,7 +3,7 @@ import xml.etree.ElementTree as ET
 from randoo.export import GARMIN_GPXX_NS, GARMIN_PROXIMITY_M, build_gpx
 from randoo.gpx import Point
 from randoo.overpass import Poi
-from randoo.poi_filter import RankedPoi
+from randoo.poi_filter import Connector, RankedPoi
 
 GPX_NS = "http://www.topografix.com/GPX/1/1"
 
@@ -20,9 +20,8 @@ def _ranked(
         name="Test Spot",
         tags={},
     )
-    return RankedPoi(
-        poi=poi, distance_to_route_m=distance_m, distance_along_route_m=0.0, nearest_route_point=on_route
-    )
+    connector = Connector(meeting_point=on_route, path=[on_route, Point(lat, lon)])
+    return RankedPoi(poi=poi, distance_to_route_m=distance_m, distance_along_route_m=0.0, connector=connector)
 
 
 def test_export_embeds_the_route_as_a_track_with_one_segment_per_input_segment():
