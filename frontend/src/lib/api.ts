@@ -58,11 +58,15 @@ export async function exportGpx(
   categoryIds: string[],
   radiusM: number,
   accessToken: string,
+  excludedPoiIds: string[] = [],
 ): Promise<Blob> {
+  const form = buildFormData(file, categoryIds, radiusM);
+  excludedPoiIds.forEach((id) => form.append("excluded_poi_ids", id));
+
   const response = await fetch(`${API_URL}/api/export`, {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}` },
-    body: buildFormData(file, categoryIds, radiusM),
+    body: form,
   });
 
   if (response.status === 401) {

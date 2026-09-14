@@ -6,9 +6,10 @@ import type { Poi } from "../lib/api";
 interface Props {
   route: LatLon[][];
   pois: Poi[];
+  excludedIds?: Set<string>;
 }
 
-export function MapView({ route, pois }: Props) {
+export function MapView({ route, pois, excludedIds }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.LayerGroup | null>(null);
@@ -75,6 +76,11 @@ export function MapView({ route, pois }: Props) {
     }
 
     for (const poi of pois) {
+      // Faded, not hidden, for a POI the rider unchecked in the list - still
+      // there to reconsider, just clearly not going into the export.
+      const excluded = excludedIds?.has(poi.id) ?? false;
+      const fade = excluded ? 0.35 : 1;
+
       // The path from the route to this POI: a straight beeline unless
       // is_routed says a real bike route was found for it instead. Dashed
       // for the beeline, since it's an approximation worth reading as one
@@ -83,7 +89,7 @@ export function MapView({ route, pois }: Props) {
       L.polyline(poi.connector_path, {
         color: "#ffbd6b",
         weight: poi.is_routed ? 3 : 2,
-        opacity: 0.85,
+        opacity: 0.85 * fade,
         dashArray: poi.is_routed ? undefined : "2 6",
       }).addTo(layer);
 
@@ -92,12 +98,13 @@ export function MapView({ route, pois }: Props) {
         color: "#241a30",
         weight: 2,
         fillColor: "#ff8f6b",
-        fillOpacity: 1,
+        opacity: fade,
+        fillOpacity: fade,
       })
         .bindPopup(`<b>${poi.name ?? poi.category_id}</b><br>${Math.round(poi.distance_to_route_m)} m from route`)
         .addTo(layer);
     }
-  }, [route, pois]);
+  }, [route, pois, excludedIds]);
 
   return <div ref={containerRef} style={{ width: "100%", height: "100%" }} />;
 }

@@ -19,6 +19,7 @@ export default function App() {
   const [routeName, setRouteName] = useState<string | null>(null);
   const [route, setRoute] = useState<LatLon[][]>([]);
   const [pois, setPois] = useState<Poi[]>([]);
+  const [excludedPoiIds, setExcludedPoiIds] = useState(new Set<string>());
   const [selectedCategories, setSelectedCategories] = useState(new Set(DEFAULT_CATEGORIES));
   const [radiusM, setRadiusM] = useState(500);
   const [loading, setLoading] = useState(false);
@@ -38,6 +39,7 @@ export default function App() {
     setFile(selected);
     setRouteName(selected.name.replace(/\.gpx$/i, ""));
     setPois([]);
+    setExcludedPoiIds(new Set());
     setError(null);
     try {
       const preview = await parseGpxPreview(selected);
@@ -50,6 +52,15 @@ export default function App() {
 
   function toggleCategory(id: string) {
     setSelectedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleExcluded(id: string) {
+    setExcludedPoiIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -70,6 +81,10 @@ export default function App() {
 
       const results = await analyzeRoute(file, Array.from(selectedCategories), radiusM, accessToken);
       setPois(results);
+      // A previous search's exclusions don't carry meaning for a new set of
+      // results - stale ids just wouldn't match anything, but starting
+      // fresh (and fully included) is the state a rider actually expects.
+      setExcludedPoiIds(new Set());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Search failed.");
     } finally {
@@ -89,7 +104,13 @@ export default function App() {
 
     setExporting(true);
     try {
-      const blob = await exportGpx(file, Array.from(selectedCategories), radiusM, accessToken);
+      const blob = await exportGpx(
+        file,
+        Array.from(selectedCategories),
+        radiusM,
+        accessToken,
+        Array.from(excludedPoiIds),
+      );
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -209,10 +230,15 @@ export default function App() {
             </div>
           )}
 
-          <MapView route={route} pois={pois} />
+          <MapView route={route} pois={pois} excludedIds={excludedPoiIds} />
         </div>
 
-        <PoiList pois={pois} />
+        <PoiList
+          pois={pois}
+          radiusM={radiusM}
+          excludedIds={excludedPoiIds}
+          onToggleExcluded={toggleExcluded}
+        />
       </div>
     </div>
   );
