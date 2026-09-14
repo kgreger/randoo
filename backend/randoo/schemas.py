@@ -13,6 +13,12 @@ class PoiOut(BaseModel):
     category_id: str
     name: str | None
     distance_to_route_m: float
+    # Where to leave the route for this POI, and the path there (this POI
+    # last). A straight line unless is_routed says a real bike route was
+    # found for it instead - see turnoff.py.
+    meeting_point: tuple[float, float]
+    connector_path: list[tuple[float, float]]
+    is_routed: bool
 
 
 class AnalyzeResponse(BaseModel):

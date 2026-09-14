@@ -75,6 +75,18 @@ export function MapView({ route, pois }: Props) {
     }
 
     for (const poi of pois) {
+      // The path from the route to this POI: a straight beeline unless
+      // is_routed says a real bike route was found for it instead. Dashed
+      // for the beeline, since it's an approximation worth reading as one
+      // (and doubles as a way to see where free-tier connectors land);
+      // solid for a real routed path.
+      L.polyline(poi.connector_path, {
+        color: "#ffbd6b",
+        weight: poi.is_routed ? 3 : 2,
+        opacity: 0.85,
+        dashArray: poi.is_routed ? undefined : "2 6",
+      }).addTo(layer);
+
       L.circleMarker([poi.lat, poi.lon], {
         radius: 7,
         color: "#241a30",

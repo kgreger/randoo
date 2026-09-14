@@ -94,6 +94,24 @@ def test_analyze_returns_a_stable_id_export_can_exclude_by(monkeypatch, client):
     assert "Cafe" in xml
 
 
+def test_analyze_includes_the_connector_for_map_rendering(monkeypatch, client):
+    pois = [
+        Poi(osm_id=1, osm_type="node", lat=48.005, lon=8.005, category_id="water", name="Spring", tags={}),
+    ]
+    monkeypatch.setattr(main, "get_poi_source", lambda tier: _fake_source([], pois))
+
+    files = {"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")}
+    data = {"categories": "water", "radius_m": "300"}
+
+    response = client.post("/api/analyze", files=files, data=data)
+    poi = response.json()["pois"][0]
+
+    assert poi["is_routed"] is False  # free tier: no BRouter locator configured for this test
+    assert len(poi["meeting_point"]) == 2
+    # geometric mode: a straight two-point line, meeting point to the POI
+    assert poi["connector_path"] == [poi["meeting_point"], [poi["lat"], poi["lon"]]]
+
+
 def test_export_without_exclusions_includes_every_poi(monkeypatch, client):
     pois = [
         Poi(osm_id=1, osm_type="node", lat=48.005, lon=8.005, category_id="water", name="Spring", tags={}),

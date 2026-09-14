@@ -81,7 +81,8 @@ async def _refine_connectors(
     refined = []
     for r in ranked:
         connector = await locator.refine(r.poi, segments, r.connector)
-        refined.append(dataclasses.replace(r, connector=connector))
+        is_routed = connector is not r.connector
+        refined.append(dataclasses.replace(r, connector=connector, is_routed=is_routed))
     return refined
 
 
@@ -107,6 +108,9 @@ async def analyze(
                 category_id=r.poi.category_id,
                 name=r.poi.name,
                 distance_to_route_m=round(r.distance_to_route_m, 1),
+                meeting_point=(r.connector.meeting_point.lat, r.connector.meeting_point.lon),
+                connector_path=[(p.lat, p.lon) for p in r.connector.path],
+                is_routed=r.is_routed,
             )
             for r in ranked
         ]

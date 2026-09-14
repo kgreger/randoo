@@ -37,6 +37,10 @@ class RankedPoi:
     # who happens to be closest to the line.
     distance_along_route_m: float
     connector: Connector
+    # Whether connector came back from a real routing engine (see turnoff.py)
+    # rather than being the straight line filter_and_rank always fills in
+    # here. Set by whoever refines it, never by filter_and_rank itself.
+    is_routed: bool = False
 
 
 def filter_and_rank(
