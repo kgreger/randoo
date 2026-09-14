@@ -1,12 +1,12 @@
 # Randoo
 
-Find water, food, fuel, bike shops, and places to sleep along a planned cycling route — built for brevets, ultra-distance races, and long tours where knowing what's ahead actually matters.
+Find water, food, fuel, bike shops, and places to sleep along a planned cycling route. Built for brevets, ultra-distance races, and long tours where knowing what's ahead actually matters.
 
 Upload a GPX track, pick the categories you care about, and Randoo pulls matching points of interest from OpenStreetMap within a chosen distance of your route. View them on a map, browse them as a list, or export them straight back into a GPX file as waypoints.
 
 ## Status
 
-Early, active development. The current focus is a minimal working version: GPX upload, a fixed-radius corridor search, category filtering, and GPX export. No accounts, no saved routes, no route-network buffering yet — see the roadmap in `docs/` for what's planned beyond that.
+Early, active development. The current focus is a minimal working version: GPX upload, a fixed-radius corridor search, category filtering, and GPX export. No accounts, no saved routes, no route-network buffering yet; see the roadmap in `docs/` for what's planned beyond that.
 
 ## How it works
 
@@ -48,4 +48,4 @@ POI data comes from [OpenStreetMap](https://www.openstreetmap.org/copyright), li
 
 ## License
 
-AGPL-3.0 — see [LICENSE](LICENSE). If you run a modified version of Randoo as a network service, you're required to make your changes available to its users.
+AGPL-3.0, see [LICENSE](LICENSE). If you run a modified version of Randoo as a network service, you're required to make your changes available to its users.
