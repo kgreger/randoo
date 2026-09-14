@@ -19,6 +19,7 @@ import duckdb
 
 from . import config, geometry, overpass
 from .categories import Category
+from .entitlements import PREMIUM
 from .gpx import Point
 from .overpass import Poi
 
@@ -94,13 +95,14 @@ class LocalPoiSource:
         ]
 
 
-def get_poi_source() -> PoiSource:
-    """Which source answers a search.
+def get_poi_source(tier: str) -> PoiSource:
+    """Which source answers a search, given the caller's tier (see
+    entitlements.get_tier).
 
-    Defaults to the free-tier Overpass path. Set RANDOO_LOCAL_POI_PARQUET_PATH
-    to try the local Parquet path instead - a standalone way to test it before
-    real tier-gating (checking a signed-in user's profile) is wired in.
+    A premium tier alone isn't enough: RANDOO_LOCAL_POI_PARQUET_PATH also has
+    to be configured, so a deployment with no local data yet (or a caller
+    who isn't premium) always falls back to the free-tier Overpass path.
     """
-    if config.LOCAL_POI_PARQUET_PATH:
+    if tier == PREMIUM and config.LOCAL_POI_PARQUET_PATH:
         return LocalPoiSource(Path(config.LOCAL_POI_PARQUET_PATH))
     return OverpassPoiSource()

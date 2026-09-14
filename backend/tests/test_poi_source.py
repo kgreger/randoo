@@ -72,13 +72,18 @@ async def test_overpass_poi_source_delegates_to_query_pois_for_route(monkeypatch
     assert len(results) == 1
 
 
-def test_get_poi_source_defaults_to_overpass(monkeypatch):
-    monkeypatch.setattr(config, "LOCAL_POI_PARQUET_PATH", None)
-    assert isinstance(get_poi_source(), OverpassPoiSource)
-
-
-def test_get_poi_source_uses_local_when_configured(monkeypatch, tmp_path: Path):
+def test_get_poi_source_defaults_to_overpass_for_free_tier(monkeypatch, tmp_path: Path):
     monkeypatch.setattr(config, "LOCAL_POI_PARQUET_PATH", str(tmp_path / "pois.parquet"))
-    source = get_poi_source()
+    assert isinstance(get_poi_source("free"), OverpassPoiSource)
+
+
+def test_get_poi_source_uses_overpass_when_no_local_data_configured(monkeypatch):
+    monkeypatch.setattr(config, "LOCAL_POI_PARQUET_PATH", None)
+    assert isinstance(get_poi_source("premium"), OverpassPoiSource)
+
+
+def test_get_poi_source_uses_local_for_premium_tier_with_data_configured(monkeypatch, tmp_path: Path):
+    monkeypatch.setattr(config, "LOCAL_POI_PARQUET_PATH", str(tmp_path / "pois.parquet"))
+    source = get_poi_source("premium")
     assert isinstance(source, LocalPoiSource)
     assert source.parquet_path == tmp_path / "pois.parquet"

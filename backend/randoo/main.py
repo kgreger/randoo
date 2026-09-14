@@ -3,7 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 
 from . import categories, geometry, gpx, poi_filter
-from .auth import require_user
+from .auth import bearer_token, require_user
+from .entitlements import get_tier
 from .export import build_gpx
 from .poi_source import get_poi_source
 from .schemas import AnalyzeResponse, PoiOut
@@ -24,7 +25,7 @@ async def health() -> dict[str, str]:
 
 
 async def _find_pois(
-    file: UploadFile, category_ids: list[str], radius_m: float
+    file: UploadFile, category_ids: list[str], radius_m: float, tier: str
 ) -> tuple[list[poi_filter.RankedPoi], list[list[gpx.Point]]]:
     if radius_m <= 0 or radius_m > 5000:
         raise HTTPException(400, "radius_m must be between 0 and 5000")
@@ -41,7 +42,7 @@ async def _find_pois(
         raise HTTPException(400, str(exc)) from exc
 
     buffer_geometry = geometry.route_buffer(segments, radius_m)
-    pois = await get_poi_source().query(segments, radius_m, selected)
+    pois = await get_poi_source(tier).query(segments, radius_m, selected)
     ranked = poi_filter.filter_and_rank(pois, segments, buffer_geometry)
     return ranked, segments
 
@@ -51,8 +52,12 @@ async def analyze(
     file: UploadFile = File(...),
     categories_param: list[str] = Form(..., alias="categories"),
     radius_m: float = Form(500),
+    token: str | None = Depends(bearer_token),
 ) -> AnalyzeResponse:
-    ranked, _ = await _find_pois(file, categories_param, radius_m)
+    # Search stays fully anonymous-friendly - a signed-in premium caller just
+    # gets the faster local path too, on top of what free already gets.
+    tier = await get_tier(token)
+    ranked, _ = await _find_pois(file, categories_param, radius_m, tier)
     return AnalyzeResponse(
         pois=[
             PoiOut(
@@ -75,8 +80,10 @@ async def export(
     categories_param: list[str] = Form(..., alias="categories"),
     radius_m: float = Form(500),
     _user: dict = Depends(require_user),
+    token: str | None = Depends(bearer_token),
 ) -> Response:
-    ranked, segments = await _find_pois(file, categories_param, radius_m)
+    tier = await get_tier(token)
+    ranked, segments = await _find_pois(file, categories_param, radius_m, tier)
     xml = build_gpx(ranked, segments)
     return Response(
         content=xml,
