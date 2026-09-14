@@ -69,13 +69,19 @@ class BRouterTurnoffLocator:
 
         best: tuple[float, Connector] | None = None
         async with httpx.AsyncClient(timeout=_REQUEST_TIMEOUT_S) as client:
-            for candidate in candidates:
+            for candidate, offset_m in candidates:
                 try:
                     distance_m, path = await self._route(client, candidate, poi)
                 except (httpx.HTTPError, KeyError, ValueError, IndexError):
                     continue
-                if best is None or distance_m < best[0]:
-                    best = (distance_m, Connector(meeting_point=candidate, path=path))
+                # The candidate's own distance from the route's nearest point
+                # counts too - a candidate further along the track needs a
+                # shorter routed leg to actually win, otherwise the "shortest"
+                # pick would happily send the rider backtracking along the
+                # track itself just to shave a little off the POI-side route.
+                total_m = offset_m + distance_m
+                if best is None or total_m < best[0]:
+                    best = (total_m, Connector(meeting_point=candidate, path=path))
 
         return best[1] if best is not None else fallback
 
@@ -103,7 +109,7 @@ def _candidate_points(
     center: Point,
     window_m: float = _CANDIDATE_WINDOW_M,
     spacing_m: float = _CANDIDATE_SPACING_M,
-) -> list[Point]:
+) -> list[tuple[Point, float]]:
     """Route points within window_m of center, thinned to roughly spacing_m
     apart - regardless of how densely the original track was recorded, so a
     GPS log with a point every few metres doesn't just hand back a dozen
@@ -111,8 +117,13 @@ def _candidate_points(
     itself first, so a BRouter outage that fails every other candidate still
     leaves the geometric point as one of the (failed) attempts rather than
     skipped outright.
+
+    Each candidate is paired with its own distance from center, so a caller
+    can weigh "how far along the track is this candidate" against "how short
+    is its route from here" instead of judging candidates on the routed leg
+    alone.
     """
-    candidates = [center]
+    candidates = [(center, 0.0)]
     last_kept = center
     for segment in segments:
         for point in segment:
@@ -122,7 +133,7 @@ def _candidate_points(
             _, _, from_last = _GEOD.inv(last_kept.lon, last_kept.lat, point.lon, point.lat)
             if from_last < spacing_m:
                 continue
-            candidates.append(point)
+            candidates.append((point, from_center))
             last_kept = point
     return candidates
 

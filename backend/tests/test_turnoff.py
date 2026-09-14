@@ -73,6 +73,26 @@ async def test_brouter_locator_picks_the_shortest_of_several_candidates(monkeypa
     assert result.path[-1] == Point(48.0, 8.006)
 
 
+async def test_brouter_locator_weighs_in_how_far_a_candidate_is_from_the_route(monkeypatch):
+    # The candidate right at the route's nearest point has a merely decent
+    # route to the POI (200m); a candidate 300m further along the track has
+    # a shorter one (100m) - but reaching it in the first place already
+    # costs close to 300m, so picking it would mean a longer ride overall.
+    # The nearest point should win once that walk to the candidate counts.
+    def handler(request: httpx.Request) -> httpx.Response:
+        lonlats = request.url.params["lonlats"]
+        lon = float(lonlats.split("|")[0].split(",")[0])
+        length = 200.0 if lon == pytest.approx(8.005, abs=1e-6) else 100.0
+        return _brouter_response(length, [(lon, 48.0), (8.006, 48.0)])
+
+    monkeypatch.setattr("randoo.turnoff.httpx.AsyncClient", _mock_async_client(handler))
+
+    locator = BRouterTurnoffLocator(base_url="https://example.test/brouter", profile="trekking")
+    result = await locator.refine(_poi(48.0, 8.006), SEGMENTS, FALLBACK)
+
+    assert result.meeting_point.lon == pytest.approx(8.005, abs=1e-6)
+
+
 async def test_brouter_locator_falls_back_when_every_candidate_fails(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(500)
@@ -105,7 +125,7 @@ async def test_brouter_locator_skips_a_failing_candidate_and_uses_a_working_one(
 
 def test_candidate_points_always_includes_the_center():
     candidates = _candidate_points([], center=Point(48.0, 8.0))
-    assert candidates == [Point(48.0, 8.0)]
+    assert candidates == [(Point(48.0, 8.0), 0.0)]
 
 
 def test_candidate_points_stays_within_the_window_and_is_spaced_out():
@@ -115,7 +135,7 @@ def test_candidate_points_stays_within_the_window_and_is_spaced_out():
     candidates = _candidate_points([dense_segment], center=Point(48.0, 8.005), window_m=300, spacing_m=75)
 
     assert len(candidates) < 20
-    assert candidates[0] == Point(48.0, 8.005)
+    assert candidates[0] == (Point(48.0, 8.005), 0.0)
 
 
 def test_get_turnoff_locator_uses_geometric_for_free_tier(monkeypatch):
