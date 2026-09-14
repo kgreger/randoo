@@ -1,4 +1,4 @@
-// Keep in sync with backend/randoo/categories.py — no shared schema yet for the MVP.
+// Keep in sync with backend/randoo/categories.py; no shared schema yet for the MVP.
 export interface CategoryDef {
   id: string;
   label: string;

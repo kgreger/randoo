@@ -35,7 +35,7 @@ def test_export_rejects_malformed_authorization_header():
 
 def test_analyze_does_not_require_authorization():
     # An out-of-range radius fails before any Overpass call is made, which
-    # keeps this test from depending on network access — the only thing
+    # keeps this test from depending on network access; the only thing
     # being checked is that no auth is demanded.
     response = client.post(
         "/api/analyze",

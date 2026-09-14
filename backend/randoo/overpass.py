@@ -2,13 +2,13 @@
 
 Uses public Overpass instances. Queries are scoped to the route buffer's
 actual shape via Overpass's `poly:` filter, with the bounding box supplied
-too as a cheap global pre-filter — bbox alone would search the full rectangle
+too as a cheap global pre-filter: bbox alone would search the full rectangle
 spanning the route, which for a long or diagonal track is far bigger than the
 corridor we actually care about and slow enough to time out.
 
 A long route is also split into chunks before querying (see
-query_pois_for_route) and those are queried one at a time, not in parallel —
-these are free, shared, rate-limited public instances, and firing several
+query_pois_for_route) and those are queried one at a time, not in parallel.
+These are free, shared, rate-limited public instances, and firing several
 requests at once is what trips their "too many requests" limit rather than
 avoiding it.
 """
@@ -38,29 +38,29 @@ OVERPASS_ENDPOINTS = [
 TIMEOUT_S = 25
 QUERY_TIMEOUT_S = 20
 
-# Overpass's usage policy asks clients to identify themselves — some instances
-# also reject the default httpx/urllib user agent outright (406) as a basic
-# bot filter, so a generic library UA won't get past them at all.
+# Overpass's usage policy asks clients to identify themselves (some instances
+# also reject the default httpx/urllib user agent outright, 406, as a basic
+# bot filter), so a generic library UA won't get past them at all.
 USER_AGENT = "randoo-backend/0.1"
 
 # Roughly how much route length goes into one Overpass query. A long touring
 # route's own bounding box can span whole countries, and a public instance is
-# slow — and prone to its front-end proxy's own gateway timeout, independent
-# of our own [timeout:] setting — on a bbox that size regardless of how tight
+# slow (and prone to its front-end proxy's own gateway timeout, independent
+# of our own [timeout:] setting) on a bbox that size regardless of how tight
 # the polygon filter inside it is. Kept fairly large on purpose: fewer,
 # bigger requests are easier on a rate-limited shared instance than many
 # small ones would be.
 QUERY_CHUNK_M = 80_000
 
-# A 429 or 504 on a shared public instance is often transient — worth a
+# A 429 or 504 on a shared public instance is often transient: worth a
 # couple of retries with a growing pause before giving up on that endpoint
 # and moving to the next one.
 MAX_RATE_LIMIT_RETRIES = 3
 RATE_LIMIT_BACKOFF_S = 3.0
 
 # Caches raw Overpass responses by exact query text. The same route searched
-# again — the common case while testing, or a rider re-running a search after
-# tweaking categories — then costs nothing against the shared quota at all.
+# again (the common case while testing, or a rider re-running a search after
+# tweaking categories) then costs nothing against the shared quota at all.
 # OSM's POI data doesn't change fast enough for a few hours of staleness to
 # matter here.
 CACHE_DIR = Path(os.environ.get("RANDOO_OVERPASS_CACHE_DIR", Path(tempfile.gettempdir()) / "randoo-overpass-cache"))
@@ -192,7 +192,7 @@ async def _query_endpoint_with_retries(
 ) -> list[dict] | None:
     """POST the query to one endpoint, retrying in place on 429/504 before
     giving up on it. Returns the parsed elements, or None if this endpoint
-    (eventually) failed — appending a reason to `failures` either way."""
+    (eventually) failed, appending a reason to `failures` either way."""
     backoff = RATE_LIMIT_BACKOFF_S
     response: httpx.Response | None = None
 

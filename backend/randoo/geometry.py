@@ -2,7 +2,7 @@
 
 Shapely operates on plane coordinates, so buffering directly in lat/lon would
 distort distances (a degree of longitude shrinks toward the poles). Web
-Mercator, which the map itself uses for display, has the opposite problem —
+Mercator, which the map itself uses for display, has the opposite problem:
 its distortion grows with latitude, which makes it a poor choice for a metric
 buffer. UTM is built for exactly this: pick the 6-degree zone the route
 actually sits in and distances within it are accurate to a few parts in
@@ -32,7 +32,7 @@ def utm_epsg(points: list[Point]) -> int:
     """Pick the UTM zone that best fits the route.
 
     A route can drift across a zone boundary (each zone is only 6 degrees of
-    longitude wide), so this isn't "the zone containing every point" — it's
+    longitude wide), so this isn't "the zone containing every point", it's
     the zone containing most of them, which keeps the whole buffer close
     enough to that zone's central meridian to stay accurate.
     """
@@ -59,11 +59,11 @@ def local_crs_transformer(points: list[Point]) -> tuple[Transformer, Transformer
 def route_buffer(segments: list[list[Point]], radius_m: float) -> BaseGeometry:
     """Return a polygon covering everything within radius_m of the track (straight-line distance).
 
-    This is a beeline buffer, not a road-network buffer — it can include areas
+    This is a beeline buffer, not a road-network buffer: it can include areas
     that are actually much further away by road. Good enough for a first pass.
 
     Each recorded segment is buffered on its own, in the local UTM projection,
-    in metres — never connected to the next segment with a straight line. A
+    in metres, never connected to the next segment with a straight line. A
     segment break is a real gap in recording, and two segments can legitimately
     be far apart; bridging them would buffer a corridor through whatever lies
     in between. The result can be a MultiPolygon when segments are genuinely
@@ -105,7 +105,7 @@ def _simplify_to_vertex_budget(geometry: BaseGeometry, radius_m: float, max_vert
     """Cap the geometry's vertex count for a query-sized Overpass poly filter.
 
     Expects `geometry` in metres (a local projection), since the tolerance
-    here is a distance in metres — simplifying a WGS84 geometry with this
+    here is a distance in metres: simplifying a WGS84 geometry with this
     would treat the tolerance as degrees and destroy the shape.
     """
     if _vertex_count(geometry) <= max_vertices:
@@ -131,7 +131,7 @@ def chunk_by_distance(points: list[Point], max_chunk_m: float) -> list[list[Poin
 
     Distance-based rather than point-count-based, since GPS recording density
     varies wildly between devices and doesn't say anything about how big the
-    resulting query's bounding box will be — a chunk should stay a chunk
+    resulting query's bounding box will be: a chunk should stay a chunk
     whether it was recorded once every 5 metres or once every 50. Consecutive
     chunks share their boundary point so nothing at a chunk edge falls
     through the gap.
@@ -157,24 +157,24 @@ def chunk_by_distance(points: list[Point], max_chunk_m: float) -> list[list[Poin
 
 
 def bounding_box(geometry: BaseGeometry) -> tuple[float, float, float, float]:
-    """Return (south, west, north, east) — the format Overpass expects.
+    """Return (south, west, north, east), the format Overpass expects.
 
     Sent alongside the polygon itself as a cheap first-pass filter, not as the
-    query's only spatial constraint — see poly_filter below.
+    query's only spatial constraint (see poly_filter below).
     """
     minx, miny, maxx, maxy = geometry.bounds
     return miny, minx, maxy, maxx
 
 
 def poly_filter(geometry: BaseGeometry) -> str:
-    """Coordinates for Overpass's `poly:` filter — the actual corridor shape,
+    """Coordinates for Overpass's `poly:` filter: the actual corridor shape,
     not just its bounding box, so a long diagonal route doesn't turn into a
     search over the whole rectangle spanning it.
 
     Overpass's poly filter only takes a single ring. A MultiPolygon only
     comes up when segments are genuinely disjoint (a real gap in the
     recording, not just a sharp turn), which is rare enough that a convex
-    hull is a fine loose pre-filter here — the precise per-segment shape is
+    hull is a fine loose pre-filter here; the precise per-segment shape is
     still enforced afterwards against the actual buffer geometry.
     """
     ring = (

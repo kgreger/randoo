@@ -16,7 +16,7 @@ from .overpass import Poi
 class RankedPoi:
     poi: Poi
     distance_to_route_m: float
-    # Where on the route this POI is closest to — the point you'd actually
+    # Where on the route this POI is closest to: the point you'd actually
     # turn off at, not the POI's own position. Used for the Garmin course-point
     # marker in the export, which needs to sit right on the track to survive
     # Garmin Connect's own (tight, undocumented) snap-to-track tolerance.

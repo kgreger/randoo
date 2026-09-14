@@ -16,7 +16,7 @@ export function MapView({ route, pois }: Props) {
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
-    // Default view before a route is loaded. Fixed to Düsseldorf for now —
+    // Default view before a route is loaded. Fixed to Düsseldorf for now;
     // centering on the signed-in user's home location is a later step.
     const map = L.map(containerRef.current, { attributionControl: true, zoomControl: false }).setView(
       [51.2277, 6.7735],
@@ -25,7 +25,7 @@ export function MapView({ route, pois }: Props) {
     L.control.zoom({ position: "bottomright" }).addTo(map);
 
     // Standard OSM tiles, darkened with a CSS filter (see .map-tiles-dark in
-    // styles.css) rather than a separate dark-tile provider — CARTO's free
+    // styles.css) rather than a separate dark-tile provider: CARTO's free
     // dark basemap now needs an API key to drop its watermark, and this
     // needs neither a key nor a second data source.
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -38,7 +38,7 @@ export function MapView({ route, pois }: Props) {
     layerRef.current = L.layerGroup().addTo(map);
 
     // The container's real size can settle after this runs (web fonts loading,
-    // flex layout reflow), and Leaflet has no way to notice on its own — it
+    // flex layout reflow), and Leaflet has no way to notice on its own, it
     // just keeps rendering at whatever size it measured on creation.
     const resizeObserver = new ResizeObserver(() => map.invalidateSize());
     resizeObserver.observe(containerRef.current);
@@ -57,12 +57,12 @@ export function MapView({ route, pois }: Props) {
 
     layer.clearLayers();
 
-    // Each recorded segment gets its own line, never connected to the next —
+    // Each recorded segment gets its own line, never connected to the next:
     // a segment break is a real gap in the ride, not a road the rider took.
     const segmentLines = route
       .filter((segment) => segment.length > 1)
       .map((segment) => {
-        // A soft wide halo under the actual line — a plain 3px stroke got lost
+        // A soft wide halo under the actual line: a plain 3px stroke got lost
         // against the map tiles, especially over busy or light-toned areas.
         L.polyline(segment, { color: "#ff8f6b", weight: 10, opacity: 0.28 }).addTo(layer);
         return L.polyline(segment, { color: "#ff8f6b", weight: 5, opacity: 1 }).addTo(layer);

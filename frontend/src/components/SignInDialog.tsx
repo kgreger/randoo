@@ -139,7 +139,7 @@ export function SignInDialog({ onClose, recoveryMode, onRecoveryDone }: Props) {
             <p>Check your inbox for a sign-in link.</p>
           ) : (
             <>
-              <p>No password needed — we'll email you a link.</p>
+              <p>No password needed, we'll email you a link.</p>
               <input
                 className="field-input"
                 type="email"

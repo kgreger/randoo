@@ -55,7 +55,7 @@ export async function exportGpx(
   });
 
   if (response.status === 401) {
-    throw new Error("Your session expired — sign in again to export.");
+    throw new Error("Your session expired, sign in again to export.");
   }
   if (!response.ok) {
     const detail = await response.text();

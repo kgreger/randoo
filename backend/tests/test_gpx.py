@@ -12,7 +12,7 @@ SAMPLE_TRACK = b"""<?xml version="1.0" encoding="UTF-8"?>
 </gpx>
 """
 
-# A paused-and-resumed recording — two segments, the kind a rider produces by
+# A paused-and-resumed recording: two segments, the kind a rider produces by
 # stopping at a rest stop and picking the recording back up later.
 TWO_SEGMENT_TRACK = b"""<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="test" xmlns="http://www.topografix.com/GPX/1/1">

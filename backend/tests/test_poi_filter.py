@@ -11,7 +11,7 @@ def _poi(lat: float, lon: float) -> Poi:
 
 
 def test_poi_near_a_segment_gap_is_excluded():
-    # Same paused-and-resumed shape as the geometry test — a POI sitting near
+    # Same paused-and-resumed shape as the geometry test: a POI sitting near
     # the straight line between two segments (not near either segment itself)
     # must not be ranked as if it were near the route.
     first_segment = [Point(48.0, 8.0), Point(48.01, 8.01)]

@@ -1,7 +1,7 @@
 """Mapping between Randoo's POI categories and the OpenStreetMap tags that back them.
 
 Each category maps to a list of (key, value) tag pairs. A POI matches a category if
-it has at least one of the pairs. Keep this list small and easy to extend — adding a
+it has at least one of the pairs. Keep this list small and easy to extend: adding a
 category should never require touching the Overpass query builder.
 """
 

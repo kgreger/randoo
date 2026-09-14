@@ -6,7 +6,7 @@ written out twice:
 
 - once at its real position, so every device and map app shows it where it
   actually is;
-- once more at the nearest point on the route itself — a synthetic "turnoff"
+- once more at the nearest point on the route itself, a synthetic "turnoff"
   marker, not a real place. Garmin Connect has been observed to silently
   drop a waypoint from its course-point view once it's more than roughly
   30-80m from the track (undocumented, and the exact cutoff isn't known),
@@ -19,18 +19,18 @@ that's the most common target and the GPX 1.1 base schema has no
 proximity-alert concept of its own:
 
 - `<sym>` with one of Garmin's own waypoint icon names, so the point shows up
-  with a recognisable symbol instead of a generic pin — this part of plain
+  with a recognisable symbol instead of a generic pin. This part of plain
   GPX, not a Garmin extension, so most other tools honour it too.
 - A `gpxx:WaypointExtension`/`Proximity` extension, which is what actually
   makes an Edge (or Basecamp, or most Garmin handhelds) pop up an
   "approaching waypoint" alert as you ride past. Devices that don't
   understand this extension just ignore it, same as any other GPX consumer
-  faced with a foreign `<extensions>` element — no code path in this file
+  faced with a foreign `<extensions>` element: no code path in this file
   breaks output for non-Garmin devices.
 
 Everything here is inferred from Garmin's public GPX Extensions v3 schema and
 GPX files it's known to produce, not verified against a real device or
-Garmin Connect import — if the on-device alert doesn't fire, this is the
+Garmin Connect import. If the on-device alert doesn't fire, this is the
 first place to check.
 """
 
@@ -46,10 +46,10 @@ GARMIN_GPXX_NS = "http://www.garmin.com/xmlschemas/GpxExtensions/v3"
 
 # How close the rider needs to get to a waypoint itself (not the route) to
 # trigger a device's proximity alert. Independent of the search radius that
-# picked out the POIs in the first place — that one controls how far off the
-# route a POI is allowed to be, this one controls how reliably the alert
+# picked out the POIs in the first place (that one controls how far off the
+# route a POI is allowed to be; this one controls how reliably the alert
 # actually fires as you pass, given GPS drift and the point sitting some
-# distance off the road. Fixed for now rather than derived per POI.
+# distance off the road). Fixed for now rather than derived per POI.
 GARMIN_PROXIMITY_M = 150.0
 
 # Garmin's own waypoint icon names (as used by Basecamp/Garmin Connect and
@@ -102,7 +102,7 @@ def _poi_waypoint(ranked: RankedPoi) -> gpxpy.gpx.GPXWaypoint:
 
 def _turnoff_waypoint(ranked: RankedPoi) -> gpxpy.gpx.GPXWaypoint:
     """A synthetic marker sitting exactly on the route, at the point closest
-    to the real POI — see the module docstring for why this exists."""
+    to the real POI. See the module docstring for why this exists."""
     poi = ranked.poi
     on_route = ranked.nearest_route_point
     wpt = gpxpy.gpx.GPXWaypoint(

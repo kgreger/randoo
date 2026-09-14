@@ -15,7 +15,7 @@ METERS_PER_DEGREE_LAT = 111_320
 
 ROUTE = [Point(48.0, 8.0), Point(48.1, 8.1)]
 
-# A long, wiggly route (~1500 points) — the kind that used to produce a
+# A long, wiggly route (~1500 points): the kind that used to produce a
 # buffer polygon with thousands of vertices before simplification.
 LONG_WIGGLY_ROUTE = [
     Point(47.0 + i * 0.001, 7.0 + i * 0.0015 + (0.0003 if i % 2 == 0 else -0.0003))
@@ -60,7 +60,7 @@ def test_long_route_buffer_stays_within_vertex_budget():
 
 
 def test_simplify_skips_polygons_already_under_budget():
-    # A plain two-point buffer has far fewer vertices than the budget —
+    # A plain two-point buffer has far fewer vertices than the budget;
     # simplifying it anyway would only add pointless distortion.
     line = LineString([(0, 0), (1000, 1000)])
     buffered = line.buffer(100, cap_style="round", join_style="round")
@@ -68,7 +68,7 @@ def test_simplify_skips_polygons_already_under_budget():
 
 
 def test_utm_epsg_picks_zone_32n_for_southwest_germany():
-    # Freiburg-ish coordinates — squarely zone 32N.
+    # Freiburg-ish coordinates, squarely zone 32N.
     assert utm_epsg(ROUTE) == 32632
 
 
@@ -91,7 +91,7 @@ def test_utm_epsg_picks_southern_hemisphere_zone():
 
 
 def test_far_end_of_long_route_stays_geodesically_accurate():
-    # ~600km, north-east, crossing a UTM zone boundary along the way — long
+    # ~600km, north-east, crossing a UTM zone boundary along the way: long
     # enough that a projection with its scale centered elsewhere would drift
     # by the time you reach either end.
     long_route = [Point(47.0 + i * (5.0 / 200), 7.0 + i * (6.0 / 200)) for i in range(201)]
@@ -121,7 +121,7 @@ def test_simplify_tolerance_scales_with_radius():
     simplified = _simplify_to_vertex_budget(buffered, radius_m=100, max_vertices=50)
 
     # A fixed 50m tolerance (the previous behaviour) on a 100m search radius
-    # can bulge the boundary out by close to half the radius — exactly what
+    # can bulge the boundary out by close to half the radius, exactly what
     # let POIs well outside the requested distance turn up in results. The
     # radius-scaled tolerance should stay far tighter than that.
     deviation = simplified.hausdorff_distance(buffered)
@@ -162,7 +162,7 @@ def test_chunk_by_distance_handles_trivial_inputs():
 
 
 def test_segment_gap_is_not_bridged_into_the_buffer():
-    # Two segments ~100km apart — a paused-and-resumed recording, not a
+    # Two segments ~100km apart: a paused-and-resumed recording, not a
     # continuous ride. A point sitting on the straight line between them
     # (e.g. a gas station where the rider stopped) must not be treated as
     # near the route just because it's near that imaginary connector.
@@ -171,7 +171,7 @@ def test_segment_gap_is_not_bridged_into_the_buffer():
 
     polygon = route_buffer([first_segment, second_segment], radius_m=100)
 
-    # Roughly the midpoint of the straight line connecting the two segments —
+    # Roughly the midpoint of the straight line connecting the two segments,
     # nowhere near either actual segment.
     midpoint = ShapelyPoint(8.505, 48.505)
     assert not polygon.contains(midpoint)

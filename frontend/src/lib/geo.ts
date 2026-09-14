@@ -18,7 +18,7 @@ function haversineM(a: LatLon, b: LatLon): number {
 }
 
 /** Total route length in metres, summing point-to-point distance within each
- * segment — never across a segment break, which marks a real gap in
+ * segment, never across a segment break, which marks a real gap in
  * recording rather than travelled distance. */
 export function routeLengthM(segments: LatLon[][]): number {
   let total = 0;
