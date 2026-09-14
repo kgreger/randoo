@@ -20,7 +20,9 @@ def _ranked(
         name="Test Spot",
         tags={},
     )
-    return RankedPoi(poi=poi, distance_to_route_m=distance_m, nearest_route_point=on_route)
+    return RankedPoi(
+        poi=poi, distance_to_route_m=distance_m, distance_along_route_m=0.0, nearest_route_point=on_route
+    )
 
 
 def test_export_embeds_the_route_as_a_track_with_one_segment_per_input_segment():

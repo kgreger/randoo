@@ -2,7 +2,7 @@ from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 
-from . import categories, geometry, gpx, poi_filter
+from . import categories, geometry, gpx, poi_filter, search_cache
 from .auth import bearer_token, require_user
 from .entitlements import get_tier
 from .export import build_gpx
@@ -17,6 +17,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def _poi_id(poi) -> str:
+    """A stable identifier for one POI within a search's results - `osm_id`
+    alone isn't safe to use across types, since a node and a way can share
+    the same numeric id."""
+    return f"{poi.osm_type}:{poi.osm_id}"
 
 
 @app.get("/health")
@@ -36,6 +43,15 @@ async def _find_pois(
         raise HTTPException(400, str(exc)) from exc
 
     raw = await file.read()
+
+    # Export re-sends the same file and parameters analyze just used, so it
+    # lands on the same key here automatically - this is what skips redoing
+    # the whole search (POI source query, any per-POI routing) a second time.
+    cache_key = search_cache.make_key(raw, category_ids, radius_m, tier)
+    cached = search_cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     try:
         segments = gpx.parse_track(raw)
     except gpx.InvalidGpxError as exc:
@@ -44,6 +60,8 @@ async def _find_pois(
     buffer_geometry = geometry.route_buffer(segments, radius_m)
     pois = await get_poi_source(tier).query(segments, radius_m, selected)
     ranked = poi_filter.filter_and_rank(pois, segments, buffer_geometry)
+
+    search_cache.set(cache_key, ranked, segments)
     return ranked, segments
 
 
@@ -61,6 +79,7 @@ async def analyze(
     return AnalyzeResponse(
         pois=[
             PoiOut(
+                id=_poi_id(r.poi),
                 osm_id=r.poi.osm_id,
                 osm_type=r.poi.osm_type,
                 lat=r.poi.lat,
@@ -79,11 +98,19 @@ async def export(
     file: UploadFile = File(...),
     categories_param: list[str] = Form(..., alias="categories"),
     radius_m: float = Form(500),
+    excluded_poi_ids: list[str] = Form(default=[]),
     _user: dict = Depends(require_user),
     token: str | None = Depends(bearer_token),
 ) -> Response:
     tier = await get_tier(token)
     ranked, segments = await _find_pois(file, categories_param, radius_m, tier)
+
+    # A POI passing the search doesn't mean the rider actually wants it in
+    # the file - excluded_poi_ids is how the frontend's per-POI selection
+    # gets applied, using the same "osm_type:osm_id" ids /api/analyze returns.
+    excluded = set(excluded_poi_ids)
+    ranked = [r for r in ranked if _poi_id(r.poi) not in excluded]
+
     xml = build_gpx(ranked, segments)
     return Response(
         content=xml,

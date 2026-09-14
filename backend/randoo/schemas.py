@@ -4,6 +4,8 @@ from pydantic import BaseModel
 
 
 class PoiOut(BaseModel):
+    # "osm_type:osm_id" - what /api/export's excluded_poi_ids expects back.
+    id: str
     osm_id: int
     osm_type: str
     lat: float
