@@ -20,6 +20,7 @@ export default function App() {
   const [route, setRoute] = useState<LatLon[][]>([]);
   const [pois, setPois] = useState<Poi[]>([]);
   const [excludedPoiIds, setExcludedPoiIds] = useState(new Set<string>());
+  const [focusRequest, setFocusRequest] = useState<{ poi: Poi; nonce: number } | null>(null);
   const [selectedCategories, setSelectedCategories] = useState(new Set(DEFAULT_CATEGORIES));
   const [radiusM, setRadiusM] = useState(500);
   const [loading, setLoading] = useState(false);
@@ -66,6 +67,14 @@ export default function App() {
       else next.add(id);
       return next;
     });
+  }
+
+  function focusPoi(poi: Poi) {
+    // The nonce means clicking the same card twice in a row (say, after
+    // panning away from it) re-centers the map both times - relying on the
+    // poi object alone wouldn't re-trigger the effect the second time,
+    // since it's the same reference as last render.
+    setFocusRequest((prev) => ({ poi, nonce: (prev?.nonce ?? 0) + 1 }));
   }
 
   async function runSearch() {
@@ -230,7 +239,7 @@ export default function App() {
             </div>
           )}
 
-          <MapView route={route} pois={pois} excludedIds={excludedPoiIds} />
+          <MapView route={route} pois={pois} excludedIds={excludedPoiIds} focusRequest={focusRequest} />
         </div>
 
         <PoiList
@@ -238,6 +247,7 @@ export default function App() {
           radiusM={radiusM}
           excludedIds={excludedPoiIds}
           onToggleExcluded={toggleExcluded}
+          onFocusPoi={focusPoi}
         />
       </div>
     </div>

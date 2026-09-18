@@ -6,13 +6,14 @@ interface Props {
   radiusM: number;
   excludedIds: Set<string>;
   onToggleExcluded: (id: string) => void;
+  onFocusPoi: (poi: Poi) => void;
 }
 
 function categoryLabel(id: string): string {
   return CATEGORIES.find((c) => c.id === id)?.label ?? id;
 }
 
-export function PoiList({ pois, radiusM, excludedIds, onToggleExcluded }: Props) {
+export function PoiList({ pois, radiusM, excludedIds, onToggleExcluded, onFocusPoi }: Props) {
   const includedCount = pois.length - excludedIds.size;
 
   return (
@@ -37,16 +38,21 @@ export function PoiList({ pois, radiusM, excludedIds, onToggleExcluded }: Props)
           const fillPct = Math.min(100, (poi.distance_to_route_m / radiusM) * 100);
 
           return (
-            <label
+            <div
               className={`poi-card ${index === 0 ? "nearest" : ""} ${excluded ? "excluded" : ""}`}
               key={poi.id}
+              // Clicking the card focuses it on the map - the checkbox below
+              // stops this from firing so ticking it doesn't also recenter.
+              onClick={() => onFocusPoi(poi)}
             >
-              <input
-                type="checkbox"
-                className="poi-card-check"
-                checked={!excluded}
-                onChange={() => onToggleExcluded(poi.id)}
-              />
+              <label className="poi-card-check-wrap" onClick={(e) => e.stopPropagation()}>
+                <input
+                  type="checkbox"
+                  className="poi-card-check"
+                  checked={!excluded}
+                  onChange={() => onToggleExcluded(poi.id)}
+                />
+              </label>
               <div className="badge">{categoryLabel(poi.category_id).slice(0, 2)}</div>
               <div className="poi-card-body">
                 <div className="name">{poi.name ?? categoryLabel(poi.category_id)}</div>
@@ -57,7 +63,7 @@ export function PoiList({ pois, radiusM, excludedIds, onToggleExcluded }: Props)
                   <div className="distance-bar-fill" style={{ width: `${fillPct}%` }} />
                 </div>
               </div>
-            </label>
+            </div>
           );
         })}
       </div>

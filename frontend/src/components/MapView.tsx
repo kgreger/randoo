@@ -3,16 +3,26 @@ import L from "leaflet";
 import type { LatLon } from "../lib/gpxPreview";
 import type { Poi } from "../lib/api";
 
+// Close enough to make out individual streets, without zooming in so far
+// that the point of the search radius (context around the POI) is lost.
+const FOCUS_ZOOM = 16;
+
 interface Props {
   route: LatLon[][];
   pois: Poi[];
   excludedIds?: Set<string>;
+  focusRequest?: { poi: Poi; nonce: number } | null;
 }
 
-export function MapView({ route, pois, excludedIds }: Props) {
+export function MapView({ route, pois, excludedIds, focusRequest }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
-  const layerRef = useRef<L.LayerGroup | null>(null);
+  // Two separate groups, not one: redrawing POI markers (say, after a
+  // checkbox toggle) must never touch the route layer, or fitBounds below
+  // would re-run and snap the view back out of whatever the rider just
+  // focused in on.
+  const routeLayerRef = useRef<L.LayerGroup | null>(null);
+  const poiLayerRef = useRef<L.LayerGroup | null>(null);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -36,7 +46,8 @@ export function MapView({ route, pois, excludedIds }: Props) {
     }).addTo(map);
 
     mapRef.current = map;
-    layerRef.current = L.layerGroup().addTo(map);
+    routeLayerRef.current = L.layerGroup().addTo(map);
+    poiLayerRef.current = L.layerGroup().addTo(map);
 
     // The container's real size can settle after this runs (web fonts loading,
     // flex layout reflow), and Leaflet has no way to notice on its own, it
@@ -53,7 +64,7 @@ export function MapView({ route, pois, excludedIds }: Props) {
 
   useEffect(() => {
     const map = mapRef.current;
-    const layer = layerRef.current;
+    const layer = routeLayerRef.current;
     if (!map || !layer) return;
 
     layer.clearLayers();
@@ -74,10 +85,21 @@ export function MapView({ route, pois, excludedIds }: Props) {
       for (const line of segmentLines.slice(1)) bounds.extend(line.getBounds());
       map.fitBounds(bounds, { padding: [40, 40] });
     }
+  }, [route]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    const layer = poiLayerRef.current;
+    if (!map || !layer) return;
+
+    layer.clearLayers();
 
     for (const poi of pois) {
       // Faded, not hidden, for a POI the rider unchecked in the list - still
-      // there to reconsider, just clearly not going into the export.
+      // there to reconsider, just clearly not going into the export. The
+      // marker itself also switches to a hollow outline rather than just
+      // dimming its same solid fill, so "excluded" reads as a distinct
+      // state at a glance, not just a lower-contrast version of "included".
       const excluded = excludedIds?.has(poi.id) ?? false;
       const fade = excluded ? 0.35 : 1;
 
@@ -99,12 +121,19 @@ export function MapView({ route, pois, excludedIds }: Props) {
         weight: 2,
         fillColor: "#ff8f6b",
         opacity: fade,
-        fillOpacity: fade,
+        fillOpacity: excluded ? 0 : fade,
+        dashArray: excluded ? "2 3" : undefined,
       })
         .bindPopup(`<b>${poi.name ?? poi.category_id}</b><br>${Math.round(poi.distance_to_route_m)} m from route`)
         .addTo(layer);
     }
-  }, [route, pois, excludedIds]);
+  }, [pois, excludedIds]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !focusRequest) return;
+    map.setView([focusRequest.poi.lat, focusRequest.poi.lon], Math.max(map.getZoom(), FOCUS_ZOOM));
+  }, [focusRequest]);
 
   return <div ref={containerRef} style={{ width: "100%", height: "100%" }} />;
 }

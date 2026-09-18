@@ -545,11 +545,18 @@ button {
   opacity: 0.45;
 }
 
+.poi-card-check-wrap {
+  flex: none;
+  display: flex;
+  cursor: default;
+}
+
 .poi-card-check {
   flex: none;
   width: 16px;
   height: 16px;
   accent-color: var(--accent);
+  cursor: pointer;
 }
 
 .poi-card .badge {
