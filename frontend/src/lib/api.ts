@@ -9,6 +9,9 @@ export interface Poi {
   category_id: string;
   name: string | null;
   distance_to_route_m: number;
+  // How far along the route (cumulative across all recorded segments) this
+  // POI's nearest point falls - the route-km it shows up at for the rider.
+  distance_along_route_m: number;
   // Where to leave the route for this POI, and the path there (this POI
   // last). A straight line unless is_routed says BRouter found a real one.
   meeting_point: [number, number];

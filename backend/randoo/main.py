@@ -108,6 +108,7 @@ async def analyze(
                 category_id=r.poi.category_id,
                 name=r.poi.name,
                 distance_to_route_m=round(r.distance_to_route_m, 1),
+                distance_along_route_m=round(r.distance_along_route_m, 1),
                 meeting_point=(r.connector.meeting_point.lat, r.connector.meeting_point.lon),
                 connector_path=[(p.lat, p.lon) for p in r.connector.path],
                 is_routed=r.is_routed,

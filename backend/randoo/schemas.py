@@ -13,6 +13,11 @@ class PoiOut(BaseModel):
     category_id: str
     name: str | None
     distance_to_route_m: float
+    # Where this POI's nearest point falls along the route, cumulative
+    # across all segments in recording order - what the list is sorted by,
+    # exposed so the frontend can show it as a route km rather than making
+    # the rider work that out from the map.
+    distance_along_route_m: float
     # Where to leave the route for this POI, and the path there (this POI
     # last). A straight line unless is_routed says a real bike route was
     # found for it instead - see turnoff.py.

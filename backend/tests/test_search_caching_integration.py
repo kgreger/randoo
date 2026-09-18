@@ -110,6 +110,9 @@ def test_analyze_includes_the_connector_for_map_rendering(monkeypatch, client):
     assert len(poi["meeting_point"]) == 2
     # geometric mode: a straight two-point line, meeting point to the POI
     assert poi["connector_path"] == [poi["meeting_point"], [poi["lat"], poi["lon"]]]
+    # exposed for the frontend's route-km display - exact value is
+    # poi_filter.py's job to get right, this just checks it made it out
+    assert poi["distance_along_route_m"] > 0
 
 
 def test_export_without_exclusions_includes_every_poi(monkeypatch, client):

@@ -57,7 +57,8 @@ export function PoiList({ pois, radiusM, excludedIds, onToggleExcluded, onFocusP
               <div className="poi-card-body">
                 <div className="name">{poi.name ?? categoryLabel(poi.category_id)}</div>
                 <div className="meta">
-                  {Math.round(poi.distance_to_route_m)} m, {categoryLabel(poi.category_id)}
+                  km {(poi.distance_along_route_m / 1000).toFixed(1)}, {Math.round(poi.distance_to_route_m)} m,{" "}
+                  {categoryLabel(poi.category_id)}
                 </div>
                 <div className="distance-bar" title={`${Math.round(poi.distance_to_route_m)} m of ${radiusM} m radius`}>
                   <div className="distance-bar-fill" style={{ width: `${fillPct}%` }} />
