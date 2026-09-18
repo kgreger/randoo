@@ -566,6 +566,29 @@ button {
   opacity: 0.45;
 }
 
+/* A stop-to-stop gap on the schematic line: the dash sits under the
+   badges' own centerline (12px card padding + 16px checkbox + 11px gap +
+   half of the 34px badge), so it reads as track between two stations
+   rather than a stray rule floating in the margin. */
+.poi-gap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.poi-gap-line {
+  width: 0;
+  align-self: stretch;
+  margin-left: 55px;
+  border-left: 2px dashed rgba(255, 255, 255, 0.16);
+}
+
+.poi-gap-label {
+  font-size: 10.5px;
+  color: var(--ink-faint);
+  font-family: "JetBrains Mono", monospace;
+}
+
 .poi-card-check-wrap {
   flex: none;
   display: flex;
