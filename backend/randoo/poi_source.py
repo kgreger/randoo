@@ -81,7 +81,7 @@ class LocalPoiSource:
         finally:
             con.close()
 
-        return [
+        pois = [
             Poi(
                 osm_type=osm_type,
                 osm_id=osm_id,
@@ -93,6 +93,7 @@ class LocalPoiSource:
             )
             for osm_type, osm_id, category_id, name, tags, lat, lon in rows
         ]
+        return overpass.dedupe_pois(pois)
 
 
 def get_poi_source(tier: str) -> PoiSource:

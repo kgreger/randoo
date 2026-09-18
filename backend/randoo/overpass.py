@@ -137,12 +137,16 @@ async def query_pois_for_route(
         if owns_client:
             await client.aclose()
 
-    return _dedupe(all_pois)
+    return dedupe_pois(all_pois)
 
 
-def _dedupe(pois: list[Poi]) -> list[Poi]:
-    """Adjacent chunks deliberately overlap at their shared boundary point, so
-    the same POI can legitimately come back from two chunk queries."""
+def dedupe_pois(pois: list[Poi]) -> list[Poi]:
+    """Collapse repeat (osm_type, osm_id) entries, keeping the last one seen.
+
+    Adjacent chunks deliberately overlap at their shared boundary point, so
+    the same POI can legitimately come back from two chunk queries here.
+    LocalPoiSource reuses this too, for a different reason: the same POI can
+    land in more than one region's export near a shared border."""
     seen: dict[tuple[str, int], Poi] = {}
     for poi in pois:
         seen[(poi.osm_type, poi.osm_id)] = poi

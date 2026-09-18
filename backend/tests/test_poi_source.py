@@ -56,6 +56,31 @@ async def test_local_poi_source_respects_requested_categories(parquet_path: Path
     assert [p.name for p in results] == ["In range, wrong category"]
 
 
+async def test_local_poi_source_dedupes_the_same_poi_across_regions(tmp_path: Path):
+    # A POI near a region boundary can land in more than one region's export
+    # (see randoo-infra's regions.py) - same osm_type/osm_id, exported twice.
+    # Without dedup this reaches the frontend as two list entries sharing
+    # one React key, which corrupts far more than just that one row's render.
+    path = tmp_path / "pois.parquet"
+    con = duckdb.connect()
+    con.execute(
+        f"""
+        COPY (
+            SELECT * FROM (VALUES
+                ('node', 1, 'water', 'Border spring', '{{}}', 51.225, 6.775),
+                ('node', 1, 'water', 'Border spring', '{{}}', 51.225, 6.775)
+            ) AS t(osm_type, osm_id, category_id, name, tags, lat, lon)
+        ) TO '{path}' (FORMAT PARQUET);
+        """
+    )
+    con.close()
+
+    source = LocalPoiSource(path)
+    results = await source.query(SEGMENTS, radius_m=2000, categories=WATER)
+
+    assert len(results) == 1
+
+
 async def test_overpass_poi_source_delegates_to_query_pois_for_route(monkeypatch):
     captured = {}
 
