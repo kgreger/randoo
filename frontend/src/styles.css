@@ -550,12 +550,16 @@ button {
   cursor: pointer;
 }
 
-.poi-card.nearest {
+/* Was a permanent highlight on the first card - stale once the list moved
+   to route-order (that's just "first thing you pass", not "closest"), and
+   a much better fit as hover feedback: reinforces that the card is
+   clickable (it focuses the map) rather than pointing at one arbitrary row. */
+.poi-card:hover {
   background: rgba(255, 143, 107, 0.1);
   border-color: rgba(255, 143, 107, 0.26);
 }
 
-.poi-card.nearest .badge {
+.poi-card:hover .badge {
   background: linear-gradient(135deg, var(--accent), var(--accent-2));
   color: var(--accent-ink);
 }

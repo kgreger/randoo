@@ -71,7 +71,7 @@ export function PoiList({ pois, radiusM, excludedIds, onToggleExcluded, onFocusP
                 </div>
               )}
               <div
-                className={`poi-card ${index === 0 ? "nearest" : ""} ${excluded ? "excluded" : ""}`}
+                className={`poi-card ${excluded ? "excluded" : ""}`}
                 // Clicking the card focuses it on the map - the checkbox
                 // below stops this from firing so ticking it doesn't also
                 // recenter.
