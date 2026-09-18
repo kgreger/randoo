@@ -23,6 +23,11 @@ export function MapView({ route, pois, excludedIds, focusRequest }: Props) {
   // focused in on.
   const routeLayerRef = useRef<L.LayerGroup | null>(null);
   const poiLayerRef = useRef<L.LayerGroup | null>(null);
+  // The button reads this at click time rather than closing over `route`
+  // directly - it's created once, in the init effect below, while `route`
+  // keeps changing on every render.
+  const routeBoundsRef = useRef<L.LatLngBounds | null>(null);
+  const fitButtonRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -34,6 +39,30 @@ export function MapView({ route, pois, excludedIds, focusRequest }: Props) {
       12,
     );
     L.control.zoom({ position: "bottomright" }).addTo(map);
+
+    // A custom control next to the zoom buttons - only shown once a route
+    // is loaded (toggled in the route effect below, not here, since that's
+    // where the current route's bounds are actually known).
+    const FitRouteControl = L.Control.extend({
+      onAdd: () => {
+        const button = L.DomUtil.create("button", "map-fit-route-btn");
+        button.type = "button";
+        button.title = "Zoom to route";
+        button.setAttribute("aria-label", "Zoom to route");
+        button.innerHTML =
+          '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+          '<path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4"/>' +
+          "</svg>";
+        button.hidden = true;
+        L.DomEvent.disableClickPropagation(button);
+        button.addEventListener("click", () => {
+          if (routeBoundsRef.current) map.fitBounds(routeBoundsRef.current, { padding: [40, 40] });
+        });
+        fitButtonRef.current = button;
+        return button;
+      },
+    });
+    new FitRouteControl({ position: "bottomright" }).addTo(map);
 
     // Standard OSM tiles, darkened with a CSS filter (see .map-tiles-dark in
     // styles.css) rather than a separate dark-tile provider: CARTO's free
@@ -84,7 +113,12 @@ export function MapView({ route, pois, excludedIds, focusRequest }: Props) {
       const bounds = segmentLines[0].getBounds();
       for (const line of segmentLines.slice(1)) bounds.extend(line.getBounds());
       map.fitBounds(bounds, { padding: [40, 40] });
+      routeBoundsRef.current = bounds;
+    } else {
+      routeBoundsRef.current = null;
     }
+
+    if (fitButtonRef.current) fitButtonRef.current.hidden = segmentLines.length === 0;
   }, [route]);
 
   useEffect(() => {

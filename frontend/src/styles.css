@@ -248,6 +248,27 @@ button {
   border-bottom: 1px solid var(--border) !important;
 }
 
+.map-fit-route-btn {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 8px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--map-overlay-bg);
+  backdrop-filter: blur(16px);
+  color: var(--ink);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+}
+
+.map-fit-route-btn:hover {
+  background: rgba(255, 143, 107, 0.22);
+}
+
 .map-empty {
   position: absolute;
   inset: 0;
