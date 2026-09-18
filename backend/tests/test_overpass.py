@@ -84,6 +84,35 @@ async def test_query_pois_raises_once_every_endpoint_is_exhausted():
             await overpass.query_pois((47, 7, 49, 9), "47 7 49 9", WATER, client=client)
 
 
+async def test_query_pois_accepts_an_empty_result_once_every_endpoint_agrees():
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(str(request.url))
+        return httpx.Response(200, json={"elements": []})
+
+    async with _client_for(handler) as client:
+        pois = await overpass.query_pois((47, 7, 49, 9), "47 7 49 9", WATER, client=client)
+
+    assert pois == []
+    # every mirror had to weigh in before an empty result was trusted
+    assert calls == list(overpass.OVERPASS_ENDPOINTS)
+
+
+async def test_query_pois_raises_on_an_empty_result_if_another_endpoint_errored():
+    def handler(request: httpx.Request) -> httpx.Response:
+        if str(request.url) == overpass.OVERPASS_ENDPOINTS[0]:
+            return httpx.Response(500)
+        return httpx.Response(200, json={"elements": []})
+
+    async with _client_for(handler) as client:
+        # A degraded mirror answering "nothing here" can't be told apart
+        # from one that's simply broken - this must not come back as a
+        # silent, trustworthy zero.
+        with pytest.raises(RuntimeError, match="all Overpass endpoints failed"):
+            await overpass.query_pois((47, 7, 49, 9), "47 7 49 9", WATER, client=client)
+
+
 async def test_query_pois_caches_a_successful_response(tmp_path, monkeypatch):
     monkeypatch.setattr(overpass, "CACHE_DIR", tmp_path / "cache")
     calls = []

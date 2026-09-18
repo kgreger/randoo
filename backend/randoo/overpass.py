@@ -166,6 +166,14 @@ async def query_pois(
     before moving on to the next one. Reuses an already-open client when one
     is passed in, so a chunked route doesn't open a fresh connection per
     chunk.
+
+    A live endpoint can answer with a valid, empty response instead of an
+    error when it's degraded - a rider would see that as "no POIs found"
+    with nothing to explain it. So a bare empty result isn't trusted on its
+    own: every configured endpoint gets consulted, and it's only accepted
+    once none of them errored out along the way. If some did, an all-empty
+    outcome can't be told apart from a broken mirror going quiet, so this
+    raises instead of answering with a silent zero.
     """
     query = _build_query(bbox, poly, categories)
 
@@ -178,15 +186,23 @@ async def query_pois(
         client = httpx.AsyncClient(timeout=TIMEOUT_S, headers={"User-Agent": USER_AGENT})
 
     failures: list[str] = []
+    saw_empty_response = False
     try:
         for endpoint in OVERPASS_ENDPOINTS:
             elements = await _query_endpoint_with_retries(client, endpoint, query, failures)
-            if elements is not None:
+            if elements is None:
+                continue
+            if elements:
                 _write_cache(query, elements)
                 return _parse_elements(elements, categories)
+            saw_empty_response = True
     finally:
         if owns_client:
             await client.aclose()
+
+    if saw_empty_response and not failures:
+        _write_cache(query, [])
+        return []
 
     raise RuntimeError("all Overpass endpoints failed:\n" + "\n".join(failures))
 
