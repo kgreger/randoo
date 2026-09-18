@@ -1,20 +1,42 @@
 import { useEffect, useRef } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import L from "leaflet";
 import type { LatLon } from "../lib/gpxPreview";
 import type { Poi } from "../lib/api";
+import { categoryById } from "../lib/categories";
 
 // Close enough to make out individual streets, without zooming in so far
 // that the point of the search radius (context around the POI) is lost.
 const FOCUS_ZOOM = 16;
+
+// A pulse plays once per click - long enough to read as deliberate feedback,
+// short enough that clicking several cards in a row doesn't leave a trail of
+// still-animating markers.
+const PULSE_DURATION_MS = 900;
 
 interface Props {
   route: LatLon[][];
   pois: Poi[];
   excludedIds?: Set<string>;
   focusRequest?: { poi: Poi; nonce: number } | null;
+  hoveredId?: string | null;
+  selectedId?: string | null;
+  onSelectPoi?: (poi: Poi) => void;
 }
 
-export function MapView({ route, pois, excludedIds, focusRequest }: Props) {
+function poiDivIcon(poi: Poi, excluded: boolean): L.DivIcon {
+  const Icon = categoryById(poi.category_id)?.icon;
+  const iconSvg = Icon ? renderToStaticMarkup(<Icon size={11} strokeWidth={2.4} aria-hidden="true" />) : "";
+  return L.divIcon({
+    className: `poi-marker ${excluded ? "excluded" : ""}`,
+    html: `<div class="poi-marker-dot">${iconSvg}</div>`,
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
+    popupAnchor: [0, -12],
+  });
+}
+
+export function MapView({ route, pois, excludedIds, focusRequest, hoveredId, selectedId, onSelectPoi }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   // Two separate groups, not one: redrawing POI markers (say, after a
@@ -23,11 +45,20 @@ export function MapView({ route, pois, excludedIds, focusRequest }: Props) {
   // focused in on.
   const routeLayerRef = useRef<L.LayerGroup | null>(null);
   const poiLayerRef = useRef<L.LayerGroup | null>(null);
+  // Looked up by id when the list is hovered or a card is clicked, so
+  // those effects can touch one marker's element directly instead of
+  // rebuilding the whole layer just to toggle a class.
+  const markersRef = useRef<Map<string, L.Marker>>(new Map());
   // The button reads this at click time rather than closing over `route`
   // directly - it's created once, in the init effect below, while `route`
   // keeps changing on every render.
   const routeBoundsRef = useRef<L.LatLngBounds | null>(null);
   const fitButtonRef = useRef<HTMLButtonElement | null>(null);
+  // Read from inside the POI effect below instead of adding onSelectPoi to
+  // its deps - the marker layer only needs rebuilding when the POIs
+  // themselves change, not on every render a new inline callback comes in.
+  const onSelectPoiRef = useRef(onSelectPoi);
+  onSelectPoiRef.current = onSelectPoi;
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -127,13 +158,11 @@ export function MapView({ route, pois, excludedIds, focusRequest }: Props) {
     if (!map || !layer) return;
 
     layer.clearLayers();
+    markersRef.current.clear();
 
     for (const poi of pois) {
       // Faded, not hidden, for a POI the rider unchecked in the list - still
-      // there to reconsider, just clearly not going into the export. The
-      // marker itself also switches to a hollow outline rather than just
-      // dimming its same solid fill, so "excluded" reads as a distinct
-      // state at a glance, not just a lower-contrast version of "included".
+      // there to reconsider, just clearly not going into the export.
       const excluded = excludedIds?.has(poi.id) ?? false;
       const fade = excluded ? 0.35 : 1;
 
@@ -149,24 +178,39 @@ export function MapView({ route, pois, excludedIds, focusRequest }: Props) {
         dashArray: poi.is_routed ? undefined : "2 6",
       }).addTo(layer);
 
-      L.circleMarker([poi.lat, poi.lon], {
-        radius: 7,
-        color: "#241a30",
-        weight: 2,
-        fillColor: "#ff8f6b",
-        opacity: fade,
-        fillOpacity: excluded ? 0 : fade,
-        dashArray: excluded ? "2 3" : undefined,
-      })
+      const marker = L.marker([poi.lat, poi.lon], { icon: poiDivIcon(poi, excluded) })
         .bindPopup(`<b>${poi.name ?? poi.category_id}</b><br>${Math.round(poi.distance_to_route_m)} m from route`)
+        .on("click", () => onSelectPoiRef.current?.(poi))
         .addTo(layer);
+      markersRef.current.set(poi.id, marker);
     }
   }, [pois, excludedIds]);
+
+  // Mirrors the hovered - or clicked-and-selected - list card on the map,
+  // both with the same "hovered" look: a selected card stays picked out on
+  // the map even once the mouse moves on, while every other marker still
+  // lights up on its own hover as usual.
+  useEffect(() => {
+    for (const [id, marker] of markersRef.current) {
+      marker.getElement()?.classList.toggle("hovered", id === hoveredId || id === selectedId);
+    }
+  }, [hoveredId, selectedId, pois]);
 
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !focusRequest) return;
     map.setView([focusRequest.poi.lat, focusRequest.poi.lon], Math.max(map.getZoom(), FOCUS_ZOOM));
+
+    const el = markersRef.current.get(focusRequest.poi.id)?.getElement();
+    if (!el) return;
+    // Restart the animation even if it's already mid-pulse from a rapid
+    // second click on the same card - a class that's already present
+    // doesn't retrigger a CSS animation on its own.
+    el.classList.remove("pulse");
+    void el.offsetWidth;
+    el.classList.add("pulse");
+    const timer = window.setTimeout(() => el.classList.remove("pulse"), PULSE_DURATION_MS);
+    return () => window.clearTimeout(timer);
   }, [focusRequest]);
 
   return <div ref={containerRef} style={{ width: "100%", height: "100%" }} />;

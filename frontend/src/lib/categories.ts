@@ -16,3 +16,7 @@ export const CATEGORIES: CategoryDef[] = [
   { id: "food", label: "Food & supplies", icon: ShoppingBasket },
   { id: "rest", label: "Rest spot", icon: Armchair },
 ];
+
+export function categoryById(id: string): CategoryDef | undefined {
+  return CATEGORIES.find((c) => c.id === id);
+}

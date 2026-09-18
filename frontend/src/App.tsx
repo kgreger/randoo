@@ -21,6 +21,8 @@ export default function App() {
   const [pois, setPois] = useState<Poi[]>([]);
   const [excludedPoiIds, setExcludedPoiIds] = useState(new Set<string>());
   const [focusRequest, setFocusRequest] = useState<{ poi: Poi; nonce: number } | null>(null);
+  const [hoveredPoiId, setHoveredPoiId] = useState<string | null>(null);
+  const [selectedPoiId, setSelectedPoiId] = useState<string | null>(null);
   const [selectedCategories, setSelectedCategories] = useState(new Set(DEFAULT_CATEGORIES));
   const [radiusM, setRadiusM] = useState(500);
   const [loading, setLoading] = useState(false);
@@ -47,6 +49,7 @@ export default function App() {
     setRouteName(selected.name.replace(/\.gpx$/i, ""));
     setPois([]);
     setExcludedPoiIds(new Set());
+    setSelectedPoiId(null);
     setError(null);
     try {
       const preview = await parseGpxPreview(selected);
@@ -81,6 +84,7 @@ export default function App() {
     // poi object alone wouldn't re-trigger the effect the second time,
     // since it's the same reference as last render.
     setFocusRequest((prev) => ({ poi, nonce: (prev?.nonce ?? 0) + 1 }));
+    setSelectedPoiId(poi.id);
   }
 
   async function runSearch() {
@@ -101,10 +105,12 @@ export default function App() {
       // now would silently undo whatever the rider is already looking at.
       if (requestId !== searchRequestId.current) return;
       setPois(results);
-      // A previous search's exclusions don't carry meaning for a new set of
-      // results - stale ids just wouldn't match anything, but starting
-      // fresh (and fully included) is the state a rider actually expects.
+      // A previous search's exclusions and selection don't carry meaning
+      // for a new set of results - stale ids just wouldn't match anything,
+      // but starting fresh (and fully included) is the state a rider
+      // actually expects.
       setExcludedPoiIds(new Set());
+      setSelectedPoiId(null);
     } catch (err) {
       if (requestId !== searchRequestId.current) return;
       setError(err instanceof Error ? err.message : "Search failed.");
@@ -251,15 +257,25 @@ export default function App() {
             </div>
           )}
 
-          <MapView route={route} pois={pois} excludedIds={excludedPoiIds} focusRequest={focusRequest} />
+          <MapView
+            route={route}
+            pois={pois}
+            excludedIds={excludedPoiIds}
+            focusRequest={focusRequest}
+            hoveredId={hoveredPoiId}
+            selectedId={selectedPoiId}
+            onSelectPoi={(poi) => setSelectedPoiId(poi.id)}
+          />
         </div>
 
         <PoiList
           pois={pois}
           radiusM={radiusM}
           excludedIds={excludedPoiIds}
+          selectedId={selectedPoiId}
           onToggleExcluded={toggleExcluded}
           onFocusPoi={focusPoi}
+          onHoverPoi={setHoveredPoiId}
         />
       </div>
     </div>

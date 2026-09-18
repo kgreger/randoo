@@ -269,6 +269,62 @@ button {
   background: rgba(255, 143, 107, 0.22);
 }
 
+/* The custom className replaces Leaflet's own "leaflet-div-icon" (white box,
+   grey border), so nothing here is fighting a default. */
+.poi-marker-dot {
+  box-sizing: border-box;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ff8f6b;
+  border: 2px solid #241a30;
+  color: #241a30;
+  transition: transform 0.15s ease;
+}
+
+/* Same "faded, hollow outline" language as the excluded list card, just at
+   marker scale. */
+.poi-marker.excluded .poi-marker-dot {
+  background: transparent;
+  border-style: dashed;
+  opacity: 0.55;
+}
+
+/* Mirrors the hovered list card - the marker grows rather than just
+   glowing, so it's findable even at a glance across a busy cluster. */
+.poi-marker.hovered .poi-marker-dot {
+  transform: scale(1.45);
+  box-shadow: 0 0 0 4px rgba(255, 143, 107, 0.28);
+}
+
+.poi-marker.pulse .poi-marker-dot {
+  animation: poi-marker-pulse 0.9s ease-out;
+}
+
+@keyframes poi-marker-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 143, 107, 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 14px rgba(255, 143, 107, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 143, 107, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .poi-marker-dot {
+    transition: none;
+  }
+  .poi-marker.pulse .poi-marker-dot {
+    animation: none;
+  }
+}
+
 .map-empty {
   position: absolute;
   inset: 0;
@@ -553,13 +609,17 @@ button {
 /* Was a permanent highlight on the first card - stale once the list moved
    to route-order (that's just "first thing you pass", not "closest"), and
    a much better fit as hover feedback: reinforces that the card is
-   clickable (it focuses the map) rather than pointing at one arbitrary row. */
-.poi-card:hover {
+   clickable (it focuses the map) rather than pointing at one arbitrary row.
+   .selected gets the identical look: the card a rider clicked stays picked
+   out the same way, without hovering it, until another one is clicked. */
+.poi-card:hover,
+.poi-card.selected {
   background: rgba(255, 143, 107, 0.1);
   border-color: rgba(255, 143, 107, 0.26);
 }
 
-.poi-card:hover .badge {
+.poi-card:hover .badge,
+.poi-card.selected .badge {
   background: linear-gradient(135deg, var(--accent), var(--accent-2));
   color: var(--accent-ink);
 }
