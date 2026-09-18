@@ -27,6 +27,12 @@ export default function App() {
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [signInOpen, setSignInOpen] = useState(false);
+  // A slow search (real Overpass round-trips can take tens of seconds) that
+  // a rider re-runs before it finishes - a new category, say - must never
+  // have its late answer overwrite the newer search's already-shown
+  // results. Bumped at the start of every search; a response only gets
+  // applied if it's still the most recent one requested.
+  const searchRequestId = useRef(0);
 
   useEffect(() => {
     if (user && !recoveryMode) setSignInOpen(false);
@@ -79,6 +85,7 @@ export default function App() {
 
   async function runSearch() {
     if (!file || selectedCategories.size === 0) return;
+    const requestId = ++searchRequestId.current;
     setLoading(true);
     setError(null);
     try {
@@ -89,15 +96,20 @@ export default function App() {
       const accessToken = data.session?.access_token;
 
       const results = await analyzeRoute(file, Array.from(selectedCategories), radiusM, accessToken);
+      // A newer search already started (and maybe already finished) while
+      // this one was still in flight - its results are stale, showing them
+      // now would silently undo whatever the rider is already looking at.
+      if (requestId !== searchRequestId.current) return;
       setPois(results);
       // A previous search's exclusions don't carry meaning for a new set of
       // results - stale ids just wouldn't match anything, but starting
       // fresh (and fully included) is the state a rider actually expects.
       setExcludedPoiIds(new Set());
     } catch (err) {
+      if (requestId !== searchRequestId.current) return;
       setError(err instanceof Error ? err.message : "Search failed.");
     } finally {
-      setLoading(false);
+      if (requestId === searchRequestId.current) setLoading(false);
     }
   }
 
