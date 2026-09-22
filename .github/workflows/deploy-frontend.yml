@@ -1,0 +1,54 @@
+name: Deploy frontend
+
+# Built in CI and rsynced as static files (same pattern as
+# konstantingreger.net's own deploy.yml) rather than the SSH-exec +
+# docker-rebuild pattern deploy-backend.yml uses - the frontend has no
+# container, nginx serves the built dist/ directly (see demo-vps-infra's
+# nginx config).
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        env:
+          # frontend/.env.production ist über die ".env.*"-Regel in
+          # .gitignore ausgeschlossen (siehe dort) - hier explizit setzen,
+          # sonst fällt der Build auf den localhost-Fallback in
+          # src/lib/api.ts zurück. Keine geheime Information, nur die
+          # öffentliche Produktions-API-URL.
+          VITE_API_URL: https://demo.konstantingreger.net/randoo/api
+        run: npm run build
+
+      - name: Deploy via rsync
+        uses: burnett01/rsync-deployments@7.0.1
+        with:
+          switches: -avzr --delete
+          path: frontend/dist/
+          remote_path: /var/www/randoo-frontend/
+          remote_host: ${{ secrets.SERVER_HOST }}
+          remote_user: deploy
+          remote_key: ${{ secrets.DEPLOY_SSH_KEY }}
