@@ -10,6 +10,11 @@ interface Props {
 type Tab = "magic" | "password";
 type PasswordView = "signin" | "signup" | "forgot";
 
+// window.location.origin alone is just the bare domain - wrong once the
+// app is served under a path prefix (see vite.config.ts's `base`), which
+// BASE_URL already reflects in both dev ("/") and prod ("/randoo/").
+const REDIRECT_URL = window.location.origin + import.meta.env.BASE_URL;
+
 function ErrorText({ message }: { message: string | null }) {
   if (!message) return null;
   return <p className="account-error">{message}</p>;
@@ -86,7 +91,11 @@ export function SignInDialog({ onClose, recoveryMode, onRecoveryDone }: Props) {
     if (!supabase || !email || !password) return;
     setSending(true);
     setError(null);
-    const { data, error: authError } = await supabase.auth.signUp({ email, password });
+    const { data, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: REDIRECT_URL },
+    });
     setSending(false);
     if (authError) setError(authError.message);
     else if (!data.session) setSignupPending(true);
@@ -97,7 +106,7 @@ export function SignInDialog({ onClose, recoveryMode, onRecoveryDone }: Props) {
     setSending(true);
     setError(null);
     const { error: authError } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin,
+      redirectTo: REDIRECT_URL,
     });
     setSending(false);
     if (authError) setError(authError.message);
