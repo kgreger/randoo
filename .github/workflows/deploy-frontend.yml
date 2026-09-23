@@ -41,6 +41,13 @@ jobs:
           # src/lib/api.ts zurück. Keine geheime Information, nur die
           # öffentliche Produktions-API-URL.
           VITE_API_URL: https://demo.konstantingreger.net/randoo/api
+          VITE_IDEAS_URL: https://demo.konstantingreger.net/ideas
+          # Publishable, not secret - meant to be exposed client-side (see
+          # frontend/.env.example). Without these the build's `supabase`
+          # client is null (see src/lib/supabase.ts) and every sign-in
+          # action silently no-ops.
+          VITE_SUPABASE_URL: https://qdtlraxuewrpqzgtjety.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ZB0gvVTcb7CxdfngTWF_AA_XxkLy5_J
         run: npm run build
 
       - name: Deploy via rsync
