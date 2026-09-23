@@ -49,3 +49,109 @@ create policy "category_presets: owner full access" on category_presets for all
 
 create policy "export_log: owner read" on export_log for select
   using (auth.uid() = user_id);
+
+-- Idea portal (see ~/Code/idea-portal): submissions and upvotes tied to
+-- this project's own accounts, no separate login of its own. email and
+-- tier are already live on profiles but hadn't been added to this file
+-- yet; tier also gates free/premium search in entitlements.py, 'admin'
+-- is who this counts as a moderator.
+alter table profiles add column if not exists email text;
+alter table profiles add column if not exists tier text not null default 'free';
+
+-- live tier already carries a check constraint limited to free/premium
+-- (also not previously reflected here); widened for 'admin' (this file's
+-- moderator check) and 'beta' (planned: same access as premium).
+alter table profiles drop constraint if exists profiles_tier_check;
+alter table profiles add constraint profiles_tier_check
+  check (tier in ('free', 'premium', 'beta', 'admin'));
+
+create table if not exists ideas (
+  id uuid primary key default gen_random_uuid(),
+  author_id uuid references profiles (id) on delete set null,
+  title text not null,
+  description text not null,
+  attachment_path text, -- storage path, not the raw file
+  upvote_count integer not null default 0,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists idea_votes (
+  idea_id uuid not null references ideas (id) on delete cascade,
+  user_id uuid not null references profiles (id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (idea_id, user_id)
+);
+
+alter table ideas enable row level security;
+alter table idea_votes enable row level security;
+
+-- RLS alone isn't enough - the same gotcha already hit once on profiles
+-- (see PROJECT_STATUS.md): without a table-level GRANT, a role is blocked
+-- before RLS policies are even considered.
+grant select on ideas to anon, authenticated;
+grant insert, delete on ideas to authenticated;
+grant select, insert, delete on idea_votes to authenticated;
+
+-- security definer so policies can check admin-ness without recursing into
+-- profiles' own RLS (a plain `using` clause referencing profiles would).
+create or replace function is_admin()
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  select exists (select 1 from profiles where id = auth.uid() and tier = 'admin');
+$$;
+
+create policy "profiles: admin read all" on profiles for select
+  using (is_admin());
+
+create policy "ideas: read all" on ideas for select using (true);
+
+create policy "ideas: insert own" on ideas for insert
+  with check (auth.uid() = author_id);
+
+create policy "ideas: admin delete" on ideas for delete
+  using (is_admin());
+
+create policy "idea_votes: owner full access" on idea_votes for all
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- keeps upvote_count in sync so listing ideas never needs a count() join.
+-- security definer because there's no UPDATE policy on ideas - a voter
+-- other than the idea's own author would otherwise get blocked by RLS
+-- when this trigger tries to bump the counter on their vote.
+create or replace function sync_idea_upvote_count()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if TG_OP = 'INSERT' then
+    update ideas set upvote_count = upvote_count + 1 where id = new.idea_id;
+    return new;
+  elsif TG_OP = 'DELETE' then
+    update ideas set upvote_count = upvote_count - 1 where id = old.idea_id;
+    return old;
+  end if;
+  return null;
+end;
+$$;
+
+create trigger idea_votes_sync_count
+  after insert or delete on idea_votes
+  for each row execute function sync_idea_upvote_count();
+
+insert into storage.buckets (id, name, public)
+values ('idea-attachments', 'idea-attachments', true)
+on conflict (id) do nothing;
+
+create policy "idea-attachments: public read" on storage.objects for select
+  using (bucket_id = 'idea-attachments');
+
+create policy "idea-attachments: authenticated upload own" on storage.objects for insert
+  with check (
+    bucket_id = 'idea-attachments'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );

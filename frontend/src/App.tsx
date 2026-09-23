@@ -11,6 +11,7 @@ import { supabase } from "./lib/supabase";
 import { useAuth } from "./lib/useAuth";
 
 const DEFAULT_CATEGORIES = ["water", "food"];
+const IDEAS_URL = import.meta.env.VITE_IDEAS_URL as string | undefined;
 
 export default function App() {
   const { user, recoveryMode, clearRecoveryMode } = useAuth();
@@ -151,6 +152,25 @@ export default function App() {
     }
   }
 
+  async function handleIdeas() {
+    if (!IDEAS_URL) return;
+
+    const { data } = supabase ? await supabase.auth.getSession() : { data: { session: null } };
+    const session = data.session;
+    if (!session) {
+      setSignInOpen(true);
+      return;
+    }
+
+    // Tokens travel in the fragment, not the query string, so they never
+    // reach a server log or a Referer header - the idea portal reads them
+    // client-side and immediately scrubs the URL.
+    const url = new URL(IDEAS_URL);
+    url.searchParams.set("project", "randoo");
+    url.hash = `access_token=${session.access_token}&refresh_token=${session.refresh_token}`;
+    window.open(url.toString(), "_blank", "noopener,noreferrer");
+  }
+
   const hasRoute = route.some((segment) => segment.length > 1);
   const distanceKm = hasRoute ? routeLengthM(route) / 1000 : null;
 
@@ -175,6 +195,11 @@ export default function App() {
             </svg>
           </div>
           <h1>Randoo</h1>
+          {IDEAS_URL && (
+            <button className="feedback-link" onClick={handleIdeas}>
+              Ideas
+            </button>
+          )}
         </div>
 
         {routeName && (
