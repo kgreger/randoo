@@ -58,6 +58,44 @@ create policy "export_log: owner read" on export_log for select
 alter table profiles add column if not exists email text;
 alter table profiles add column if not exists tier text not null default 'free';
 
+-- on_auth_user_created's function, live but - like the two columns above -
+-- never committed here before. Only ever wrote display_name; extended to
+-- also populate email once the admin view needed it (2026-09-24) - existing
+-- rows from before this change need a one-time backfill, run separately,
+-- not part of this file.
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.profiles (id, tier, display_name, email)
+  values (new.id, 'free', new.email, new.email);
+  return new;
+end;
+$$;
+
+-- handle_new_user above only runs on signup - without this, changing
+-- email via Supabase's own email-change flow would leave profiles.email
+-- stale while auth.users.email moves on.
+create or replace function public.handle_user_email_update()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.profiles set email = new.email where id = new.id;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_email_updated on auth.users;
+create trigger on_auth_user_email_updated
+  after update of email on auth.users
+  for each row execute function public.handle_user_email_update();
+
 -- live tier already carries a check constraint limited to free/premium
 -- (also not previously reflected here); widened for 'admin' (this file's
 -- moderator check) and 'beta' (planned: same access as premium).
