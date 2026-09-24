@@ -49,6 +49,18 @@ async def test_get_tier_reads_premium_from_the_profile(monkeypatch):
     assert captured["headers"]["apikey"] == "test-publishable-key"
 
 
+async def test_get_tier_treats_the_idea_portal_admin_role_as_premium(monkeypatch):
+    # profiles.tier == 'admin' is the idea-portal moderator role, not a
+    # separate subscription tier - it should still get premium search
+    # rather than falling back to the slow, rate-limited Overpass path.
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=[{"tier": "admin"}])
+
+    monkeypatch.setattr("randoo.entitlements.httpx.AsyncClient", _mock_async_client(handler))
+
+    assert await entitlements.get_tier("user-token") == entitlements.PREMIUM
+
+
 async def test_get_tier_defaults_to_free_for_a_non_premium_profile(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json=[{"tier": "free"}])
@@ -56,6 +68,17 @@ async def test_get_tier_defaults_to_free_for_a_non_premium_profile(monkeypatch):
     monkeypatch.setattr("randoo.entitlements.httpx.AsyncClient", _mock_async_client(handler))
 
     assert await entitlements.get_tier("user-token") == entitlements.FREE
+
+
+async def test_get_tier_treats_beta_as_premium(monkeypatch):
+    # 'beta' is a real, distinct profiles.tier value (see schema.sql's check
+    # constraint), not a synonym for premium - still gets premium search too.
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=[{"tier": "beta"}])
+
+    monkeypatch.setattr("randoo.entitlements.httpx.AsyncClient", _mock_async_client(handler))
+
+    assert await entitlements.get_tier("user-token") == entitlements.PREMIUM
 
 
 async def test_get_tier_defaults_to_free_when_the_profile_row_is_missing(monkeypatch):

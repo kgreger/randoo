@@ -16,6 +16,13 @@ from . import config
 FREE = "free"
 PREMIUM = "premium"
 
+# The idea-portal moderator role (profiles.tier == 'admin') and beta
+# testers both get premium search too - neither should sit behind the
+# slow, rate-limited public Overpass path just because 'admin' was only
+# ever meant to gate moderation elsewhere, or 'beta' is its own distinct
+# value rather than a synonym for premium.
+_PREMIUM_PROFILE_TIERS = (PREMIUM, "admin", "beta")
+
 _TIMEOUT_S = 5
 
 
@@ -48,6 +55,6 @@ async def get_tier(token: str | None) -> str:
     except (httpx.HTTPError, ValueError):
         return FREE
 
-    if rows and rows[0].get("tier") == PREMIUM:
+    if rows and rows[0].get("tier") in _PREMIUM_PROFILE_TIERS:
         return PREMIUM
     return FREE
