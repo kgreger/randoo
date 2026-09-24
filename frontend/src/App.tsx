@@ -3,10 +3,10 @@ import { useTranslation } from "react-i18next";
 import { AccountControl } from "./components/AccountControl";
 import { AccountDialog } from "./components/AccountDialog";
 import { CategoryFilter } from "./components/CategoryFilter";
-import { LanguageSwitcher } from "./components/LanguageSwitcher";
 import { MapView } from "./components/MapView";
 import { PoiList } from "./components/PoiList";
 import { SignInDialog } from "./components/SignInDialog";
+import { SUPPORTED_LANGUAGES, type SupportedLanguage } from "./i18n";
 import { analyzeRoute, exportGpx, type Poi } from "./lib/api";
 import { routeLengthM } from "./lib/geo";
 import { parseGpxPreview, type LatLon } from "./lib/gpxPreview";
@@ -17,7 +17,7 @@ const DEFAULT_CATEGORIES = ["water", "food"];
 const IDEAS_URL = import.meta.env.VITE_IDEAS_URL as string | undefined;
 
 export default function App() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user, recoveryMode, clearRecoveryMode } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -53,6 +53,24 @@ export default function App() {
   useEffect(() => {
     if (!user) setAccountOpen(false);
   }, [user]);
+
+  // An account-level preference (set via AccountDialog's language switcher)
+  // wins over whatever this browser had detected/stored on its own once at
+  // sign-in - it's the whole point of persisting it on the account rather
+  // than just locally. Applied once per login (tracked by user id), not on
+  // every `user` update: a later manual switch updates `user_metadata`
+  // asynchronously (and may not land at all, say the update call fails),
+  // so re-applying it on every render would otherwise fight a rider's own
+  // more recent choice and snap it back.
+  const languageSyncedForUserId = useRef<string | null>(null);
+  useEffect(() => {
+    if (!user || languageSyncedForUserId.current === user.id) return;
+    languageSyncedForUserId.current = user.id;
+    const accountLanguage = user.user_metadata?.language as string | undefined;
+    if (accountLanguage && (SUPPORTED_LANGUAGES as readonly string[]).includes(accountLanguage)) {
+      if (accountLanguage !== i18n.language) i18n.changeLanguage(accountLanguage as SupportedLanguage);
+    }
+  }, [user, i18n]);
 
   async function handleFile(selected: File) {
     setFile(selected);
@@ -222,7 +240,6 @@ export default function App() {
         )}
 
         <div className="topbar-actions">
-          <LanguageSwitcher />
           <button className="btn btn-ghost" onClick={() => fileInputRef.current?.click()}>
             {file ? t("app.changeRoute") : t("app.uploadGpx")}
           </button>

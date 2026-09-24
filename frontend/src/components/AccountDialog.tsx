@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/useAuth";
 
@@ -112,6 +113,11 @@ export function AccountDialog({ onClose }: Props) {
           </button>
           <ErrorText message={passwordError} />
           {passwordSaved && <p className="account-success">{t("account.passwordUpdated")}</p>}
+        </div>
+
+        <div className="account-field-group">
+          <label className="account-field-label">{t("language.label")}</label>
+          <LanguageSwitcher />
         </div>
       </div>
     </div>
