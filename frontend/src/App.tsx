@@ -222,6 +222,7 @@ export default function App() {
             </svg>
           </div>
           <h1>{t("app.title")}</h1>
+          <span className="beta-badge">Beta</span>
           {IDEAS_URL && (
             <button className="feedback-link" onClick={handleIdeas}>
               {t("app.ideas")}
