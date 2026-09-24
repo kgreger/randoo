@@ -35,10 +35,15 @@ _GEOD = Geod(ellps="WGS84")
 
 # Caps concurrent BRouter requests process-wide (every POI's every
 # candidate, across every search in flight), not per-search - a self-hosted
-# instance handles concurrent load well (a real 80-request burst against it
+# instance handles concurrent load well (an 80-request burst against it
 # came back clean, no failures), but a fully unbounded gather over a
 # POI-heavy search could still throw thousands of requests at it at once.
-_MAX_CONCURRENT_REQUESTS = 40
+# Raised from 40 (2026-09-24): a real, dense-route search against the
+# production instance still took long enough to hit the reverse proxy's
+# timeout, even though neither BRouter nor this service were anywhere near
+# their CPU/memory limits at the time - the bottleneck was this cap itself,
+# not the instance's actual capacity.
+_MAX_CONCURRENT_REQUESTS = 100
 _request_semaphore = asyncio.Semaphore(_MAX_CONCURRENT_REQUESTS)
 
 # How close a routed point has to sit to the recorded track to still count as
