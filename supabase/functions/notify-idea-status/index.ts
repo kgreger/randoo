@@ -44,11 +44,16 @@ Deno.serve(async (req) => {
   // but this trusted server-side context.
   const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
-  const { data: idea } = await adminClient
+  const { data: idea, error: ideaError } = await adminClient
     .from("ideas")
     .select("title, kind, author_id")
     .eq("id", idea_id)
     .single();
+  // A real query error (bad service role key, connection issue, ...) was
+  // silently indistinguishable from a genuinely missing row here before -
+  // both just left `idea` falsy, so a caller only ever saw "idea not
+  // found" either way, masking the actual problem.
+  if (ideaError) return new Response(`idea lookup failed: ${ideaError.message}`, { status: 500, headers: corsHeaders });
   if (!idea) return new Response("idea not found", { status: 404, headers: corsHeaders });
 
   const { data: votes } = await adminClient.from("idea_votes").select("user_id").eq("idea_id", idea_id);
