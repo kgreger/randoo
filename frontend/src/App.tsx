@@ -31,6 +31,7 @@ export default function App() {
   const [selectedCategories, setSelectedCategories] = useState(new Set(DEFAULT_CATEGORIES));
   const [radiusM, setRadiusM] = useState(500);
   const [loading, setLoading] = useState(false);
+  const [searchElapsedS, setSearchElapsedS] = useState(0);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [signInOpen, setSignInOpen] = useState(false);
@@ -53,6 +54,17 @@ export default function App() {
   useEffect(() => {
     if (!user) setAccountOpen(false);
   }, [user]);
+
+  // A search can genuinely take anywhere from a couple seconds to over a
+  // minute (a dense route routes every POI's connector through BRouter) -
+  // with no way to report real progress from a single request/response,
+  // showing elapsed time at least confirms it's still working, not stuck.
+  useEffect(() => {
+    if (!loading) return;
+    setSearchElapsedS(0);
+    const interval = window.setInterval(() => setSearchElapsedS((s) => s + 1), 1000);
+    return () => window.clearInterval(interval);
+  }, [loading]);
 
   // An account-level preference (set via AccountDialog's language switcher)
   // wins over whatever this browser had detected/stored on its own once at
@@ -309,8 +321,13 @@ export default function App() {
                 onClick={runSearch}
                 disabled={selectedCategories.size === 0 || loading}
               >
-                {loading ? t("app.searching") : t("app.findPoints")}
+                {loading ? t("app.searchingElapsed", { s: searchElapsedS }) : t("app.findPoints")}
               </button>
+              {loading && (
+                <div className="search-progress" role="progressbar" aria-label={t("app.searching")}>
+                  <div className="search-progress-bar" />
+                </div>
+              )}
             </div>
           )}
 

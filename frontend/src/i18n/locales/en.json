@@ -12,6 +12,7 @@
     "uploadPrompt": "Upload a GPX track to see water, food, fuel, and other stops along it.",
     "chooseFile": "Choose a GPX file",
     "searching": "Searching…",
+    "searchingElapsed": "Searching… ({{s}}s)",
     "findPoints": "Find points",
     "errorGpxParse": "Could not read that GPX file.",
     "errorSearchFailed": "Search failed.",

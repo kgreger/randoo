@@ -378,12 +378,45 @@ button {
   }
 }
 
+/* Indeterminate, not a real percentage - a single request/response has no
+   way to report actual progress mid-search, this only needs to say "still
+   working", not "how far along". */
+.search-progress {
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.search-progress-bar {
+  height: 100%;
+  width: 40%;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  animation: search-progress-slide 1.2s ease-in-out infinite;
+}
+
+@keyframes search-progress-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(350%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .poi-marker-dot {
     transition: none;
   }
   .poi-marker.pulse .poi-marker-dot {
     animation: none;
+  }
+  .search-progress-bar {
+    animation: none;
+    width: 100%;
+    opacity: 0.6;
   }
 }
 

@@ -12,6 +12,7 @@
     "uploadPrompt": "Lade einen GPX-Track hoch, um Wasser, Essen, Tankstellen und andere Stopps entlang der Strecke zu sehen.",
     "chooseFile": "GPX-Datei wählen",
     "searching": "Suche…",
+    "searchingElapsed": "Suche… ({{s}}s)",
     "findPoints": "Punkte finden",
     "errorGpxParse": "Diese GPX-Datei konnte nicht gelesen werden.",
     "errorSearchFailed": "Suche fehlgeschlagen.",
