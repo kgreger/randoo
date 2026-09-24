@@ -71,9 +71,20 @@ create table if not exists ideas (
   title text not null,
   description text not null,
   attachment_path text, -- storage path, not the raw file
+  kind text not null default 'idea',
+  status text not null default 'open',
   upvote_count integer not null default 0,
   created_at timestamptz not null default now()
 );
+
+-- table already existed live before "kind"/"status" were added
+alter table ideas add column if not exists kind text not null default 'idea';
+alter table ideas drop constraint if exists ideas_kind_check;
+alter table ideas add constraint ideas_kind_check check (kind in ('idea', 'bug'));
+
+alter table ideas add column if not exists status text not null default 'open';
+alter table ideas drop constraint if exists ideas_status_check;
+alter table ideas add constraint ideas_status_check check (status in ('open', 'resolved'));
 
 create table if not exists idea_votes (
   idea_id uuid not null references ideas (id) on delete cascade,
@@ -89,7 +100,7 @@ alter table idea_votes enable row level security;
 -- (see PROJECT_STATUS.md): without a table-level GRANT, a role is blocked
 -- before RLS policies are even considered.
 grant select on ideas to anon, authenticated;
-grant insert, delete on ideas to authenticated;
+grant insert, update, delete on ideas to authenticated;
 grant select, insert, delete on idea_votes to authenticated;
 
 -- security definer so policies can check admin-ness without recursing into
@@ -113,6 +124,9 @@ create policy "ideas: insert own" on ideas for insert
 
 create policy "ideas: admin delete" on ideas for delete
   using (is_admin());
+
+create policy "ideas: admin update status" on ideas for update
+  using (is_admin()) with check (is_admin());
 
 create policy "idea_votes: owner full access" on idea_votes for all
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
