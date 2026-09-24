@@ -6,7 +6,18 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
+// idea-portal calls this cross-origin (a different host than this function
+// lives on), so every response - including the preflight and every early
+// return below - needs these, or the browser never even lets the caller
+// see the response, let alone the actual mail go out.
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -20,13 +31,13 @@ Deno.serve(async (req) => {
   const {
     data: { user },
   } = await callerClient.auth.getUser();
-  if (!user) return new Response("unauthorized", { status: 401 });
+  if (!user) return new Response("unauthorized", { status: 401, headers: corsHeaders });
 
   const { data: callerProfile } = await callerClient.from("profiles").select("tier").eq("id", user.id).single();
-  if (callerProfile?.tier !== "admin") return new Response("forbidden", { status: 403 });
+  if (callerProfile?.tier !== "admin") return new Response("forbidden", { status: 403, headers: corsHeaders });
 
   const { idea_id } = await req.json();
-  if (!idea_id) return new Response("idea_id required", { status: 400 });
+  if (!idea_id) return new Response("idea_id required", { status: 400, headers: corsHeaders });
 
   // Service role from here on: gathering every voter's email crosses
   // between users' own rows, which RLS deliberately blocks for anyone
@@ -38,19 +49,19 @@ Deno.serve(async (req) => {
     .select("title, kind, author_id")
     .eq("id", idea_id)
     .single();
-  if (!idea) return new Response("idea not found", { status: 404 });
+  if (!idea) return new Response("idea not found", { status: 404, headers: corsHeaders });
 
   const { data: votes } = await adminClient.from("idea_votes").select("user_id").eq("idea_id", idea_id);
   const recipientIds = new Set<string>((votes ?? []).map((v) => v.user_id as string));
   if (idea.author_id) recipientIds.add(idea.author_id);
-  if (recipientIds.size === 0) return new Response("no recipients", { status: 200 });
+  if (recipientIds.size === 0) return new Response("no recipients", { status: 200, headers: corsHeaders });
 
   const { data: profiles } = await adminClient
     .from("profiles")
     .select("email")
     .in("id", Array.from(recipientIds));
   const emails = (profiles ?? []).map((p) => p.email).filter((e): e is string => !!e);
-  if (emails.length === 0) return new Response("no email addresses on file", { status: 200 });
+  if (emails.length === 0) return new Response("no email addresses on file", { status: 200, headers: corsHeaders });
 
   const gmailUser = Deno.env.get("GMAIL_USER")!;
   const resolvedLabel = idea.kind === "bug" ? "fixed" : "accepted";
@@ -75,5 +86,5 @@ Deno.serve(async (req) => {
   });
   await smtp.close();
 
-  return new Response("ok", { status: 200 });
+  return new Response("ok", { status: 200, headers: corsHeaders });
 });
