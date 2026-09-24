@@ -1,3 +1,4 @@
+import duckdb
 import pytest
 from fastapi.testclient import TestClient
 
@@ -128,3 +129,28 @@ def test_export_without_exclusions_includes_every_poi(monkeypatch, client):
     export_response = client.post("/api/export", files=files, data=data)
 
     assert "Spring" in export_response.text
+
+
+def test_analyze_falls_back_to_overpass_when_the_local_index_is_broken(monkeypatch, client):
+    class BrokenLocalSource:
+        async def query(self, segments, radius_m, categories):
+            raise duckdb.Error("mock: local index unreachable")
+
+    fallback_pois = [
+        Poi(osm_id=9, osm_type="node", lat=48.005, lon=8.005, category_id="water", name="Fallback", tags={})
+    ]
+
+    class FakeOverpassSource:
+        async def query(self, segments, radius_m, categories):
+            return fallback_pois
+
+    monkeypatch.setattr(main, "get_poi_source", lambda tier: BrokenLocalSource())
+    monkeypatch.setattr(main, "OverpassPoiSource", lambda: FakeOverpassSource())
+
+    files = {"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")}
+    data = {"categories": "water", "radius_m": "300"}
+
+    response = client.post("/api/analyze", files=files, data=data)
+
+    assert response.status_code == 200
+    assert response.json()["pois"][0]["name"] == "Fallback"

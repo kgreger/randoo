@@ -258,8 +258,13 @@ async def _query_endpoint_with_retries(
 
         try:
             response.raise_for_status()
+            # A degraded mirror can answer 200 with an empty or otherwise
+            # non-JSON body instead of erroring outright - .json() raises
+            # ValueError (json.JSONDecodeError is a subclass) for that, not
+            # caught by httpx.HTTPError since the HTTP layer itself saw
+            # nothing wrong with the response.
             return response.json()["elements"]
-        except (httpx.HTTPError, KeyError) as exc:
+        except (httpx.HTTPError, KeyError, ValueError) as exc:
             failures.append(f"{endpoint}: {type(exc).__name__}: {exc!r}")
             return None
 

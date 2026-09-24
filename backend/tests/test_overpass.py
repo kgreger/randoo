@@ -60,6 +60,22 @@ async def test_query_pois_falls_back_to_the_next_endpoint_on_failure():
     assert calls[1] == overpass.OVERPASS_ENDPOINTS[1]
 
 
+async def test_query_pois_falls_back_when_an_endpoint_returns_a_200_with_an_empty_body():
+    # A degraded mirror can answer 200 with no body at all instead of
+    # erroring outright - response.json() raises ValueError for that, which
+    # must be treated the same as any other failed attempt, not left to
+    # crash the whole search as an unhandled exception.
+    def handler(request: httpx.Request) -> httpx.Response:
+        if str(request.url) == overpass.OVERPASS_ENDPOINTS[0]:
+            return httpx.Response(200, content=b"")
+        return httpx.Response(200, json={"elements": [NODE_ELEMENT]})
+
+    async with _client_for(handler) as client:
+        pois = await overpass.query_pois((47, 7, 49, 9), "47 7 49 9", WATER, client=client)
+
+    assert len(pois) == 1
+
+
 async def test_query_pois_retries_the_same_endpoint_on_429_before_succeeding():
     calls = []
 

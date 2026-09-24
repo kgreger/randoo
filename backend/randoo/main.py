@@ -1,6 +1,7 @@
 import asyncio
 import dataclasses
 
+import duckdb
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
@@ -9,7 +10,8 @@ from . import categories, geometry, gpx, poi_filter, search_cache
 from .auth import bearer_token, require_user
 from .entitlements import get_tier
 from .export import build_gpx
-from .poi_source import get_poi_source
+from .overpass import Poi
+from .poi_source import OverpassPoiSource, get_poi_source
 from .schemas import AnalyzeResponse, PoiOut
 from .turnoff import get_turnoff_locator
 
@@ -33,6 +35,21 @@ def _poi_id(poi) -> str:
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+async def _query_pois(
+    tier: str, segments: list[list[gpx.Point]], radius_m: float, selected: list[categories.Category]
+) -> list[Poi]:
+    try:
+        return await get_poi_source(tier).query(segments, radius_m, selected)
+    except duckdb.Error:
+        # Only LocalPoiSource ever touches DuckDB, so this can only mean the
+        # local index itself is the problem (a bad path, a missing mount,
+        # ...), not that Overpass is failing too. Same principle as
+        # entitlements.get_tier's own fallback: a broken local index should
+        # never be the reason a premium search fails outright, only the
+        # reason it's slower.
+        return await OverpassPoiSource().query(segments, radius_m, selected)
 
 
 async def _find_pois(
@@ -62,7 +79,7 @@ async def _find_pois(
         raise HTTPException(400, str(exc)) from exc
 
     buffer_geometry = geometry.route_buffer(segments, radius_m)
-    pois = await get_poi_source(tier).query(segments, radius_m, selected)
+    pois = await _query_pois(tier, segments, radius_m, selected)
     ranked = poi_filter.filter_and_rank(pois, segments, buffer_geometry)
     ranked = await _refine_connectors(ranked, segments, tier)
 
