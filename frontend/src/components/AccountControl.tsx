@@ -13,7 +13,7 @@ export function AccountControl({ onRequestSignIn }: Props) {
   if (user) {
     return (
       <button className="btn btn-ghost" onClick={() => supabase?.auth.signOut()}>
-        {user.email}
+        {(user.user_metadata?.display_name as string | undefined) || user.email}
       </button>
     );
   }

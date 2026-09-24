@@ -27,6 +27,7 @@ export function SignInDialog({ onClose, recoveryMode, onRecoveryDone }: Props) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
 
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -94,7 +95,10 @@ export function SignInDialog({ onClose, recoveryMode, onRecoveryDone }: Props) {
     const { data, error: authError } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: REDIRECT_URL },
+      options: {
+        emailRedirectTo: REDIRECT_URL,
+        data: displayName.trim() ? { display_name: displayName.trim() } : undefined,
+      },
     });
     setSending(false);
     if (authError) setError(authError.message);
@@ -209,6 +213,13 @@ export function SignInDialog({ onClose, recoveryMode, onRecoveryDone }: Props) {
             ) : (
               <>
                 <p>Create an account with an email and password.</p>
+                <input
+                  className="field-input"
+                  type="text"
+                  placeholder="Display name (optional)"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                />
                 <input
                   className="field-input"
                   type="email"

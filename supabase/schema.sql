@@ -59,10 +59,13 @@ alter table profiles add column if not exists email text;
 alter table profiles add column if not exists tier text not null default 'free';
 
 -- on_auth_user_created's function, live but - like the two columns above -
--- never committed here before. Only ever wrote display_name; extended to
--- also populate email once the admin view needed it (2026-09-24) - existing
--- rows from before this change need a one-time backfill, run separately,
--- not part of this file.
+-- never committed here before. Only ever wrote display_name as a copy of
+-- the email (there was no real name to use yet); extended to also
+-- populate email once the admin view needed it (2026-09-24), and now to
+-- use an actual chosen display name when the signup form collects one
+-- (SignInDialog.tsx passes it as user metadata) - existing rows from
+-- before either change need a one-time backfill, run separately, not
+-- part of this file.
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -71,7 +74,12 @@ set search_path = public
 as $$
 begin
   insert into public.profiles (id, tier, display_name, email)
-  values (new.id, 'free', new.email, new.email);
+  values (
+    new.id,
+    'free',
+    coalesce(nullif(new.raw_user_meta_data->>'display_name', ''), new.email),
+    new.email
+  );
   return new;
 end;
 $$;
