@@ -1,3 +1,6 @@
+import asyncio
+import time
+
 import httpx
 import pytest
 
@@ -156,6 +159,26 @@ async def test_brouter_locator_skips_a_failing_candidate_and_uses_a_working_one(
 
     assert result is not FALLBACK
     assert result.path[-1] == Point(48.0, 8.006)
+
+
+async def test_brouter_locator_requests_every_candidate_concurrently(monkeypatch):
+    delay_s = 0.05
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        await asyncio.sleep(delay_s)
+        return _brouter_response(123.0, [(8.005, 48.0), (8.006, 48.0)])
+
+    monkeypatch.setattr("randoo.turnoff.httpx.AsyncClient", _mock_async_client(handler))
+
+    locator = BRouterTurnoffLocator(base_url="https://example.test/brouter", profile="trekking")
+    start = time.monotonic()
+    await locator.refine(_poi(48.0, 8.006), SEGMENTS, FALLBACK)
+    elapsed = time.monotonic() - start
+
+    # Several candidates fall within SEGMENTS' window (see its own comment) -
+    # sequentially, that many delay_s-long requests would add up well past
+    # one delay_s; concurrently, they all finish around the same time.
+    assert elapsed < delay_s * 2
 
 
 def test_candidate_points_always_includes_the_center():

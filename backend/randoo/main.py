@@ -1,3 +1,4 @@
+import asyncio
 import dataclasses
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
@@ -76,14 +77,18 @@ async def _refine_connectors(
     the caller's tier allows it - done here, before the result is cached,
     so a routing call (BRouter has no bulk endpoint, this is one request per
     POI) only ever happens once per search, not again on every export of it.
+
+    Every POI's own refine() call runs concurrently (gather preserves the
+    input order, so zipping back against `ranked` still lines up) - run one
+    at a time, a POI-heavy search could take minutes even with a fast
+    self-hosted BRouter behind it, purely from waiting on each in turn.
     """
     locator = get_turnoff_locator(tier)
-    refined = []
-    for r in ranked:
-        connector = await locator.refine(r.poi, segments, r.connector)
-        is_routed = connector is not r.connector
-        refined.append(dataclasses.replace(r, connector=connector, is_routed=is_routed))
-    return refined
+    connectors = await asyncio.gather(*(locator.refine(r.poi, segments, r.connector) for r in ranked))
+    return [
+        dataclasses.replace(r, connector=connector, is_routed=connector is not r.connector)
+        for r, connector in zip(ranked, connectors)
+    ]
 
 
 @app.post("/api/analyze", response_model=AnalyzeResponse)

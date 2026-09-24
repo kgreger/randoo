@@ -11,11 +11,14 @@ a routing call didn't come back.
 
 BRouter has no matrix/table endpoint for "one point against many" the way
 Overpass or OSRM do, so this is genuinely N point-to-point requests per POI,
-one per candidate - see _candidate_points for how that N is kept small.
-Currently pointed at BRouter's public routing server as a first pass, not a
-self-hosted instance; see the concept document for the planned move.
+one per candidate - see _candidate_points for how that N is kept small. All
+of them, across every POI in a search, run concurrently rather than one at
+a time - main.py's own POI loop does the same - capped by _request_semaphore
+so a POI-heavy search doesn't burst thousands of requests at once against
+the self-hosted instance in one go.
 """
 
+import asyncio
 import httpx
 from pyproj import Geod
 from shapely.geometry import LineString, Point as ShapelyPoint
@@ -29,6 +32,14 @@ from .overpass import Poi
 from .poi_filter import Connector
 
 _GEOD = Geod(ellps="WGS84")
+
+# Caps concurrent BRouter requests process-wide (every POI's every
+# candidate, across every search in flight), not per-search - a self-hosted
+# instance handles concurrent load well (a real 80-request burst against it
+# came back clean, no failures), but a fully unbounded gather over a
+# POI-heavy search could still throw thousands of requests at it at once.
+_MAX_CONCURRENT_REQUESTS = 40
+_request_semaphore = asyncio.Semaphore(_MAX_CONCURRENT_REQUESTS)
 
 # How close a routed point has to sit to the recorded track to still count as
 # "on the route" when trimming a path's redundant leading stretch - loose
@@ -75,25 +86,37 @@ class BRouterTurnoffLocator:
     ) -> Connector:
         candidates = _candidate_points(segments, fallback.meeting_point)
 
-        best: tuple[float, Connector] | None = None
         async with httpx.AsyncClient(timeout=_REQUEST_TIMEOUT_S) as client:
-            for candidate, offset_m in candidates:
-                try:
-                    distance_m, path = await self._route(client, candidate, poi)
-                except (httpx.HTTPError, KeyError, ValueError, IndexError):
-                    continue
-                # The candidate's own distance from the route's nearest point
-                # counts too - a candidate further along the track needs a
-                # shorter routed leg to actually win, otherwise the "shortest"
-                # pick would happily send the rider backtracking along the
-                # track itself just to shave a little off the POI-side route.
-                total_m = offset_m + distance_m
-                if best is None or total_m < best[0]:
-                    best = (total_m, Connector(meeting_point=candidate, path=path))
+            results = await asyncio.gather(
+                *(self._route_candidate(client, candidate, offset_m, poi) for candidate, offset_m in candidates)
+            )
+
+        best: tuple[float, Connector] | None = None
+        for result in results:
+            if result is None:
+                continue
+            total_m, connector = result
+            if best is None or total_m < best[0]:
+                best = (total_m, connector)
 
         if best is None:
             return fallback
         return _trim_to_route_departure(best[1], segments)
+
+    async def _route_candidate(
+        self, client: httpx.AsyncClient, candidate: Point, offset_m: float, poi: Poi
+    ) -> tuple[float, Connector] | None:
+        async with _request_semaphore:
+            try:
+                distance_m, path = await self._route(client, candidate, poi)
+            except (httpx.HTTPError, KeyError, ValueError, IndexError):
+                return None
+        # The candidate's own distance from the route's nearest point counts
+        # too - a candidate further along the track needs a shorter routed
+        # leg to actually win, otherwise the "shortest" pick would happily
+        # send the rider backtracking along the track itself just to shave a
+        # little off the POI-side route.
+        return offset_m + distance_m, Connector(meeting_point=candidate, path=path)
 
     async def _route(
         self, client: httpx.AsyncClient, from_point: Point, to_poi: Poi
