@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AccountControl } from "./components/AccountControl";
+import { AccountDialog } from "./components/AccountDialog";
 import { CategoryFilter } from "./components/CategoryFilter";
 import { MapView } from "./components/MapView";
 import { PoiList } from "./components/PoiList";
@@ -30,6 +31,7 @@ export default function App() {
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [signInOpen, setSignInOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   // A slow search (real Overpass round-trips can take tens of seconds) that
   // a rider re-runs before it finishes - a new category, say - must never
   // have its late answer overwrite the newer search's already-shown
@@ -44,6 +46,10 @@ export default function App() {
   useEffect(() => {
     if (recoveryMode) setSignInOpen(true);
   }, [recoveryMode]);
+
+  useEffect(() => {
+    if (!user) setAccountOpen(false);
+  }, [user]);
 
   async function handleFile(selected: File) {
     setFile(selected);
@@ -228,7 +234,7 @@ export default function App() {
               </svg>
             )}
           </button>
-          <AccountControl onRequestSignIn={() => setSignInOpen(true)} />
+          <AccountControl onRequestSignIn={() => setSignInOpen(true)} onOpenAccount={() => setAccountOpen(true)} />
         </div>
       </div>
 
@@ -247,7 +253,9 @@ export default function App() {
             />
           )}
 
-          {!file && !signInOpen && (
+          {accountOpen && <AccountDialog onClose={() => setAccountOpen(false)} />}
+
+          {!file && !signInOpen && !accountOpen && (
             <div className="map-empty">
               <div className="map-empty-card">
                 <div className="icon">
