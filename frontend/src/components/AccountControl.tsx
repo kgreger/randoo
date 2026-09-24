@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, User } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/useAuth";
 
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export function AccountControl({ onRequestSignIn, onOpenAccount }: Props) {
+  const { t } = useTranslation();
   const { user, loading, enabled } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -47,7 +49,7 @@ export function AccountControl({ onRequestSignIn, onOpenAccount }: Props) {
                 onOpenAccount();
               }}
             >
-              User account
+              {t("account.userAccount")}
             </button>
             <button
               className="account-dropdown-item"
@@ -56,7 +58,7 @@ export function AccountControl({ onRequestSignIn, onOpenAccount }: Props) {
                 supabase?.auth.signOut();
               }}
             >
-              Sign out
+              {t("account.signOut")}
             </button>
           </div>
         )}
@@ -66,7 +68,7 @@ export function AccountControl({ onRequestSignIn, onOpenAccount }: Props) {
 
   return (
     <button className="btn btn-ghost" onClick={onRequestSignIn}>
-      Sign in
+      {t("account.signIn")}
     </button>
   );
 }

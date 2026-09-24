@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/useAuth";
 
@@ -12,6 +13,7 @@ function ErrorText({ message }: { message: string | null }) {
 }
 
 export function AccountDialog({ onClose }: Props) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const currentName = (user?.user_metadata?.display_name as string | undefined) ?? "";
 
@@ -61,7 +63,7 @@ export function AccountDialog({ onClose }: Props) {
   return (
     <div className="map-empty">
       <div className="map-empty-card signin-card">
-        <button className="dialog-close" onClick={onClose} aria-label="Close">
+        <button className="dialog-close" onClick={onClose} aria-label={t("account.close")}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M6 6l12 12M18 6L6 18" />
           </svg>
@@ -70,7 +72,7 @@ export function AccountDialog({ onClose }: Props) {
         <p className="account-email">{user?.email}</p>
 
         <div className="account-field-group">
-          <label className="account-field-label">Display name</label>
+          <label className="account-field-label">{t("account.displayName")}</label>
           <input
             className="field-input"
             type="text"
@@ -86,18 +88,18 @@ export function AccountDialog({ onClose }: Props) {
             onClick={saveDisplayName}
             disabled={savingName || displayName.trim() === currentName}
           >
-            {savingName ? "Saving…" : "Save name"}
+            {savingName ? t("account.saving") : t("account.saveName")}
           </button>
           <ErrorText message={nameError} />
-          {nameSaved && <p className="account-success">Display name updated.</p>}
+          {nameSaved && <p className="account-success">{t("account.nameUpdated")}</p>}
         </div>
 
         <div className="account-field-group">
-          <label className="account-field-label">New password</label>
+          <label className="account-field-label">{t("account.newPassword")}</label>
           <input
             className="field-input"
             type="password"
-            placeholder="Leave blank to keep current password"
+            placeholder={t("account.leaveBlankPassword")}
             value={newPassword}
             onChange={(e) => {
               setNewPassword(e.target.value);
@@ -106,10 +108,10 @@ export function AccountDialog({ onClose }: Props) {
             onKeyDown={(e) => e.key === "Enter" && savePassword()}
           />
           <button className="btn btn-primary" onClick={savePassword} disabled={savingPassword || !newPassword}>
-            {savingPassword ? "Saving…" : "Update password"}
+            {savingPassword ? t("account.saving") : t("account.updatePassword")}
           </button>
           <ErrorText message={passwordError} />
-          {passwordSaved && <p className="account-success">Password updated.</p>}
+          {passwordSaved && <p className="account-success">{t("account.passwordUpdated")}</p>}
         </div>
       </div>
     </div>

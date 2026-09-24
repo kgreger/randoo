@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { supabase } from "../lib/supabase";
 
 interface Props {
@@ -21,6 +22,7 @@ function ErrorText({ message }: { message: string | null }) {
 }
 
 export function SignInDialog({ onClose, recoveryMode, onRecoveryDone }: Props) {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>("magic");
   const [passwordView, setPasswordView] = useState<PasswordView>("signin");
 
@@ -49,18 +51,18 @@ export function SignInDialog({ onClose, recoveryMode, onRecoveryDone }: Props) {
     return (
       <div className="map-empty">
         <div className="map-empty-card signin-card">
-          <p>Choose a new password for your account.</p>
+          <p>{t("signInDialog.recoveryPrompt")}</p>
           <input
             className="field-input"
             type="password"
-            placeholder="New password"
+            placeholder={t("signInDialog.newPasswordPlaceholder")}
             value={newPassword}
             autoFocus
             onChange={(e) => setNewPassword(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && saveNewPassword()}
           />
           <button className="btn btn-primary" onClick={saveNewPassword} disabled={!newPassword || sending}>
-            {sending ? "Saving…" : "Save password"}
+            {sending ? t("signInDialog.saving") : t("signInDialog.savePassword")}
           </button>
           <ErrorText message={error} />
         </div>
@@ -120,7 +122,7 @@ export function SignInDialog({ onClose, recoveryMode, onRecoveryDone }: Props) {
   return (
     <div className="map-empty">
       <div className="map-empty-card signin-card">
-        <button className="dialog-close" onClick={onClose} aria-label="Close">
+        <button className="dialog-close" onClick={onClose} aria-label={t("signInDialog.close")}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M6 6l12 12M18 6L6 18" />
           </svg>
@@ -134,7 +136,7 @@ export function SignInDialog({ onClose, recoveryMode, onRecoveryDone }: Props) {
               setError(null);
             }}
           >
-            Magic link
+            {t("signInDialog.magicLink")}
           </button>
           <button
             className={`dialog-tab ${tab === "password" ? "active" : ""}`}
@@ -143,27 +145,27 @@ export function SignInDialog({ onClose, recoveryMode, onRecoveryDone }: Props) {
               setError(null);
             }}
           >
-            Password
+            {t("signInDialog.password")}
           </button>
         </div>
 
         {tab === "magic" &&
           (magicLinkSent ? (
-            <p>Check your inbox for a sign-in link.</p>
+            <p>{t("signInDialog.magicLinkSent")}</p>
           ) : (
             <>
-              <p>No password needed, we'll email you a link.</p>
+              <p>{t("signInDialog.magicLinkPrompt")}</p>
               <input
                 className="field-input"
                 type="email"
-                placeholder="you@example.com"
+                placeholder={t("signInDialog.emailPlaceholder")}
                 value={email}
                 autoFocus
                 onChange={(e) => setEmail(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && sendMagicLink()}
               />
               <button className="btn btn-primary" onClick={sendMagicLink} disabled={!email || sending}>
-                {sending ? "Sending…" : "Send sign-in link"}
+                {sending ? t("signInDialog.sending") : t("signInDialog.sendMagicLink")}
               </button>
               <ErrorText message={error} />
             </>
@@ -171,18 +173,18 @@ export function SignInDialog({ onClose, recoveryMode, onRecoveryDone }: Props) {
 
         {tab === "password" && passwordView === "signin" && (
           <>
-            <p>Sign in with your email and password.</p>
+            <p>{t("signInDialog.passwordSignInPrompt")}</p>
             <input
               className="field-input"
               type="email"
-              placeholder="you@example.com"
+              placeholder={t("signInDialog.emailPlaceholder")}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
             <input
               className="field-input"
               type="password"
-              placeholder="Password"
+              placeholder={t("signInDialog.passwordPlaceholder")}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && signInWithPassword()}
@@ -192,15 +194,15 @@ export function SignInDialog({ onClose, recoveryMode, onRecoveryDone }: Props) {
               onClick={signInWithPassword}
               disabled={!email || !password || sending}
             >
-              {sending ? "Signing in…" : "Sign in"}
+              {sending ? t("signInDialog.signingIn") : t("signInDialog.signIn")}
             </button>
             <ErrorText message={error} />
             <div className="dialog-links">
               <button className="link-button" onClick={() => setPasswordView("signup")}>
-                Create an account
+                {t("signInDialog.createAccount")}
               </button>
               <button className="link-button" onClick={() => setPasswordView("forgot")}>
-                Forgot password?
+                {t("signInDialog.forgotPassword")}
               </button>
             </div>
           </>
@@ -209,28 +211,28 @@ export function SignInDialog({ onClose, recoveryMode, onRecoveryDone }: Props) {
         {tab === "password" && passwordView === "signup" && (
           <>
             {signupPending ? (
-              <p>Check your inbox to confirm your account.</p>
+              <p>{t("signInDialog.signupPending")}</p>
             ) : (
               <>
-                <p>Create an account with an email and password.</p>
+                <p>{t("signInDialog.signupPrompt")}</p>
                 <input
                   className="field-input"
                   type="text"
-                  placeholder="Display name (optional)"
+                  placeholder={t("signInDialog.displayNamePlaceholder")}
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                 />
                 <input
                   className="field-input"
                   type="email"
-                  placeholder="you@example.com"
+                  placeholder={t("signInDialog.emailPlaceholder")}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
                 <input
                   className="field-input"
                   type="password"
-                  placeholder="Password (min. 6 characters)"
+                  placeholder={t("signInDialog.passwordMinPlaceholder")}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
@@ -239,14 +241,14 @@ export function SignInDialog({ onClose, recoveryMode, onRecoveryDone }: Props) {
                   onClick={signUpWithPassword}
                   disabled={!email || !password || sending}
                 >
-                  {sending ? "Creating…" : "Create account"}
+                  {sending ? t("signInDialog.creating") : t("signInDialog.createAccountButton")}
                 </button>
                 <ErrorText message={error} />
               </>
             )}
             <div className="dialog-links">
               <button className="link-button" onClick={() => setPasswordView("signin")}>
-                Already have an account? Sign in
+                {t("signInDialog.alreadyHaveAccount")}
               </button>
             </div>
           </>
@@ -255,26 +257,26 @@ export function SignInDialog({ onClose, recoveryMode, onRecoveryDone }: Props) {
         {tab === "password" && passwordView === "forgot" && (
           <>
             {resetSent ? (
-              <p>Check your inbox for a password reset link.</p>
+              <p>{t("signInDialog.resetSent")}</p>
             ) : (
               <>
-                <p>We'll email you a link to reset your password.</p>
+                <p>{t("signInDialog.resetPrompt")}</p>
                 <input
                   className="field-input"
                   type="email"
-                  placeholder="you@example.com"
+                  placeholder={t("signInDialog.emailPlaceholder")}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
                 <button className="btn btn-primary" onClick={sendPasswordReset} disabled={!email || sending}>
-                  {sending ? "Sending…" : "Send reset link"}
+                  {sending ? t("signInDialog.sending") : t("signInDialog.sendResetLink")}
                 </button>
                 <ErrorText message={error} />
               </>
             )}
             <div className="dialog-links">
               <button className="link-button" onClick={() => setPasswordView("signin")}>
-                Back to sign in
+                {t("signInDialog.backToSignIn")}
               </button>
             </div>
           </>

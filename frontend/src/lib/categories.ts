@@ -1,20 +1,21 @@
 import { Armchair, Bike, Droplet, Fuel, ShoppingBasket, Tent, BedDouble, type LucideIcon } from "lucide-react";
 
-// Keep in sync with backend/randoo/categories.py; no shared schema yet for the MVP.
+// Keep in sync with backend/randoo/categories.py; no shared schema yet for
+// the MVP. `id` doubles as the i18n key under "categories.<id>" (see
+// locales/*.json) - look the label up with t() rather than reading it here.
 export interface CategoryDef {
   id: string;
-  label: string;
   icon: LucideIcon;
 }
 
 export const CATEGORIES: CategoryDef[] = [
-  { id: "water", label: "Drinking water", icon: Droplet },
-  { id: "fuel", label: "Fuel station", icon: Fuel },
-  { id: "bike_shop", label: "Bike shop / repair", icon: Bike },
-  { id: "lodging", label: "Lodging", icon: BedDouble },
-  { id: "hut", label: "Hut / shelter", icon: Tent },
-  { id: "food", label: "Food & supplies", icon: ShoppingBasket },
-  { id: "rest", label: "Rest spot", icon: Armchair },
+  { id: "water", icon: Droplet },
+  { id: "fuel", icon: Fuel },
+  { id: "bike_shop", icon: Bike },
+  { id: "lodging", icon: BedDouble },
+  { id: "hut", icon: Tent },
+  { id: "food", icon: ShoppingBasket },
+  { id: "rest", icon: Armchair },
 ];
 
 export function categoryById(id: string): CategoryDef | undefined {

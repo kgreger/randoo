@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { CATEGORIES } from "../lib/categories";
 
 interface Props {
@@ -11,6 +12,7 @@ const RING_RADIUS = 24;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
 export function CategoryFilter({ selected, onToggle, radiusM, onRadiusChange }: Props) {
+  const { t } = useTranslation();
   const active = selected.size;
   const total = CATEGORIES.length;
   const filled = RING_CIRCUMFERENCE * (active / total);
@@ -36,15 +38,13 @@ export function CategoryFilter({ selected, onToggle, radiusM, onRadiusChange }: 
           </text>
         </svg>
         <div>
-          <div className="label">Categories active</div>
-          <div className="sub">
-            {active} of {total} selected
-          </div>
+          <div className="label">{t("categories.active")}</div>
+          <div className="sub">{t("categories.selectedCount", { active, total })}</div>
         </div>
       </div>
 
       <div>
-        <div className="section-label">Categories</div>
+        <div className="section-label">{t("categories.sectionLabel")}</div>
         <div className="chip-row">
           {CATEGORIES.map((cat) => (
             <button
@@ -53,15 +53,15 @@ export function CategoryFilter({ selected, onToggle, radiusM, onRadiusChange }: 
               className={`chip ${selected.has(cat.id) ? "active" : ""}`}
               onClick={() => onToggle(cat.id)}
             >
-              {cat.label}
+              {t(`categories.${cat.id}`)}
             </button>
           ))}
         </div>
       </div>
       <div className="radius-row">
         <label>
-          <span>Radius</span>
-          <span className="value">{radiusM} m</span>
+          <span>{t("categories.radius")}</span>
+          <span className="value">{t("categories.radiusValue", { value: radiusM })}</span>
         </label>
         <input
           type="range"

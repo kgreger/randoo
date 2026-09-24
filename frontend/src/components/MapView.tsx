@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { useTranslation } from "react-i18next";
 import L from "leaflet";
 import type { LatLon } from "../lib/gpxPreview";
 import type { Poi } from "../lib/api";
@@ -37,6 +38,7 @@ function poiDivIcon(poi: Poi, excluded: boolean): L.DivIcon {
 }
 
 export function MapView({ route, pois, excludedIds, focusRequest, hoveredId, selectedId, onSelectPoi }: Props) {
+  const { t, i18n } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   // Two separate groups, not one: redrawing POI markers (say, after a
@@ -78,8 +80,8 @@ export function MapView({ route, pois, excludedIds, focusRequest, hoveredId, sel
       onAdd: () => {
         const button = L.DomUtil.create("button", "map-fit-route-btn");
         button.type = "button";
-        button.title = "Zoom to route";
-        button.setAttribute("aria-label", "Zoom to route");
+        button.title = t("map.zoomToRoute");
+        button.setAttribute("aria-label", t("map.zoomToRoute"));
         button.innerHTML =
           '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
           '<path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4"/>' +
@@ -152,6 +154,16 @@ export function MapView({ route, pois, excludedIds, focusRequest, hoveredId, sel
     if (fitButtonRef.current) fitButtonRef.current.hidden = segmentLines.length === 0;
   }, [route]);
 
+  // The fit button is built once, imperatively, by Leaflet's own control
+  // API (not JSX) - it doesn't re-render on its own when the language
+  // changes, so its title needs reapplying here instead.
+  useEffect(() => {
+    const button = fitButtonRef.current;
+    if (!button) return;
+    button.title = t("map.zoomToRoute");
+    button.setAttribute("aria-label", t("map.zoomToRoute"));
+  }, [i18n.language, t]);
+
   useEffect(() => {
     const map = mapRef.current;
     const layer = poiLayerRef.current;
@@ -179,12 +191,14 @@ export function MapView({ route, pois, excludedIds, focusRequest, hoveredId, sel
       }).addTo(layer);
 
       const marker = L.marker([poi.lat, poi.lon], { icon: poiDivIcon(poi, excluded) })
-        .bindPopup(`<b>${poi.name ?? poi.category_id}</b><br>${Math.round(poi.distance_to_route_m)} m from route`)
+        .bindPopup(
+          `<b>${poi.name ?? poi.category_id}</b><br>${t("map.popupDistance", { distance: Math.round(poi.distance_to_route_m) })}`,
+        )
         .on("click", () => onSelectPoiRef.current?.(poi))
         .addTo(layer);
       markersRef.current.set(poi.id, marker);
     }
-  }, [pois, excludedIds]);
+  }, [pois, excludedIds, i18n.language, t]);
 
   // Mirrors the hovered - or clicked-and-selected - list card on the map,
   // both with the same "hovered" look: a selected card stays picked out on

@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { AccountControl } from "./components/AccountControl";
 import { AccountDialog } from "./components/AccountDialog";
 import { CategoryFilter } from "./components/CategoryFilter";
+import { LanguageSwitcher } from "./components/LanguageSwitcher";
 import { MapView } from "./components/MapView";
 import { PoiList } from "./components/PoiList";
 import { SignInDialog } from "./components/SignInDialog";
@@ -15,6 +17,7 @@ const DEFAULT_CATEGORIES = ["water", "food"];
 const IDEAS_URL = import.meta.env.VITE_IDEAS_URL as string | undefined;
 
 export default function App() {
+  const { t } = useTranslation();
   const { user, recoveryMode, clearRecoveryMode } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -62,7 +65,7 @@ export default function App() {
       const preview = await parseGpxPreview(selected);
       setRoute(preview);
     } catch {
-      setError("Could not read that GPX file.");
+      setError(t("app.errorGpxParse"));
       setRoute([]);
     }
   }
@@ -120,7 +123,7 @@ export default function App() {
       setSelectedPoiId(null);
     } catch (err) {
       if (requestId !== searchRequestId.current) return;
-      setError(err instanceof Error ? err.message : "Search failed.");
+      setError(err instanceof Error ? err.message : t("app.errorSearchFailed"));
     } finally {
       if (requestId === searchRequestId.current) setLoading(false);
     }
@@ -152,7 +155,7 @@ export default function App() {
       link.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Export failed.");
+      setError(err instanceof Error ? err.message : t("app.errorExportFailed"));
     } finally {
       setExporting(false);
     }
@@ -200,10 +203,10 @@ export default function App() {
               <path d="M12 3 C8 8 6 11 6 14 a6 6 0 0 0 12 0 c0-3-4-6-6-11z" fill="#241a30" />
             </svg>
           </div>
-          <h1>Randoo</h1>
+          <h1>{t("app.title")}</h1>
           {IDEAS_URL && (
             <button className="feedback-link" onClick={handleIdeas}>
-              Ideas
+              {t("app.ideas")}
             </button>
           )}
         </div>
@@ -211,22 +214,25 @@ export default function App() {
         {routeName && (
           <div className="route-meta">
             <span className="name">{routeName}</span>
-            {distanceKm !== null && <span className="stat">{distanceKm.toFixed(1)} km</span>}
-            {pois.length > 0 && <span className="stat">{pois.length} points found</span>}
+            {distanceKm !== null && (
+              <span className="stat">{t("app.distanceKm", { km: distanceKm.toFixed(1) })}</span>
+            )}
+            {pois.length > 0 && <span className="stat">{t("app.pointsFound", { count: pois.length })}</span>}
           </div>
         )}
 
         <div className="topbar-actions">
+          <LanguageSwitcher />
           <button className="btn btn-ghost" onClick={() => fileInputRef.current?.click()}>
-            {file ? "Change route" : "Upload GPX"}
+            {file ? t("app.changeRoute") : t("app.uploadGpx")}
           </button>
           <button
             className={`btn btn-primary ${!user ? "btn-locked" : ""}`}
             onClick={handleExport}
             disabled={pois.length === 0 || exporting}
-            title={user ? undefined : "Sign in to export"}
+            title={user ? undefined : t("app.signInToExport")}
           >
-            {exporting ? "Exporting…" : "Export"}
+            {exporting ? t("app.exporting") : t("app.export")}
             {!user && (
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <rect x="5" y="11" width="14" height="9" rx="2" />
@@ -264,9 +270,9 @@ export default function App() {
                     <path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" />
                   </svg>
                 </div>
-                <p>Upload a GPX track to see water, food, fuel, and other stops along it.</p>
+                <p>{t("app.uploadPrompt")}</p>
                 <button className="btn btn-primary" onClick={() => fileInputRef.current?.click()}>
-                  Choose a GPX file
+                  {t("app.chooseFile")}
                 </button>
               </div>
             </div>
@@ -285,7 +291,7 @@ export default function App() {
                 onClick={runSearch}
                 disabled={selectedCategories.size === 0 || loading}
               >
-                {loading ? "Searching…" : "Find points"}
+                {loading ? t("app.searching") : t("app.findPoints")}
               </button>
             </div>
           )}

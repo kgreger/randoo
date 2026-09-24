@@ -1,4 +1,6 @@
 import { Fragment, useEffect, useRef } from "react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import type { Poi } from "../lib/api";
 import { categoryById } from "../lib/categories";
 
@@ -23,8 +25,10 @@ const GAP_MAX_PX = 72;
 // unmistakably a long one.
 const GAP_SCALE_MAX_M = 100_000;
 
-function formatGap(gapM: number): string {
-  return gapM >= 1000 ? `${(gapM / 1000).toFixed(1)} km` : `${Math.round(gapM)} m`;
+function formatGap(gapM: number, t: TFunction): string {
+  return gapM >= 1000
+    ? t("poiList.gapKm", { km: (gapM / 1000).toFixed(1) })
+    : t("poiList.gapM", { m: Math.round(gapM) });
 }
 
 // Log, not linear or sqrt, because the gaps worth marking span a huge range
@@ -48,6 +52,7 @@ export function PoiList({
   onFocusPoi,
   onHoverPoi,
 }: Props) {
+  const { t } = useTranslation();
   const includedCount = pois.length - excludedIds.size;
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -63,17 +68,17 @@ export function PoiList({
   return (
     <div className="side-panel">
       <div className="side-panel-head">
-        <h2>Nearby points</h2>
+        <h2>{t("poiList.title")}</h2>
         {pois.length > 0 && (
           <span className="count">
-            {includedCount < pois.length ? `${includedCount}/${pois.length}` : pois.length}
+            {includedCount < pois.length
+              ? t("poiList.count", { included: includedCount, total: pois.length })
+              : pois.length}
           </span>
         )}
       </div>
       <div className="poi-list" ref={listRef}>
-        {pois.length === 0 && (
-          <div className="empty-state">Points along your route will show up here.</div>
-        )}
+        {pois.length === 0 && <div className="empty-state">{t("poiList.empty")}</div>}
         {pois.map((poi, index) => {
           const excluded = excludedIds.has(poi.id);
           const cat = categoryById(poi.category_id);
@@ -95,7 +100,7 @@ export function PoiList({
               {showGap && (
                 <div className="poi-gap" style={{ height: `${gapHeight}px` }}>
                   <div className="poi-gap-line" />
-                  <span className="poi-gap-label">{formatGap(gapM)}</span>
+                  <span className="poi-gap-label">{formatGap(gapM, t)}</span>
                 </div>
               )}
               <div
@@ -116,17 +121,25 @@ export function PoiList({
                     onChange={() => onToggleExcluded(poi.id)}
                   />
                 </label>
-                <div className="badge" title={cat?.label ?? poi.category_id}>
-                  {Icon ? <Icon size={17} strokeWidth={2} aria-hidden="true" /> : cat?.label.slice(0, 2)}
+                <div className="badge" title={cat ? t(`categories.${cat.id}`) : poi.category_id}>
+                  {Icon ? (
+                    <Icon size={17} strokeWidth={2} aria-hidden="true" />
+                  ) : (
+                    cat && t(`categories.${cat.id}`).slice(0, 2)
+                  )}
                 </div>
                 <div className="poi-card-body">
-                  <div className="name">{poi.name ?? cat?.label ?? poi.category_id}</div>
+                  <div className="name">{poi.name ?? (cat ? t(`categories.${cat.id}`) : poi.category_id)}</div>
                   <div className="meta">
-                    km {(poi.distance_along_route_m / 1000).toFixed(1)}, {Math.round(poi.distance_to_route_m)} m
+                    {t("poiList.metaKm", { km: (poi.distance_along_route_m / 1000).toFixed(1) })},{" "}
+                    {t("poiList.metaDistance", { distance: Math.round(poi.distance_to_route_m) })}
                   </div>
                   <div
                     className="distance-bar"
-                    title={`${Math.round(poi.distance_to_route_m)} m of ${radiusM} m radius`}
+                    title={t("poiList.distanceBarTitle", {
+                      distance: Math.round(poi.distance_to_route_m),
+                      radius: radiusM,
+                    })}
                   >
                     <div className="distance-bar-fill" style={{ width: `${fillPct}%` }} />
                   </div>

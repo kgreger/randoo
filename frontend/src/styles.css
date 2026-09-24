@@ -141,6 +141,32 @@ button {
   flex: none;
 }
 
+.language-switcher {
+  display: flex;
+  gap: 2px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px;
+}
+
+.language-switcher-option {
+  border: none;
+  background: transparent;
+  color: var(--ink-muted);
+  font-family: "Onest", system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.language-switcher-option.active {
+  background: var(--surface-strong);
+  color: var(--ink);
+}
+
 .btn {
   font-family: "Onest", system-ui, sans-serif;
   font-weight: 600;
