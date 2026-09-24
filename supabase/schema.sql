@@ -149,6 +149,13 @@ grant select on ideas to anon, authenticated;
 grant insert, update, delete on ideas to authenticated;
 grant select, insert, delete on idea_votes to authenticated;
 
+-- Same gotcha again, this time for service_role: it always bypasses RLS,
+-- but that's a separate layer from the table-level GRANT below it, which
+-- service_role still needs explicitly - notify-idea-status's admin client
+-- was hitting "permission denied for table ideas" without this, even
+-- though RLS itself would never have blocked it.
+grant select on ideas, idea_votes, profiles to service_role;
+
 -- security definer so policies can check admin-ness without recursing into
 -- profiles' own RLS (a plain `using` clause referencing profiles would).
 create or replace function is_admin()
