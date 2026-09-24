@@ -41,7 +41,12 @@ jobs:
           # src/lib/api.ts zurück. Keine geheime Information, nur die
           # öffentliche Produktions-API-URL.
           VITE_API_URL: https://demo.konstantingreger.net/randoo/api
-          VITE_IDEAS_URL: https://demo.konstantingreger.net/ideas
+          # Trailing slash matters: without it, App.tsx's constructed URL
+          # hits demo-vps-infra's `location = /ideas { return 301 /ideas/; }`
+          # redirect, which drops the ?project=... query string (only the
+          # URL fragment survives a redirect, added client-side by the
+          # browser - the query string is part of the request nginx sees).
+          VITE_IDEAS_URL: https://demo.konstantingreger.net/ideas/
           # Publishable, not secret - meant to be exposed client-side (see
           # frontend/.env.example). Without these the build's `supabase`
           # client is null (see src/lib/supabase.ts) and every sign-in
