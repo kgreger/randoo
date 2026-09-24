@@ -62,7 +62,17 @@ _ON_ROUTE_TOLERANCE_M = 20.0
 _CANDIDATE_WINDOW_M = 300.0
 _CANDIDATE_SPACING_M = 75.0
 
-_REQUEST_TIMEOUT_S = 10.0
+# Raised from 10s (2026-09-24): BRouter serializes its own route
+# computation internally (see the "contention! ms waited" lines in its own
+# log), so a dense cluster of POIs - many concurrent requests competing for
+# that same internal queue - can genuinely take BRouter past 10s to even
+# start on a given request, not because anything's actually stuck. This
+# client gave up before BRouter finished writing the response ("Broken
+# pipe" on BRouter's own side), losing a route that would have come back
+# fine with a little more patience. Concurrency across POIs/candidates
+# already keeps the *overall* search fast; this only affects how long any
+# one contended request is allowed to wait its turn.
+_REQUEST_TIMEOUT_S = 30.0
 
 
 class TurnoffLocator(Protocol):
