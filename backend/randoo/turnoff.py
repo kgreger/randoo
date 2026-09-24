@@ -34,16 +34,22 @@ from .poi_filter import Connector
 _GEOD = Geod(ellps="WGS84")
 
 # Caps concurrent BRouter requests process-wide (every POI's every
-# candidate, across every search in flight), not per-search - a self-hosted
-# instance handles concurrent load well (an 80-request burst against it
-# came back clean, no failures), but a fully unbounded gather over a
-# POI-heavy search could still throw thousands of requests at it at once.
-# Raised from 40 (2026-09-24): a real, dense-route search against the
-# production instance still took long enough to hit the reverse proxy's
-# timeout, even though neither BRouter nor this service were anywhere near
-# their CPU/memory limits at the time - the bottleneck was this cap itself,
-# not the instance's actual capacity.
-_MAX_CONCURRENT_REQUESTS = 100
+# candidate, across every search in flight), not per-search - a fully
+# unbounded gather over a POI-heavy search could throw thousands of
+# requests at BRouter at once.
+#
+# Briefly raised to 100 (2026-09-24), then reverted here: that helped one
+# specific search finish faster, but a real dense-POI-cluster search at that
+# level pushed BRouter's own internal request handling into visible
+# contention (its own logs show real wait time on an internal lock) severe
+# enough that some requests took longer than even a generous 30s timeout -
+# BRouter accepting an 80-request *connection* burst cleanly (verified
+# separately) isn't the same claim as it *computing* 80 routes at once.
+# Past some concurrency level, sending more requests doesn't add real
+# throughput, it just makes every individual one wait longer behind the
+# others for the same internal lock - worse for completeness, not better
+# for overall speed. Back to the level that didn't show missing routes.
+_MAX_CONCURRENT_REQUESTS = 40
 _request_semaphore = asyncio.Semaphore(_MAX_CONCURRENT_REQUESTS)
 
 # How close a routed point has to sit to the recorded track to still count as
