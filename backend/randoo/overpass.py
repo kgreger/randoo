@@ -18,7 +18,7 @@ import json
 import os
 import tempfile
 import time
-from asyncio import sleep
+import asyncio
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -174,6 +174,13 @@ async def query_pois(
     once none of them errored out along the way. If some did, an all-empty
     outcome can't be told apart from a broken mirror going quiet, so this
     raises instead of answering with a silent zero.
+
+    The moment one endpoint comes back empty, every endpoint not yet tried
+    is asked at once rather than one after another: a slow-but-working
+    mirror further down the list (a shared public instance can take
+    seconds even when it's fine) would otherwise add its full delay on top
+    of every other endpoint still waiting behind it, and a long route
+    chunks into several of these confirmations in a row.
     """
     query = _build_query(bbox, poly, categories)
 
@@ -186,25 +193,46 @@ async def query_pois(
         client = httpx.AsyncClient(timeout=TIMEOUT_S, headers={"User-Agent": USER_AGENT})
 
     failures: list[str] = []
-    saw_empty_response = False
     try:
-        for endpoint in OVERPASS_ENDPOINTS:
-            elements = await _query_endpoint_with_retries(client, endpoint, query, failures)
-            if elements is None:
-                continue
-            if elements:
-                _write_cache(query, elements)
-                return _parse_elements(elements, categories)
-            saw_empty_response = True
+        elements = await _query_endpoints(client, query, failures)
     finally:
         if owns_client:
             await client.aclose()
 
-    if saw_empty_response and not failures:
-        _write_cache(query, [])
-        return []
+    if elements is not None:
+        _write_cache(query, elements)
+        return _parse_elements(elements, categories)
 
     raise RuntimeError("all Overpass endpoints failed:\n" + "\n".join(failures))
+
+
+async def _query_endpoints(
+    client: httpx.AsyncClient, query: str, failures: list[str]
+) -> list[dict] | None:
+    """Returns the first non-empty result found, an empty list once every
+    endpoint has weighed in and none of them errored, or None if that can't
+    be established (something errored along the way)."""
+    endpoints = list(OVERPASS_ENDPOINTS)
+    for i, endpoint in enumerate(endpoints):
+        elements = await _query_endpoint_with_retries(client, endpoint, query, failures)
+        if elements is None:
+            continue
+        if elements:
+            return elements
+
+        remaining = endpoints[i + 1 :]
+        if not remaining:
+            return [] if not failures else None
+
+        results = await asyncio.gather(
+            *(_query_endpoint_with_retries(client, ep, query, failures) for ep in remaining)
+        )
+        for other in results:
+            if other:
+                return other
+        return [] if not failures else None
+
+    return None
 
 
 async def _query_endpoint_with_retries(
@@ -224,7 +252,7 @@ async def _query_endpoint_with_retries(
             return None
 
         if response.status_code in (429, 504) and attempt < MAX_RATE_LIMIT_RETRIES:
-            await sleep(_retry_after_s(response) or backoff)
+            await asyncio.sleep(_retry_after_s(response) or backoff)
             backoff *= 2
             continue
 

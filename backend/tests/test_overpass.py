@@ -1,3 +1,6 @@
+import asyncio
+import time
+
 import httpx
 import pytest
 
@@ -111,6 +114,25 @@ async def test_query_pois_raises_on_an_empty_result_if_another_endpoint_errored(
         # silent, trustworthy zero.
         with pytest.raises(RuntimeError, match="all Overpass endpoints failed"):
             await overpass.query_pois((47, 7, 49, 9), "47 7 49 9", WATER, client=client)
+
+
+async def test_query_pois_confirms_an_empty_result_from_remaining_endpoints_concurrently():
+    delay_s = 0.05
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        if str(request.url) != overpass.OVERPASS_ENDPOINTS[0]:
+            await asyncio.sleep(delay_s)
+        return httpx.Response(200, json={"elements": []})
+
+    async with _client_for(handler) as client:
+        start = time.monotonic()
+        pois = await overpass.query_pois((47, 7, 49, 9), "47 7 49 9", WATER, client=client)
+        elapsed = time.monotonic() - start
+
+    assert pois == []
+    # 3 slow endpoints in a row would take ~3 * delay_s if asked
+    # sequentially - asking them all at once keeps this close to one delay.
+    assert elapsed < delay_s * 2
 
 
 async def test_query_pois_caches_a_successful_response(tmp_path, monkeypatch):
