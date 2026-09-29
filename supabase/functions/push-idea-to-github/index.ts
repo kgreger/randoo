@@ -57,6 +57,28 @@ Deno.serve(async (req) => {
   if (!idea) return new Response("idea not found", { status: 404, headers: corsHeaders });
   if (idea.github_issue_url) return jsonResponse({ url: idea.github_issue_url }, 200);
 
+  // Claims the row before calling GitHub at all: two requests racing each
+  // other (e.g. an impatient double-click before the button had a chance
+  // to disable) would otherwise both read github_issue_url as still null
+  // above and both go on to file an issue. The `is(..., null)` condition
+  // makes this UPDATE atomic - only the request that actually flips it
+  // from null wins, a concurrent second one gets 0 rows back.
+  const { data: claimed, error: claimError } = await adminClient
+    .from("ideas")
+    .update({ github_issue_url: "pending" })
+    .eq("id", idea_id)
+    .is("github_issue_url", null)
+    .select("id")
+    .maybeSingle();
+  if (claimError) return new Response(`claim failed: ${claimError.message}`, { status: 500, headers: corsHeaders });
+  if (!claimed) {
+    const { data: current } = await adminClient.from("ideas").select("github_issue_url").eq("id", idea_id).single();
+    if (current?.github_issue_url && current.github_issue_url !== "pending") {
+      return jsonResponse({ url: current.github_issue_url }, 200);
+    }
+    return new Response("a push for this idea is already in progress", { status: 409, headers: corsHeaders });
+  }
+
   // Standard GitHub default labels - if this repo's labels were ever
   // renamed or removed, GitHub rejects the whole request rather than
   // silently dropping them, and the admin sees exactly that in the error
@@ -75,6 +97,9 @@ Deno.serve(async (req) => {
   });
 
   if (!ghResponse.ok) {
+    // Release the claim - otherwise this row is stuck on "pending"
+    // forever, since nothing else ever clears it back to null.
+    await adminClient.from("ideas").update({ github_issue_url: null }).eq("id", idea_id);
     const detail = await ghResponse.text().catch(() => "");
     return new Response(`GitHub issue creation failed (${ghResponse.status}): ${detail}`, {
       status: 502,
