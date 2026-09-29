@@ -119,11 +119,12 @@ create table if not exists ideas (
   attachment_path text, -- storage path, not the raw file
   kind text not null default 'idea',
   status text not null default 'open',
+  github_issue_url text,
   upvote_count integer not null default 0,
   created_at timestamptz not null default now()
 );
 
--- table already existed live before "kind"/"status" were added
+-- table already existed live before "kind"/"status"/"github_issue_url" were added
 alter table ideas add column if not exists kind text not null default 'idea';
 alter table ideas drop constraint if exists ideas_kind_check;
 alter table ideas add constraint ideas_kind_check check (kind in ('idea', 'bug'));
@@ -131,6 +132,12 @@ alter table ideas add constraint ideas_kind_check check (kind in ('idea', 'bug')
 alter table ideas add column if not exists status text not null default 'open';
 alter table ideas drop constraint if exists ideas_status_check;
 alter table ideas add constraint ideas_status_check check (status in ('open', 'resolved'));
+
+-- set by push-idea-to-github once an admin pushes this row there - null
+-- until then. No new RLS needed: "ideas: admin update status" below
+-- already permits any column an admin writes, the name is just a holdover
+-- from when status was the only thing it covered.
+alter table ideas add column if not exists github_issue_url text;
 
 create table if not exists idea_votes (
   idea_id uuid not null references ideas (id) on delete cascade,
