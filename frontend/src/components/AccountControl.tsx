@@ -7,10 +7,9 @@ import { useAuth } from "../lib/useAuth";
 interface Props {
   onRequestSignIn: () => void;
   onOpenAccount: () => void;
-  onRequestDelete: () => void;
 }
 
-export function AccountControl({ onRequestSignIn, onOpenAccount, onRequestDelete }: Props) {
+export function AccountControl({ onRequestSignIn, onOpenAccount }: Props) {
   const { t } = useTranslation();
   const { user, loading, enabled } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -60,15 +59,6 @@ export function AccountControl({ onRequestSignIn, onOpenAccount, onRequestDelete
               }}
             >
               {t("account.signOut")}
-            </button>
-            <button
-              className="account-dropdown-item account-dropdown-item-danger"
-              onClick={() => {
-                setMenuOpen(false);
-                onRequestDelete();
-              }}
-            >
-              {t("account.deleteAccount")}
             </button>
           </div>
         )}

@@ -273,11 +273,7 @@ export default function App() {
               </svg>
             )}
           </button>
-          <AccountControl
-            onRequestSignIn={() => setSignInOpen(true)}
-            onOpenAccount={() => setAccountOpen(true)}
-            onRequestDelete={() => setDeleteOpen(true)}
-          />
+          <AccountControl onRequestSignIn={() => setSignInOpen(true)} onOpenAccount={() => setAccountOpen(true)} />
         </div>
       </div>
 
@@ -296,7 +292,15 @@ export default function App() {
             />
           )}
 
-          {accountOpen && <AccountDialog onClose={() => setAccountOpen(false)} />}
+          {accountOpen && (
+            <AccountDialog
+              onClose={() => setAccountOpen(false)}
+              onRequestDelete={() => {
+                setAccountOpen(false);
+                setDeleteOpen(true);
+              }}
+            />
+          )}
           {deleteOpen && <DeleteAccountDialog onClose={() => setDeleteOpen(false)} />}
 
           {!file && !signInOpen && !accountOpen && !deleteOpen && (

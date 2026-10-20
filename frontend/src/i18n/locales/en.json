@@ -97,7 +97,7 @@
   },
   "deleteAccount": {
     "title": "Delete account",
-    "description": "This permanently deletes your account, your saved data and your upvotes. Ideas and bugs you submitted stay on the idea board without your name. This can't be undone.",
+    "description": "This permanently deletes your account, your saved data and your upvotes. Ideas and bugs you submitted stay on the idea board, but their attachments are deleted and your name and email address are removed from their text. Anything already published as a GitHub issue stays there. This can't be undone.",
     "confirmLabel": "Type your email address to confirm",
     "button": "Delete my account",
     "deleting": "Deleting…",

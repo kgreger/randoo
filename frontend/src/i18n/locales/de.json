@@ -97,7 +97,7 @@
   },
   "deleteAccount": {
     "title": "Konto löschen",
-    "description": "Damit werden dein Konto, deine gespeicherten Daten und deine Stimmen endgültig gelöscht. Ideen und Bugs, die du eingereicht hast, bleiben ohne deinen Namen auf dem Ideenboard. Das lässt sich nicht rückgängig machen.",
+    "description": "Damit werden dein Konto, deine gespeicherten Daten und deine Stimmen endgültig gelöscht. Ideen und Bugs, die du eingereicht hast, bleiben auf dem Ideenboard, ihre Anhänge werden aber gelöscht und dein Name und deine E-Mail-Adresse aus dem Text entfernt. Was bereits als GitHub-Issue veröffentlicht wurde, bleibt dort bestehen. Das lässt sich nicht rückgängig machen.",
     "confirmLabel": "Gib zur Bestätigung deine E-Mail-Adresse ein",
     "button": "Mein Konto löschen",
     "deleting": "Lösche…",

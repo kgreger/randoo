@@ -584,8 +584,22 @@ button {
   background: var(--surface);
 }
 
-.account-dropdown-item-danger {
+.account-danger-zone {
+  width: 100%;
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.btn-ghost-danger {
+  width: 100%;
+  background: transparent;
   color: #e28a79;
+  border: 1px solid rgba(226, 138, 121, 0.4);
+}
+
+.btn-ghost-danger:hover {
+  background: rgba(226, 138, 121, 0.1);
 }
 
 .btn-danger {
