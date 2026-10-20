@@ -104,6 +104,60 @@ create trigger on_auth_user_email_updated
   after update of email on auth.users
   for each row execute function public.handle_user_email_update();
 
+-- Emails every admin once a new account's address is confirmed (immediately
+-- on insert if the project doesn't require confirmation). Fires from
+-- auth.users rather than profiles because profiles gets its row at signup,
+-- before confirmation. pg_net queues the request and returns, so a failing
+-- or slow mail function can't block the signup or confirmation itself.
+-- Needs the shared secret in Vault once, and the same value as the
+-- function's REGISTRATION_WEBHOOK_SECRET:
+--   select vault.create_secret('<secret>', 'registration_webhook_secret');
+create extension if not exists pg_net with schema extensions;
+
+create or replace function public.notify_user_registered()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  webhook_secret text;
+begin
+  if new.email_confirmed_at is null then
+    return new;
+  end if;
+  if tg_op = 'UPDATE' and old.email_confirmed_at is not null then
+    return new;
+  end if;
+
+  select decrypted_secret into webhook_secret
+    from vault.decrypted_secrets
+    where name = 'registration_webhook_secret';
+  if webhook_secret is null then
+    raise warning 'notify_user_registered: registration_webhook_secret missing from vault';
+    return new;
+  end if;
+
+  perform net.http_post(
+    url := 'https://qdtlraxuewrpqzgtjety.supabase.co/functions/v1/notify-user-registered',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'x-webhook-secret', webhook_secret
+    ),
+    body := jsonb_build_object(
+      'email', new.email,
+      'display_name', new.raw_user_meta_data->>'display_name'
+    )
+  );
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_registered on auth.users;
+create trigger on_auth_user_registered
+  after insert or update of email_confirmed_at on auth.users
+  for each row execute function public.notify_user_registered();
+
 -- live tier already carries a check constraint limited to free/premium
 -- (also not previously reflected here); widened for 'admin' (this file's
 -- moderator check) and 'beta' (planned: same access as premium).
