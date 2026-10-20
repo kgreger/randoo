@@ -591,6 +591,13 @@ button {
   border-top: 1px solid var(--border);
 }
 
+.account-hint {
+  margin: 0 !important;
+  font-size: 12.5px !important;
+  color: var(--ink-faint) !important;
+  text-align: center;
+}
+
 .btn-ghost-danger {
   width: 100%;
   background: transparent;

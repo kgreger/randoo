@@ -31,7 +31,8 @@
     "leaveBlankPassword": "Leer lassen, um das aktuelle Passwort zu behalten",
     "updatePassword": "Passwort aktualisieren",
     "passwordUpdated": "Passwort aktualisiert.",
-    "deleteAccount": "Konto löschen"
+    "deleteAccount": "Konto löschen",
+    "adminCannotDelete": "Administrator-Konten können nicht gelöscht werden."
   },
   "categories": {
     "active": "Aktive Kategorien",
@@ -101,6 +102,7 @@
     "confirmLabel": "Gib zur Bestätigung deine E-Mail-Adresse ein",
     "button": "Mein Konto löschen",
     "deleting": "Lösche…",
-    "error": "Das Konto konnte nicht gelöscht werden. Bitte versuche es noch einmal oder melde dich bei uns."
+    "error": "Das Konto konnte nicht gelöscht werden. Bitte versuche es noch einmal oder melde dich bei uns.",
+    "errorAdmin": "Administrator-Konten können nicht gelöscht werden."
   }
 }

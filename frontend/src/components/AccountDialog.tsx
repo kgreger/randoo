@@ -32,6 +32,17 @@ export function AccountDialog({ onClose, onRequestDelete }: Props) {
     setDisplayName(currentName);
   }, [currentName]);
 
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    if (!supabase || !user) return;
+    supabase
+      .from("profiles")
+      .select("tier")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data }) => setIsAdmin(data?.tier === "admin"));
+  }, [user?.id]);
+
   const [newPassword, setNewPassword] = useState("");
   const [savingPassword, setSavingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
@@ -122,9 +133,13 @@ export function AccountDialog({ onClose, onRequestDelete }: Props) {
         </div>
 
         <div className="account-danger-zone">
-          <button className="btn btn-ghost-danger" onClick={onRequestDelete}>
-            {t("account.deleteAccount")}
-          </button>
+          {isAdmin ? (
+            <p className="account-hint">{t("account.adminCannotDelete")}</p>
+          ) : (
+            <button className="btn btn-ghost-danger" onClick={onRequestDelete}>
+              {t("account.deleteAccount")}
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -25,7 +25,8 @@ export function DeleteAccountDialog({ onClose }: Props) {
     });
     if (invokeError) {
       setDeleting(false);
-      setError(t("deleteAccount.error"));
+      const status = (invokeError as { context?: { status?: number } }).context?.status;
+      setError(status === 403 ? t("deleteAccount.errorAdmin") : t("deleteAccount.error"));
       return;
     }
     // The account is already gone server-side, so only clear this browser's
