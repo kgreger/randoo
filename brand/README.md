@@ -4,22 +4,25 @@ Logo, favicon and app icons for Randoo.
 
 ## License
 
-The Randoo name and the logo files in this directory are not covered by the AGPL-3.0 license that applies to the rest of this repository. All rights reserved.
+The Randoo name, wordmark and logo files in this directory are not covered by the AGPL-3.0 license that applies to the rest of this repository. All rights reserved.
+
+You may show them to refer to Randoo, for example in articles, videos or reviews. You may not use them for your own products, advertising or branding, in a way that suggests affiliation or endorsement, or in modified form.
 
 ## Files
 
 | File | Use |
 | --- | --- |
 | `randoo-logo.svg` | Symbol and wordmark in colour, for dark backgrounds |
+| `randoo-logo-on-light.svg` | Colour rings with dark route dots and wordmark, for light backgrounds |
 | `randoo-logo-dark.svg` | One colour (`#241a30`), for light backgrounds |
 | `randoo-logo-light.svg` | One colour (`#f7f1ef`), for dark backgrounds when colour isn't possible |
-| `randoo-symbol.svg`, `-dark.svg`, `-light.svg` | Symbol only, same three treatments |
+| `randoo-symbol.svg`, `-on-light.svg`, `-dark.svg`, `-light.svg` | Symbol only, same four treatments |
 | `favicon.svg`, `favicon.ico` | Browser tab icon: rounded tile, heavy rings, no route |
 | `app-icon.svg` | Full-bleed square tile for touch and PWA icons |
 | `og-image.svg` | Social preview image |
-| `png/` | Raster exports: favicons (16, 32, 48), `apple-touch-icon.png` (180), `icon-192.png`, `icon-512.png`, `randoo-symbol-512.png`, `randoo-logo-1200.png`, `og-image.png` (1200 x 630) |
+| `png/` | Raster exports: favicons (16, 32, 48), `apple-touch-icon.png` (180), `icon-192.png`, `icon-512.png`, `randoo-symbol-512.png`, `randoo-logo-1200.png`, `randoo-symbol-on-light-512.png`, `randoo-logo-on-light-1200.png`, `og-image.png` (1200 x 630) |
 
-The route dots in the colour symbol and logo are light, so those files only work on dark backgrounds. Use the `-dark` variants on light ones.
+The route dots in the plain colour symbol and logo are light, so those files only work on dark backgrounds. On light ones use the `-on-light` files, or the one-colour `-dark` variants. The amber ring has low contrast on white, which is fine for a mark but not for text.
 
 ## Colours
 
