@@ -30,7 +30,8 @@
     "newPassword": "New password",
     "leaveBlankPassword": "Leave blank to keep current password",
     "updatePassword": "Update password",
-    "passwordUpdated": "Password updated."
+    "passwordUpdated": "Password updated.",
+    "deleteAccount": "Delete account"
   },
   "categories": {
     "active": "Categories active",
@@ -93,5 +94,13 @@
   },
   "language": {
     "label": "Language"
+  },
+  "deleteAccount": {
+    "title": "Delete account",
+    "description": "This permanently deletes your account, your saved data and your upvotes. Ideas and bugs you submitted stay on the idea board without your name. This can't be undone.",
+    "confirmLabel": "Type your email address to confirm",
+    "button": "Delete my account",
+    "deleting": "Deleting…",
+    "error": "The account couldn't be deleted. Please try again or get in touch."
   }
 }
