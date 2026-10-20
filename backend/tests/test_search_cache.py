@@ -1,3 +1,5 @@
+import asyncio
+
 import pytest
 
 from randoo import search_cache
@@ -48,3 +50,16 @@ def test_entry_expires_after_its_ttl(monkeypatch):
 
     clock[0] += search_cache._TTL_S + 1
     assert search_cache.get(key) is None
+
+
+async def test_periodic_sweep_removes_expired_entries_without_any_read():
+    # Written straight into the store with an expiry in the past instead of
+    # faking the clock: asyncio's own event loop reads time.monotonic too.
+    key = search_cache.make_key(b"gpx-sweep", ["water"], 500, "free")
+    search_cache._cache[key] = (search_cache.time.monotonic() - 1, [], [])
+
+    sweep = asyncio.create_task(search_cache.prune_periodically(interval_s=0.01))
+    await asyncio.sleep(0.05)
+    sweep.cancel()
+
+    assert key not in search_cache._cache

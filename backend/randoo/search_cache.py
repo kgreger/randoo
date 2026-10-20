@@ -11,6 +11,7 @@ in the same session is all this needs, unlike the Overpass response cache,
 which is meant to outlive a single search.
 """
 
+import asyncio
 import hashlib
 import time
 from typing import TYPE_CHECKING
@@ -46,6 +47,15 @@ def get(key: str) -> tuple[list["RankedPoi"], list[list["Point"]]] | None:
 def set(key: str, ranked: list["RankedPoi"], segments: list[list["Point"]]) -> None:
     _prune_expired()
     _cache[key] = (time.monotonic() + _TTL_S, ranked, segments)
+
+
+async def prune_periodically(interval_s: float = 30.0) -> None:
+    """Expired entries are otherwise only dropped when the same key is read or
+    the next search stores something, so an entry could sit in memory long
+    after its TTL on a quiet server. This sweeps them out on a timer."""
+    while True:
+        await asyncio.sleep(interval_s)
+        _prune_expired()
 
 
 def _prune_expired() -> None:
