@@ -22,7 +22,8 @@ function ErrorText({ message }: { message: string | null }) {
 }
 
 export function SignInDialog({ onClose, recoveryMode, onRecoveryDone }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const language = i18n.resolvedLanguage ?? "en";
   const [tab, setTab] = useState<Tab>("magic");
   const [passwordView, setPasswordView] = useState<PasswordView>("signin");
 
@@ -74,7 +75,7 @@ export function SignInDialog({ onClose, recoveryMode, onRecoveryDone }: Props) {
     if (!supabase || !email) return;
     setSending(true);
     setError(null);
-    const { error: authError } = await supabase.auth.signInWithOtp({ email });
+    const { error: authError } = await supabase.auth.signInWithOtp({ email, options: { data: { language } } });
     setSending(false);
     if (authError) setError(authError.message);
     else setMagicLinkSent(true);
@@ -99,7 +100,7 @@ export function SignInDialog({ onClose, recoveryMode, onRecoveryDone }: Props) {
       password,
       options: {
         emailRedirectTo: REDIRECT_URL,
-        data: displayName.trim() ? { display_name: displayName.trim() } : undefined,
+        data: { language, ...(displayName.trim() ? { display_name: displayName.trim() } : {}) },
       },
     });
     setSending(false);

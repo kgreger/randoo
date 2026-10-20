@@ -33,15 +33,21 @@ function sectionHtml(s: Section, first: boolean, last: boolean): string {
   return `<tr><td style="padding:${first ? 32 : 24}px 32px ${last ? 32 : 24}px;font-family:${FONT};color:#241a30;"><h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;font-weight:700;color:#0e0c18;">${esc(s.heading)}</h1>${paragraphs}${button}</td></tr>`;
 }
 
-export function renderMail(mail: Mail, opts: { logoUrl?: string } = {}): { html: string; text: string } {
-  const logo = opts.logoUrl ?? LOGO_URL;
+export function sectionsHtml(sections: Section[]): string {
   const divider = `<tr><td style="padding:0 32px;"><div style="border-top:1px solid #ece6ea;line-height:0;font-size:0;">&nbsp;</div></td></tr>`;
-  const body = mail.sections
-    .map((s, i) => sectionHtml(s, i === 0, i === mail.sections.length - 1))
-    .join(divider);
+  return sections.map((s, i) => sectionHtml(s, i === 0, i === sections.length - 1)).join(divider);
+}
 
-  const html = `<!doctype html>
-<html lang="${esc(mail.lang)}">
+export function reasonHtml(reason: string): string {
+  return esc(reason).replace(/\n/g, "<br>");
+}
+
+// bodyRows and reason are inserted as given, so callers escape them (see
+// sectionsHtml and reasonHtml); the email-templates generator relies on
+// that to wrap them in Auth template conditionals.
+export function layoutHtml(bodyRows: string, reason: string, lang: string, logoUrl: string = LOGO_URL): string {
+  return `<!doctype html>
+<html lang="${esc(lang)}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -52,16 +58,20 @@ export function renderMail(mail: Mail, opts: { logoUrl?: string } = {}): { html:
 <body style="margin:0;padding:0;background:#f7f1ef;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f7f1ef;"><tr><td align="center" style="padding:24px 12px;">
 <table role="presentation" width="560" align="center" cellpadding="0" cellspacing="0" style="width:100%;max-width:560px;margin:0 auto;">
-<tr><td style="background:#0e0c18;border-radius:12px 12px 0 0;padding:22px 32px;"><a href="${APP_URL}" style="text-decoration:none;"><img src="${esc(logo)}" alt="Randoo" width="150" style="display:block;border:0;width:150px;height:auto;font-family:${FONT};font-size:24px;font-weight:700;color:#f7f1ef;"></a></td></tr>
+<tr><td style="background:#0e0c18;border-radius:12px 12px 0 0;padding:22px 32px;"><a href="${APP_URL}" style="text-decoration:none;"><img src="${esc(logoUrl)}" alt="Randoo" width="150" style="display:block;border:0;width:150px;height:auto;font-family:${FONT};font-size:24px;font-weight:700;color:#f7f1ef;"></a></td></tr>
 <tr><td style="padding:0;line-height:0;font-size:0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td width="50%" height="4" style="height:4px;background:#ff8f6b;line-height:4px;font-size:4px;">&nbsp;</td><td width="50%" height="4" style="height:4px;background:#ffbd6b;line-height:4px;font-size:4px;">&nbsp;</td></tr></table></td></tr>
-<tr><td style="background:#ffffff;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">${body}</table></td></tr>
+<tr><td style="background:#ffffff;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">${bodyRows}</table></td></tr>
 <tr><td style="background:#ffffff;border-radius:0 0 12px 12px;line-height:0;font-size:0;height:4px;">&nbsp;</td></tr>
-<tr><td style="padding:18px 32px 0;font-family:${FONT};font-size:12px;line-height:1.6;color:#6b6178;">${esc(mail.reason)}<br><a href="${APP_URL}" style="color:#6b6178;">${APP_URL.replace("https://", "")}</a></td></tr>
+<tr><td style="padding:18px 32px 0;font-family:${FONT};font-size:12px;line-height:1.6;color:#6b6178;">${reason}<br><a href="${APP_URL}" style="color:#6b6178;">${APP_URL.replace("https://", "")}</a></td></tr>
 </table>
 </td></tr></table>
 </body>
 </html>
 `;
+}
+
+export function renderMail(mail: Mail, opts: { logoUrl?: string } = {}): { html: string; text: string } {
+  const html = layoutHtml(sectionsHtml(mail.sections), reasonHtml(mail.reason), mail.lang, opts.logoUrl);
 
   const text =
     mail.sections

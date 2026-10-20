@@ -1,6 +1,10 @@
 # Auth email templates
 
-HTML templates for the emails Supabase Auth sends. They share their layout with the Edge Function mails (`supabase/functions/_shared/mail.ts`) and are bilingual, German first, because a project has one template per mail and doesn't know the recipient's language.
+HTML templates for the emails Supabase Auth sends. They share their layout with the Edge Function mails (`supabase/functions/_shared/mail.ts`).
+
+## Language
+
+Each template reads `user_metadata.language` from the account (`{{ .Data.language }}`): German for `de`, English for anything else that is set, and both languages stacked, German first, when it isn't set. The app stores the browser's language there when someone signs up or requests their first magic link, and the account dialog changes it later. Accounts created before that have no value and get the stacked version until they pick a language. The subject lines below stay bilingual, since the dashboard subject field can't switch on the account.
 
 | File | Template in the dashboard | Subject |
 | --- | --- | --- |
