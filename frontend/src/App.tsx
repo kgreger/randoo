@@ -12,6 +12,7 @@ import { routeLengthM } from "./lib/geo";
 import { parseGpxPreview, type LatLon } from "./lib/gpxPreview";
 import { supabase } from "./lib/supabase";
 import { useAuth } from "./lib/useAuth";
+import logoUrl from "./assets/randoo-logo.svg";
 
 const DEFAULT_CATEGORIES = ["water", "food"];
 const IDEAS_URL = import.meta.env.VITE_IDEAS_URL as string | undefined;
@@ -228,12 +229,9 @@ export default function App() {
 
       <div className="topbar">
         <div className="brand">
-          <div className="mark">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <path d="M12 3 C8 8 6 11 6 14 a6 6 0 0 0 12 0 c0-3-4-6-6-11z" fill="#241a30" />
-            </svg>
-          </div>
-          <h1>{t("app.title")}</h1>
+          <h1>
+            <img className="brand-logo" src={logoUrl} alt={t("app.title")} />
+          </h1>
           <span className="beta-badge">Beta</span>
           {IDEAS_URL && (
             <button className="feedback-link" onClick={handleIdeas}>
