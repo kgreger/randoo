@@ -158,6 +158,28 @@ create trigger on_auth_user_registered
   after insert or update of email_confirmed_at on auth.users
   for each row execute function public.notify_user_registered();
 
+-- Last line of defence behind delete-account's own check: no path (that
+-- function, the dashboard, the admin API) can delete an account whose
+-- profile has the admin tier. Demote it first to remove it on purpose.
+create or replace function public.prevent_admin_deletion()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if exists (select 1 from public.profiles where id = old.id and tier = 'admin') then
+    raise exception 'admin accounts cannot be deleted, change the tier first';
+  end if;
+  return old;
+end;
+$$;
+
+drop trigger if exists prevent_admin_deletion on auth.users;
+create trigger prevent_admin_deletion
+  before delete on auth.users
+  for each row execute function public.prevent_admin_deletion();
+
 -- live tier already carries a check constraint limited to free/premium
 -- (also not previously reflected here); widened for 'admin' (this file's
 -- moderator check) and 'beta' (planned: same access as premium).
