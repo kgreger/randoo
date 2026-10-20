@@ -5,6 +5,7 @@
 // add moving parts for no real benefit.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
+import { FROM_NAME, groupByLanguage, ideaReceived, ideaSubmittedAdmin, normalizeLang, type Kind } from "../_shared/mail.ts";
 
 // idea-portal calls this cross-origin, so every response needs these, see
 // notify-idea-status for the CORS gotcha this avoids.
@@ -55,7 +56,7 @@ Deno.serve(async (req) => {
     .single();
   if (authorError) return new Response(`author lookup failed: ${authorError.message}`, { status: 500, headers: corsHeaders });
 
-  const { data: admins, error: adminsError } = await adminClient.from("profiles").select("email").eq("tier", "admin");
+  const { data: admins, error: adminsError } = await adminClient.from("profiles").select("id, email").eq("tier", "admin");
   if (adminsError) return new Response(`admin lookup failed: ${adminsError.message}`, { status: 500, headers: corsHeaders });
 
   const gmailUser = Deno.env.get("GMAIL_USER")!;
@@ -68,28 +69,24 @@ Deno.serve(async (req) => {
     },
   });
 
+  const kind = idea.kind as Kind;
+  const from = `${FROM_NAME} <${gmailUser}>`;
+
   if (author?.email) {
-    await smtp.send({
-      from: gmailUser,
-      to: author.email,
-      subject: `Your ${idea.kind} "${idea.title}" was received`,
-      content: `Hi,\n\nThanks for submitting the ${idea.kind} "${idea.title}" to Randoo's idea board. We'll let you know once it's picked up.`,
-    });
+    const mail = ideaReceived(normalizeLang(user.user_metadata?.language), kind, idea.title);
+    await smtp.send({ from, to: author.email, subject: mail.subject, content: mail.text, html: mail.html });
   }
 
   // Skip an admin who just submitted their own idea - they already got
   // the author confirmation above, a second copy would just be noise.
-  const adminEmails = (admins ?? [])
-    .map((a) => a.email)
-    .filter((e): e is string => !!e && e !== author?.email);
-  if (adminEmails.length > 0) {
-    await smtp.send({
-      from: gmailUser,
-      to: gmailUser,
-      bcc: adminEmails,
-      subject: `New ${idea.kind} submitted: "${idea.title}"`,
-      content: `Hi,\n\nA new ${idea.kind} "${idea.title}" was just submitted to Randoo's idea board.`,
-    });
+  const adminPeople = (admins ?? [])
+    .filter((a): a is { id: string; email: string } => !!a.email && a.email !== author?.email)
+    .map((a) => ({ id: a.id, email: a.email }));
+  const adminGroups = await groupByLanguage(adminClient, adminPeople);
+  for (const lang of ["en", "de"] as const) {
+    if (adminGroups[lang].length === 0) continue;
+    const mail = ideaSubmittedAdmin(lang, kind, idea.title);
+    await smtp.send({ from, to: gmailUser, bcc: adminGroups[lang], subject: mail.subject, content: mail.text, html: mail.html });
   }
 
   await smtp.close();

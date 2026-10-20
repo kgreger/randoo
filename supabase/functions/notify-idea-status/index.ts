@@ -5,6 +5,7 @@
 // app that flips status, so a trigger would just add moving parts.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
+import { FROM_NAME, groupByLanguage, ideaResolved, type Kind } from "../_shared/mail.ts";
 
 // idea-portal calls this cross-origin (a different host than this function
 // lives on), so every response - including the preflight and every early
@@ -63,14 +64,14 @@ Deno.serve(async (req) => {
 
   const { data: profiles } = await adminClient
     .from("profiles")
-    .select("email")
+    .select("id, email")
     .in("id", Array.from(recipientIds));
-  const emails = (profiles ?? []).map((p) => p.email).filter((e): e is string => !!e);
-  if (emails.length === 0) return new Response("no email addresses on file", { status: 200, headers: corsHeaders });
+  const people = (profiles ?? [])
+    .filter((p): p is { id: string; email: string } => !!p.email)
+    .map((p) => ({ id: p.id, email: p.email }));
+  if (people.length === 0) return new Response("no email addresses on file", { status: 200, headers: corsHeaders });
 
   const gmailUser = Deno.env.get("GMAIL_USER")!;
-  const resolvedLabel = idea.kind === "bug" ? "fixed" : "accepted";
-
   const smtp = new SMTPClient({
     connection: {
       hostname: "smtp.gmail.com",
@@ -80,15 +81,21 @@ Deno.serve(async (req) => {
     },
   });
 
-  // One send, everyone in bcc - fewer SMTP round trips than looping,
-  // and nobody sees the rest of the recipient list.
-  await smtp.send({
-    from: gmailUser,
-    to: gmailUser,
-    bcc: emails,
-    subject: `Your ${idea.kind} "${idea.title}" was marked ${resolvedLabel}`,
-    content: `Hi,\n\nThe ${idea.kind} "${idea.title}" you submitted or upvoted on Randoo's idea board has just been marked as ${resolvedLabel}.\n\nThanks for the feedback.`,
-  });
+  // One send per language, everyone in bcc - fewer SMTP round trips than
+  // looping per recipient, and nobody sees the rest of the recipient list.
+  const groups = await groupByLanguage(adminClient, people);
+  for (const lang of ["en", "de"] as const) {
+    if (groups[lang].length === 0) continue;
+    const mail = ideaResolved(lang, idea.kind as Kind, idea.title);
+    await smtp.send({
+      from: `${FROM_NAME} <${gmailUser}>`,
+      to: gmailUser,
+      bcc: groups[lang],
+      subject: mail.subject,
+      content: mail.text,
+      html: mail.html,
+    });
+  }
   await smtp.close();
 
   return new Response("ok", { status: 200, headers: corsHeaders });
