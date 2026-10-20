@@ -75,7 +75,10 @@ export function SignInDialog({ onClose, recoveryMode, onRecoveryDone }: Props) {
     if (!supabase || !email) return;
     setSending(true);
     setError(null);
-    const { error: authError } = await supabase.auth.signInWithOtp({ email, options: { data: { language } } });
+    const { error: authError } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: REDIRECT_URL, data: { language } },
+    });
     setSending(false);
     if (authError) setError(authError.message);
     else setMagicLinkSent(true);
