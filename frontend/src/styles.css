@@ -31,7 +31,7 @@ body {
   position: relative;
   background: var(--bg);
   color: var(--ink);
-  font-family: "Instrument Sans", system-ui, sans-serif;
+  font-family: "Outfit Variable", system-ui, sans-serif;
   overflow: hidden;
 }
 
@@ -61,7 +61,7 @@ h1,
 h2,
 h3,
 .mono {
-  font-family: "Onest", system-ui, sans-serif;
+  font-family: "Outfit Variable", system-ui, sans-serif;
 }
 
 button {
@@ -91,22 +91,15 @@ button {
   gap: 10px;
 }
 
-.brand .mark {
-  width: 30px;
-  height: 30px;
-  border-radius: 9px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
+.brand h1 {
+  margin: 0;
+  line-height: 0;
 }
 
-.brand h1 {
-  font-size: 17px;
-  font-weight: 700;
-  margin: 0;
-  letter-spacing: -0.01em;
+.brand-logo {
+  display: block;
+  height: 34px;
+  width: auto;
 }
 
 /* Sits like a superscript off the wordmark, not a peer of it - raised
@@ -173,7 +166,7 @@ button {
   border: none;
   background: transparent;
   color: var(--ink-muted);
-  font-family: "Onest", system-ui, sans-serif;
+  font-family: "Outfit Variable", system-ui, sans-serif;
   font-size: 12px;
   font-weight: 600;
   padding: 6px 10px;
@@ -187,7 +180,7 @@ button {
 }
 
 .btn {
-  font-family: "Onest", system-ui, sans-serif;
+  font-family: "Outfit Variable", system-ui, sans-serif;
   font-weight: 600;
   font-size: 13px;
   border: none;
@@ -528,7 +521,7 @@ button {
   border: none;
   background: transparent;
   color: var(--ink-muted);
-  font-family: "Onest", system-ui, sans-serif;
+  font-family: "Outfit Variable", system-ui, sans-serif;
   font-size: 12px;
   font-weight: 600;
   padding: 7px 0;
@@ -581,7 +574,7 @@ button {
   padding: 9px 10px;
   text-align: left;
   color: var(--ink);
-  font-family: "Onest", system-ui, sans-serif;
+  font-family: "Outfit Variable", system-ui, sans-serif;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -659,7 +652,7 @@ button {
 }
 
 .category-ring .label {
-  font-family: "Onest", system-ui, sans-serif;
+  font-family: "Outfit Variable", system-ui, sans-serif;
   font-weight: 700;
   font-size: 14px;
 }
