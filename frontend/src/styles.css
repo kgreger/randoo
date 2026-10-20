@@ -238,6 +238,24 @@ button {
   background: var(--surface-strong);
 }
 
+.legal-links {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  margin-top: -8px;
+  font-size: 11.5px;
+}
+
+.legal-links a {
+  color: var(--ink-faint);
+  text-decoration: none;
+}
+
+.legal-links a:hover {
+  color: var(--ink-muted);
+  text-decoration: underline;
+}
+
 .content-row {
   flex: 1;
   display: flex;

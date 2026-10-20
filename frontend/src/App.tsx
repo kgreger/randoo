@@ -4,6 +4,7 @@ import { AccountControl } from "./components/AccountControl";
 import { AccountDialog } from "./components/AccountDialog";
 import { DeleteAccountDialog } from "./components/DeleteAccountDialog";
 import { CategoryFilter } from "./components/CategoryFilter";
+import { LegalLinks } from "./components/LegalLinks";
 import { MapView } from "./components/MapView";
 import { PoiList } from "./components/PoiList";
 import { SignInDialog } from "./components/SignInDialog";
@@ -364,6 +365,8 @@ export default function App() {
           onHoverPoi={setHoveredPoiId}
         />
       </div>
+
+      <LegalLinks />
     </div>
   );
 }

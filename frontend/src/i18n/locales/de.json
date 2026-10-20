@@ -104,5 +104,9 @@
     "deleting": "Lösche…",
     "error": "Das Konto konnte nicht gelöscht werden. Bitte versuche es noch einmal oder melde dich bei uns.",
     "errorAdmin": "Administrator-Konten können nicht gelöscht werden."
+  },
+  "legal": {
+    "imprint": "Impressum",
+    "privacy": "Datenschutz"
   }
 }

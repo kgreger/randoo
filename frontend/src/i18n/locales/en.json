@@ -104,5 +104,9 @@
     "deleting": "Deleting…",
     "error": "The account couldn't be deleted. Please try again or get in touch.",
     "errorAdmin": "Admin accounts can't be deleted."
+  },
+  "legal": {
+    "imprint": "Imprint",
+    "privacy": "Privacy"
   }
 }
