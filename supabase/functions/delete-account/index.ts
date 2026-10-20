@@ -3,7 +3,8 @@
 // and the export log keep their rows with the author cleared. Before that,
 // everything personal that could stay behind on an idea is dealt with here:
 // uploaded files are removed and the account's email address and display
-// name are blanked out of the idea texts.
+// name are blanked out of the idea texts. Accounts with the admin tier are
+// refused.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -46,6 +47,18 @@ Deno.serve(async (req) => {
   const adminClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
   const fail = (what: string, message: string) =>
     new Response(`${what} failed: ${message}`, { status: 500, headers: corsHeaders });
+
+  // Admins can't be deleted from here: losing the last one would lock
+  // everyone out of moderation.
+  const { data: profile, error: profileError } = await adminClient
+    .from("profiles")
+    .select("tier")
+    .eq("id", user.id)
+    .maybeSingle();
+  if (profileError) return fail("profile lookup", profileError.message);
+  if (profile?.tier === "admin") {
+    return new Response("admin accounts can't be deleted", { status: 403, headers: corsHeaders });
+  }
 
   // Done before the account itself goes, so a failure here leaves the
   // account in place and the request can simply be repeated.
