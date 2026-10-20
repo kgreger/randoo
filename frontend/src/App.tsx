@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AccountControl } from "./components/AccountControl";
 import { AccountDialog } from "./components/AccountDialog";
+import { DeleteAccountDialog } from "./components/DeleteAccountDialog";
 import { CategoryFilter } from "./components/CategoryFilter";
 import { MapView } from "./components/MapView";
 import { PoiList } from "./components/PoiList";
@@ -37,6 +38,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [signInOpen, setSignInOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   // A slow search (real Overpass round-trips can take tens of seconds) that
   // a rider re-runs before it finishes - a new category, say - must never
   // have its late answer overwrite the newer search's already-shown
@@ -53,7 +55,10 @@ export default function App() {
   }, [recoveryMode]);
 
   useEffect(() => {
-    if (!user) setAccountOpen(false);
+    if (!user) {
+      setAccountOpen(false);
+      setDeleteOpen(false);
+    }
   }, [user]);
 
   // A search can genuinely take anywhere from a couple seconds to over a
@@ -268,7 +273,11 @@ export default function App() {
               </svg>
             )}
           </button>
-          <AccountControl onRequestSignIn={() => setSignInOpen(true)} onOpenAccount={() => setAccountOpen(true)} />
+          <AccountControl
+            onRequestSignIn={() => setSignInOpen(true)}
+            onOpenAccount={() => setAccountOpen(true)}
+            onRequestDelete={() => setDeleteOpen(true)}
+          />
         </div>
       </div>
 
@@ -288,8 +297,9 @@ export default function App() {
           )}
 
           {accountOpen && <AccountDialog onClose={() => setAccountOpen(false)} />}
+          {deleteOpen && <DeleteAccountDialog onClose={() => setDeleteOpen(false)} />}
 
-          {!file && !signInOpen && !accountOpen && (
+          {!file && !signInOpen && !accountOpen && !deleteOpen && (
             <div className="map-empty">
               <div className="map-empty-card">
                 <div className="icon">

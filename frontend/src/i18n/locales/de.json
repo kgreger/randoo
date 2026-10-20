@@ -30,7 +30,8 @@
     "newPassword": "Neues Passwort",
     "leaveBlankPassword": "Leer lassen, um das aktuelle Passwort zu behalten",
     "updatePassword": "Passwort aktualisieren",
-    "passwordUpdated": "Passwort aktualisiert."
+    "passwordUpdated": "Passwort aktualisiert.",
+    "deleteAccount": "Konto löschen"
   },
   "categories": {
     "active": "Aktive Kategorien",
@@ -93,5 +94,13 @@
   },
   "language": {
     "label": "Sprache"
+  },
+  "deleteAccount": {
+    "title": "Konto löschen",
+    "description": "Damit werden dein Konto, deine gespeicherten Daten und deine Stimmen endgültig gelöscht. Ideen und Bugs, die du eingereicht hast, bleiben ohne deinen Namen auf dem Ideenboard. Das lässt sich nicht rückgängig machen.",
+    "confirmLabel": "Gib zur Bestätigung deine E-Mail-Adresse ein",
+    "button": "Mein Konto löschen",
+    "deleting": "Lösche…",
+    "error": "Das Konto konnte nicht gelöscht werden. Bitte versuche es noch einmal oder melde dich bei uns."
   }
 }
