@@ -6,6 +6,7 @@ import { useAuth } from "../lib/useAuth";
 
 interface Props {
   onClose: () => void;
+  onRequestDelete: () => void;
 }
 
 function ErrorText({ message }: { message: string | null }) {
@@ -13,7 +14,7 @@ function ErrorText({ message }: { message: string | null }) {
   return <p className="account-error">{message}</p>;
 }
 
-export function AccountDialog({ onClose }: Props) {
+export function AccountDialog({ onClose, onRequestDelete }: Props) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const currentName = (user?.user_metadata?.display_name as string | undefined) ?? "";
@@ -118,6 +119,12 @@ export function AccountDialog({ onClose }: Props) {
         <div className="account-field-group">
           <label className="account-field-label">{t("language.label")}</label>
           <LanguageSwitcher />
+        </div>
+
+        <div className="account-danger-zone">
+          <button className="btn btn-ghost-danger" onClick={onRequestDelete}>
+            {t("account.deleteAccount")}
+          </button>
         </div>
       </div>
     </div>
