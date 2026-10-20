@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { useTranslation } from "react-i18next";
 import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import type { LatLon } from "../lib/gpxPreview";
 import type { Poi } from "../lib/api";
 import { categoryById } from "../lib/categories";
