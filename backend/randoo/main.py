@@ -1,5 +1,6 @@
 import asyncio
 import dataclasses
+from contextlib import asynccontextmanager
 
 import duckdb
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
@@ -15,7 +16,14 @@ from .poi_source import OverpassPoiSource, get_poi_source
 from .schemas import AnalyzeResponse, PoiOut
 from .turnoff import get_turnoff_locator
 
-app = FastAPI(title="Randoo API")
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    sweep = asyncio.create_task(search_cache.prune_periodically())
+    yield
+    sweep.cancel()
+
+
+app = FastAPI(title="Randoo API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
