@@ -1115,12 +1115,13 @@ button {
     color: var(--ink-faint);
   }
 
-  /* Folded away, the panel is just a round button so the map stays free. */
+  /* Folded away, the panel is just a small button (same shape as the menu
+     button) so the map stays free. */
   .controls-panel.collapsed {
     right: auto;
     width: auto;
     padding: 0;
-    border-radius: 50%;
+    border-radius: 12px;
     overflow: visible;
   }
 
@@ -1132,10 +1133,10 @@ button {
   .controls-panel.collapsed .controls-toggle {
     position: relative;
     justify-content: center;
-    width: 44px;
-    height: 44px;
+    width: 40px;
+    height: 40px;
     padding: 0;
-    border-radius: 50%;
+    border-radius: 12px;
   }
 
   .controls-panel.collapsed .controls-toggle-count {
