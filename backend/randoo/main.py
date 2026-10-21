@@ -1,6 +1,7 @@
 import asyncio
 import dataclasses
 import json
+from importlib.metadata import version as package_version
 from contextlib import asynccontextmanager
 
 import duckdb
@@ -45,7 +46,7 @@ def _poi_id(poi) -> str:
 
 @app.get("/health")
 async def health() -> dict[str, str]:
-    return {"status": "ok"}
+    return {"status": "ok", "version": package_version("randoo")}
 
 
 async def _query_pois(

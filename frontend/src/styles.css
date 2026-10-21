@@ -261,6 +261,12 @@ button {
   font-size: 11.5px;
 }
 
+.app-version {
+  margin-right: auto;
+  color: var(--ink-faint);
+  font-family: "JetBrains Mono", monospace;
+}
+
 .legal-links a {
   color: var(--ink-faint);
   text-decoration: none;
@@ -1319,5 +1325,9 @@ button {
   .legal-links {
     margin-top: 0;
     justify-content: center;
+  }
+
+  .app-version {
+    margin-right: 0;
   }
 }
