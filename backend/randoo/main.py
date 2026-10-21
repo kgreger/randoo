@@ -1,19 +1,22 @@
 import asyncio
 import dataclasses
+import json
 from contextlib import asynccontextmanager
 
 import duckdb
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
+from pydantic import TypeAdapter, ValidationError
 
 from . import categories, geometry, gpx, poi_filter, search_cache
 from .auth import bearer_token, require_user
 from .entitlements import get_tier
 from .export import build_gpx
 from .overpass import Poi
+from .poi_filter import Connector, RankedPoi
 from .poi_source import OverpassPoiSource, get_poi_source
-from .schemas import AnalyzeResponse, PoiOut
+from .schemas import AnalyzeResponse, ExportPoi, PoiOut
 from .turnoff import get_turnoff_locator
 
 @asynccontextmanager
@@ -148,17 +151,60 @@ async def analyze(
     )
 
 
+MAX_EXPORT_POIS = 5000
+
+_export_pois = TypeAdapter(list[ExportPoi])
+
+
+def _ranked_from_export(raw: str) -> list[RankedPoi]:
+    try:
+        pois = _export_pois.validate_python(json.loads(raw))
+    except (ValueError, ValidationError) as exc:
+        raise HTTPException(400, "pois is not a valid list of points") from exc
+    if len(pois) > MAX_EXPORT_POIS:
+        raise HTTPException(400, f"at most {MAX_EXPORT_POIS} points can be exported")
+    return [
+        RankedPoi(
+            poi=Poi(
+                osm_id=p.osm_id,
+                osm_type=p.osm_type,
+                lat=p.lat,
+                lon=p.lon,
+                category_id=p.category_id,
+                name=p.name,
+                tags={},
+            ),
+            distance_to_route_m=p.distance_to_route_m,
+            distance_along_route_m=0.0,
+            connector=Connector(meeting_point=gpx.Point(*p.meeting_point), path=[]),
+        )
+        for p in pois
+    ]
+
+
 @app.post("/api/export")
 async def export(
     file: UploadFile = File(...),
-    categories_param: list[str] = Form(..., alias="categories"),
+    categories_param: list[str] = Form(default=[], alias="categories"),
     radius_m: float = Form(500),
+    pois: str | None = Form(default=None),
     excluded_poi_ids: list[str] = Form(default=[]),
     _user: dict = Depends(require_user),
     token: str | None = Depends(bearer_token),
 ) -> Response:
-    tier = await get_tier(token)
-    ranked, segments = await _find_pois(file, categories_param, radius_m, tier)
+    if pois is not None:
+        # The points the rider is looking at come with the request, so a
+        # saved plan exports as saved and nothing is searched again.
+        try:
+            segments = gpx.parse_track(await file.read())
+        except gpx.InvalidGpxError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        ranked = _ranked_from_export(pois)
+    else:
+        if not categories_param:
+            raise HTTPException(400, "categories or pois is required")
+        tier = await get_tier(token)
+        ranked, segments = await _find_pois(file, categories_param, radius_m, tier)
 
     # A POI passing the search doesn't mean the rider actually wants it in
     # the file - excluded_poi_ids is how the frontend's per-POI selection

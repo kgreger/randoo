@@ -56,14 +56,33 @@ export async function analyzeRoute(
   return data.pois;
 }
 
+// Sends the points the rider is looking at along with the route, so the file
+// holds exactly those (a saved plan included) and the server doesn't search
+// again.
 export async function exportGpx(
   file: File,
-  categoryIds: string[],
-  radiusM: number,
+  pois: Poi[],
   accessToken: string,
   excludedPoiIds: string[] = [],
 ): Promise<Blob> {
-  const form = buildFormData(file, categoryIds, radiusM);
+  const form = new FormData();
+  form.append("file", file);
+  form.append(
+    "pois",
+    JSON.stringify(
+      pois.map(({ id, osm_id, osm_type, lat, lon, category_id, name, distance_to_route_m, meeting_point }) => ({
+        id,
+        osm_id,
+        osm_type,
+        lat,
+        lon,
+        category_id,
+        name,
+        distance_to_route_m,
+        meeting_point,
+      })),
+    ),
+  );
   excludedPoiIds.forEach((id) => form.append("excluded_poi_ids", id));
 
   const response = await fetch(`${API_URL}/api/export`, {

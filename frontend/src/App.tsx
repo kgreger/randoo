@@ -275,13 +275,7 @@ export default function App() {
 
     setExporting(true);
     try {
-      const blob = await exportGpx(
-        file,
-        Array.from(selectedCategories),
-        radiusM,
-        accessToken,
-        Array.from(excludedPoiIds),
-      );
+      const blob = await exportGpx(file, pois, accessToken, Array.from(excludedPoiIds));
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
