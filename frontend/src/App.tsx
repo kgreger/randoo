@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Menu, SlidersHorizontal, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AccountControl } from "./components/AccountControl";
 import { AccountDialog } from "./components/AccountDialog";
@@ -40,6 +41,9 @@ export default function App() {
   const [signInOpen, setSignInOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(true);
+  const menuRef = useRef<HTMLDivElement>(null);
   // A slow search (real Overpass round-trips can take tens of seconds) that
   // a rider re-runs before it finishes - a new category, say - must never
   // have its late answer overwrite the newer search's already-shown
@@ -54,6 +58,15 @@ export default function App() {
   useEffect(() => {
     if (recoveryMode) setSignInOpen(true);
   }, [recoveryMode]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handlePointerDown(e: MouseEvent) {
+      if (!menuRef.current?.contains(e.target as Node)) setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [menuOpen]);
 
   useEffect(() => {
     if (!user) {
@@ -97,6 +110,7 @@ export default function App() {
     setPois([]);
     setExcludedPoiIds(new Set());
     setSelectedPoiId(null);
+    setFiltersOpen(true);
     setError(null);
     try {
       const preview = await parseGpxPreview(selected);
@@ -139,6 +153,7 @@ export default function App() {
     const requestId = ++searchRequestId.current;
     setLoading(true);
     setError(null);
+    setFiltersOpen(false);
     try {
       // Sent along when there's a session, but search runs fine without one
       // too - this only ever upgrades a signed-in premium caller's results,
@@ -256,25 +271,54 @@ export default function App() {
           </div>
         )}
 
-        <div className="topbar-actions">
-          <button className="btn btn-ghost" onClick={() => fileInputRef.current?.click()}>
-            {file ? t("app.changeRoute") : t("app.uploadGpx")}
-          </button>
+        <div className="topbar-menu" ref={menuRef}>
           <button
-            className={`btn btn-primary ${!user ? "btn-locked" : ""}`}
-            onClick={handleExport}
-            disabled={pois.length === 0 || exporting}
-            title={user ? undefined : t("app.signInToExport")}
+            className="menu-toggle"
+            onClick={() => setMenuOpen((open) => !open)}
+            aria-label={t("app.menu")}
+            aria-expanded={menuOpen}
+            aria-controls="topbar-actions"
           >
-            {exporting ? t("app.exporting") : t("app.export")}
-            {!user && (
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="5" y="11" width="14" height="9" rx="2" />
-                <path d="M8 11V8a4 4 0 0 1 8 0v3" />
-              </svg>
-            )}
+            {menuOpen ? <X size={20} strokeWidth={2} aria-hidden="true" /> : <Menu size={20} strokeWidth={2} aria-hidden="true" />}
           </button>
-          <AccountControl onRequestSignIn={() => setSignInOpen(true)} onOpenAccount={() => setAccountOpen(true)} />
+          <div id="topbar-actions" className={`topbar-actions ${menuOpen ? "open" : ""}`}>
+            <button
+              className="btn btn-ghost"
+              onClick={() => {
+                setMenuOpen(false);
+                fileInputRef.current?.click();
+              }}
+            >
+              {file ? t("app.changeRoute") : t("app.uploadGpx")}
+            </button>
+            <button
+              className={`btn btn-primary ${!user ? "btn-locked" : ""}`}
+              onClick={() => {
+                setMenuOpen(false);
+                handleExport();
+              }}
+              disabled={pois.length === 0 || exporting}
+              title={user ? undefined : t("app.signInToExport")}
+            >
+              {exporting ? t("app.exporting") : t("app.export")}
+              {!user && (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="5" y="11" width="14" height="9" rx="2" />
+                  <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+                </svg>
+              )}
+            </button>
+            <AccountControl
+              onRequestSignIn={() => {
+                setMenuOpen(false);
+                setSignInOpen(true);
+              }}
+              onOpenAccount={() => {
+                setMenuOpen(false);
+                setAccountOpen(true);
+              }}
+            />
+          </div>
         </div>
       </div>
 
@@ -322,13 +366,24 @@ export default function App() {
           )}
 
           {file && (
-            <div className="controls-panel">
-              <CategoryFilter
-                selected={selectedCategories}
-                onToggle={toggleCategory}
-                radiusM={radiusM}
-                onRadiusChange={setRadiusM}
-              />
+            <div className={`controls-panel ${filtersOpen ? "" : "collapsed"}`}>
+              <button
+                className="controls-toggle"
+                onClick={() => setFiltersOpen((open) => !open)}
+                aria-expanded={filtersOpen}
+              >
+                <SlidersHorizontal size={14} strokeWidth={2} aria-hidden="true" />
+                {t("app.filters")}
+                <span className="controls-toggle-count">{selectedCategories.size}</span>
+              </button>
+              <div className="controls-body">
+                <CategoryFilter
+                  selected={selectedCategories}
+                  onToggle={toggleCategory}
+                  radiusM={radiusM}
+                  onRadiusChange={setRadiusM}
+                />
+              </div>
               <button
                 className="btn btn-primary"
                 onClick={runSearch}

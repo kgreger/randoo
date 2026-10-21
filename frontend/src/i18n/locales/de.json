@@ -1,6 +1,8 @@
 {
   "app": {
     "title": "Randoo",
+    "menu": "Menü",
+    "filters": "Filter",
     "ideas": "Ideen",
     "changeRoute": "Route ändern",
     "uploadGpx": "GPX hochladen",
