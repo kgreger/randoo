@@ -128,6 +128,7 @@
     "errorSave": "Could not save the plan.",
     "errorLimit": "You have reached the limit of 50 saved plans. Delete one to save another.",
     "errorDelete": "Could not delete the plan.",
-    "meta": "{{count}} points"
+    "meta": "{{count}} points",
+    "openPlan": "Plan “{{name}}” is open."
   }
 }

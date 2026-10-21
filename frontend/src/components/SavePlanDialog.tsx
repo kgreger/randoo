@@ -11,14 +11,17 @@ interface Props {
   onClose: () => void;
 }
 
+// With a plan open, the dialog first asks whether to overwrite it or to save
+// a new one; only the second step shows a name field, so a new plan is never
+// saved under the open plan's name by accident.
 export function SavePlanDialog({ defaultName, openPlanName, onSave, onClose }: Props) {
   const { t } = useTranslation();
-  const [name, setName] = useState(openPlanName ?? defaultName);
+  const [step, setStep] = useState<"choose" | "name">(openPlanName ? "choose" : "name");
+  const [name, setName] = useState(defaultName === openPlanName ? `${defaultName} (2)` : defaultName);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function submit(asNew: boolean) {
-    const trimmed = name.trim();
+  async function submit(trimmed: string, asNew: boolean) {
     if (!trimmed) return;
     setBusy(true);
     setError(null);
@@ -40,32 +43,40 @@ export function SavePlanDialog({ defaultName, openPlanName, onSave, onClose }: P
         </button>
 
         <div className="account-field-group">
-          <label className="account-field-label" htmlFor="plan-name">
-            {t("plans.nameLabel")}
-          </label>
-          <input
-            id="plan-name"
-            className="field-input"
-            type="text"
-            value={name}
-            maxLength={120}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && submit(!openPlanName)}
-            autoFocus
-          />
-          {openPlanName ? (
+          {step === "choose" && openPlanName ? (
             <>
-              <button className="btn btn-primary" onClick={() => submit(false)} disabled={busy || !name.trim()}>
+              <p className="plans-open-name">{t("plans.openPlan", { name: openPlanName })}</p>
+              <button className="btn btn-primary" onClick={() => submit(openPlanName, false)} disabled={busy}>
                 {busy ? t("account.saving") : t("plans.update")}
               </button>
-              <button className="btn btn-ghost" onClick={() => submit(true)} disabled={busy || !name.trim()}>
+              <button className="btn btn-ghost" onClick={() => setStep("name")} disabled={busy}>
                 {t("plans.saveAsNew")}
               </button>
             </>
           ) : (
-            <button className="btn btn-primary" onClick={() => submit(true)} disabled={busy || !name.trim()}>
-              {busy ? t("account.saving") : t("plans.save")}
-            </button>
+            <>
+              <label className="account-field-label" htmlFor="plan-name">
+                {t("plans.nameLabel")}
+              </label>
+              <input
+                id="plan-name"
+                className="field-input"
+                type="text"
+                value={name}
+                maxLength={120}
+                onChange={(e) => setName(e.target.value)}
+                onFocus={(e) => e.target.select()}
+                onKeyDown={(e) => e.key === "Enter" && submit(name.trim(), true)}
+                autoFocus
+              />
+              <button
+                className="btn btn-primary"
+                onClick={() => submit(name.trim(), true)}
+                disabled={busy || !name.trim()}
+              >
+                {busy ? t("account.saving") : t("plans.save")}
+              </button>
+            </>
           )}
           {error && <p className="account-error">{error}</p>}
         </div>

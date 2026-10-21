@@ -679,6 +679,14 @@ button {
   gap: 12px;
 }
 
+.plans-open-name {
+  margin: 0 !important;
+  font-size: 13.5px !important;
+  font-weight: 600;
+  color: var(--ink) !important;
+  text-align: center;
+}
+
 .plans-title {
   margin: 0;
   font-size: 17px;
