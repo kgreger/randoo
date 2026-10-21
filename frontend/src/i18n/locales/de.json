@@ -128,6 +128,7 @@
     "errorSave": "Der Plan konnte nicht gespeichert werden.",
     "errorLimit": "Du hast die Grenze von 50 gespeicherten Plänen erreicht. Lösche einen, um einen weiteren zu speichern.",
     "errorDelete": "Der Plan konnte nicht gelöscht werden.",
-    "meta": "{{count}} Punkte"
+    "meta": "{{count}} Punkte",
+    "openPlan": "Plan „{{name}}“ ist geöffnet."
   }
 }
