@@ -399,3 +399,7 @@ create policy "plans: owner update" on plans for update
   using (auth.uid() = user_id) with check (auth.uid() = user_id and public.can_save_plans());
 create policy "plans: owner delete" on plans for delete
   using (auth.uid() = user_id);
+
+-- Table-level grants for saved plans, same reason as for ideas above:
+-- row level security only narrows what a role may already touch.
+grant select, insert, update, delete on routes, plans to authenticated;
