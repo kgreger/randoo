@@ -671,6 +671,130 @@ button {
   word-break: break-all;
 }
 
+.plans-card {
+  width: min(420px, calc(100% - 24px));
+  max-width: none;
+  text-align: left;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.plans-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.plans-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: 52vh;
+  overflow-y: auto;
+  margin: 0 -8px;
+  padding: 0 8px;
+}
+
+.plans-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.plans-route {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+.plans-route-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.plans-route-km {
+  flex: none;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11.5px;
+  color: var(--ink-faint);
+}
+
+.plans-item {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.plans-open {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.plans-open:hover:not(:disabled) {
+  background: var(--surface-strong);
+}
+
+.plans-item-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.plans-item-meta {
+  font-size: 11.5px;
+  color: var(--ink-faint);
+}
+
+.plans-delete,
+.plans-confirm {
+  flex: none;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.plans-delete {
+  width: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--ink-muted);
+}
+
+.plans-delete:hover:not(:disabled) {
+  color: #e28a79;
+  border-color: rgba(226, 138, 121, 0.4);
+}
+
+.plans-confirm {
+  width: auto;
+  padding: 0 12px;
+  font-size: 12.5px;
+}
+
 .account-email {
   margin: -6px 0 4px !important;
   font-size: 12.5px !important;
@@ -1178,6 +1302,10 @@ button {
   .poi-list {
     flex: none;
     overflow: visible;
+  }
+
+  .plans-scroll {
+    max-height: max(160px, calc(66svh - 150px));
   }
 
   .legal-links {

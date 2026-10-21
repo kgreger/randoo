@@ -110,5 +110,24 @@
   "legal": {
     "imprint": "Imprint",
     "privacy": "Privacy"
+  },
+  "plans": {
+    "menuItem": "My plans",
+    "title": "My plans",
+    "loading": "Loading…",
+    "empty": "No plans saved yet. Search for points along a route, then save the result as a plan.",
+    "saveButton": "Save plan",
+    "premiumOnly": "Saving plans is available with a Premium or Beta account.",
+    "nameLabel": "Plan name",
+    "save": "Save plan",
+    "update": "Update plan",
+    "saveAsNew": "Save as new plan",
+    "delete": "Delete plan",
+    "confirmDelete": "Delete?",
+    "errorLoad": "Could not load your plans.",
+    "errorSave": "Could not save the plan.",
+    "errorLimit": "You have reached the limit of 50 saved plans. Delete one to save another.",
+    "errorDelete": "Could not delete the plan.",
+    "meta": "{{count}} points"
   }
 }

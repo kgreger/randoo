@@ -7,9 +7,11 @@ import { useAuth } from "../lib/useAuth";
 interface Props {
   onRequestSignIn: () => void;
   onOpenAccount: () => void;
+  // Only passed for accounts that may keep saved plans.
+  onOpenPlans?: () => void;
 }
 
-export function AccountControl({ onRequestSignIn, onOpenAccount }: Props) {
+export function AccountControl({ onRequestSignIn, onOpenAccount, onOpenPlans }: Props) {
   const { t } = useTranslation();
   const { user, loading, enabled } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -42,6 +44,17 @@ export function AccountControl({ onRequestSignIn, onOpenAccount }: Props) {
         </button>
         {menuOpen && (
           <div className="account-dropdown">
+            {onOpenPlans && (
+              <button
+                className="account-dropdown-item"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onOpenPlans();
+                }}
+              >
+                {t("plans.menuItem")}
+              </button>
+            )}
             <button
               className="account-dropdown-item"
               onClick={() => {

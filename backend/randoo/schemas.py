@@ -1,6 +1,6 @@
 """Pydantic models for API responses."""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class PoiOut(BaseModel):
@@ -29,3 +29,19 @@ class PoiOut(BaseModel):
 class AnalyzeResponse(BaseModel):
     pois: list[PoiOut]
     attribution: str = "© OpenStreetMap contributors"
+
+
+class ExportPoi(BaseModel):
+    """The part of a PoiOut that /api/export needs to write a waypoint, sent
+    back by the frontend so an export reproduces exactly what the rider saw
+    (including a saved plan's points) instead of searching again."""
+
+    id: str
+    osm_id: int
+    osm_type: str = Field(max_length=16)
+    lat: float = Field(ge=-90, le=90)
+    lon: float = Field(ge=-180, le=180)
+    category_id: str = Field(max_length=40)
+    name: str | None = Field(default=None, max_length=200)
+    distance_to_route_m: float
+    meeting_point: tuple[float, float]

@@ -1,3 +1,5 @@
+import json
+
 import duckdb
 import pytest
 from fastapi.testclient import TestClient
@@ -154,3 +156,60 @@ def test_analyze_falls_back_to_overpass_when_the_local_index_is_broken(monkeypat
 
     assert response.status_code == 200
     assert response.json()["pois"][0]["name"] == "Fallback"
+
+
+def test_export_with_points_uses_them_without_searching(monkeypatch, client):
+    calls: list = []
+    monkeypatch.setattr(main, "get_poi_source", lambda tier: _fake_source(calls))
+
+    points = [
+        {
+            "id": "node:7",
+            "osm_id": 7,
+            "osm_type": "node",
+            "lat": 48.004,
+            "lon": 8.003,
+            "category_id": "water",
+            "name": "Saved Spring",
+            "distance_to_route_m": 42.0,
+            "meeting_point": [48.003, 8.003],
+        },
+        {
+            "id": "node:8",
+            "osm_id": 8,
+            "osm_type": "node",
+            "lat": 48.006,
+            "lon": 8.004,
+            "category_id": "food",
+            "name": "Dropped",
+            "distance_to_route_m": 60.0,
+            "meeting_point": [48.005, 8.004],
+        },
+    ]
+    response = client.post(
+        "/api/export",
+        files={"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")},
+        data={"pois": json.dumps(points), "excluded_poi_ids": "node:8"},
+    )
+
+    assert response.status_code == 200
+    assert b"Saved Spring" in response.content
+    assert b"Dropped" not in response.content
+    assert calls == []
+
+
+def test_export_rejects_malformed_points(client):
+    response = client.post(
+        "/api/export",
+        files={"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")},
+        data={"pois": "not json"},
+    )
+    assert response.status_code == 400
+
+
+def test_export_without_points_or_categories_is_rejected(client):
+    response = client.post(
+        "/api/export",
+        files={"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")},
+    )
+    assert response.status_code == 400

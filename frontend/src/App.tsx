@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Menu, SlidersHorizontal, X } from "lucide-react";
+import { Bookmark, Menu, SlidersHorizontal, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AccountControl } from "./components/AccountControl";
 import { AccountDialog } from "./components/AccountDialog";
@@ -7,15 +7,19 @@ import { DeleteAccountDialog } from "./components/DeleteAccountDialog";
 import { CategoryFilter } from "./components/CategoryFilter";
 import { LegalLinks } from "./components/LegalLinks";
 import { MapView } from "./components/MapView";
+import { PlansDialog } from "./components/PlansDialog";
 import { PoiList } from "./components/PoiList";
+import { SavePlanDialog } from "./components/SavePlanDialog";
 import { SignInDialog } from "./components/SignInDialog";
 import { SUPPORTED_LANGUAGES, type SupportedLanguage } from "./i18n";
 import { analyzeRoute, exportGpx, type Poi } from "./lib/api";
 import { routeLengthM } from "./lib/geo";
 import { isStackedLayout } from "./lib/layout";
 import { parseGpxPreview, type LatLon } from "./lib/gpxPreview";
+import { createPlan, updatePlan, type LoadedPlan, type PlanSummary } from "./lib/plans";
 import { supabase } from "./lib/supabase";
 import { useAuth } from "./lib/useAuth";
+import { useCanSavePlans } from "./lib/useTier";
 import logoUrl from "./assets/randoo-logo.svg";
 
 const DEFAULT_CATEGORIES = ["water", "food"];
@@ -43,6 +47,16 @@ export default function App() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [plansOpen, setPlansOpen] = useState(false);
+  // Which saved route and plan the current results belong to, so a further
+  // save can add a plan to the same route or overwrite the open plan.
+  const [savedRouteId, setSavedRouteId] = useState<string | null>(null);
+  const [openPlan, setOpenPlan] = useState<{ id: string; name: string } | null>(null);
+  // Categories and radius the shown results were searched with; the filter
+  // controls may have been changed since without searching again.
+  const [searched, setSearched] = useState<{ categoryIds: string[]; radiusM: number } | null>(null);
+  const canSavePlans = useCanSavePlans();
   const [filtersOpen, setFiltersOpen] = useState(true);
   const menuRef = useRef<HTMLDivElement>(null);
   const mapPanelRef = useRef<HTMLDivElement>(null);
@@ -74,6 +88,10 @@ export default function App() {
     if (!user) {
       setAccountOpen(false);
       setDeleteOpen(false);
+      setSaveOpen(false);
+      setPlansOpen(false);
+      setSavedRouteId(null);
+      setOpenPlan(null);
     }
   }, [user]);
 
@@ -113,6 +131,9 @@ export default function App() {
     setExcludedPoiIds(new Set());
     setSelectedPoiId(null);
     setFiltersOpen(true);
+    setSavedRouteId(null);
+    setOpenPlan(null);
+    setSearched(null);
     setError(null);
     try {
       const preview = await parseGpxPreview(selected);
@@ -178,12 +199,68 @@ export default function App() {
       // actually expects.
       setExcludedPoiIds(new Set());
       setSelectedPoiId(null);
+      setSearched({ categoryIds: Array.from(selectedCategories), radiusM });
     } catch (err) {
       if (requestId !== searchRequestId.current) return;
       setError(err instanceof Error ? err.message : t("app.errorSearchFailed"));
     } finally {
       if (requestId === searchRequestId.current) setLoading(false);
     }
+  }
+
+  function handleSaveClick() {
+    if (!user) {
+      setSignInOpen(true);
+    } else if (!canSavePlans) {
+      setError(t("plans.premiumOnly"));
+    } else {
+      setSaveOpen(true);
+    }
+  }
+
+  async function savePlan(name: string, asNew: boolean) {
+    if (!file || !searched) return;
+    const input = {
+      name,
+      categoryIds: searched.categoryIds,
+      radiusM: searched.radiusM,
+      pois,
+      excludedPoiIds: Array.from(excludedPoiIds),
+    };
+    if (openPlan && !asNew) {
+      await updatePlan(openPlan.id, input);
+      setOpenPlan({ id: openPlan.id, name });
+    } else {
+      const saved = await createPlan(input, {
+        id: savedRouteId,
+        name: routeName ?? file.name,
+        gpx: await file.text(),
+        distanceM: distanceKm !== null ? distanceKm * 1000 : null,
+      });
+      setSavedRouteId(saved.routeId);
+      setOpenPlan({ id: saved.planId, name });
+    }
+    setSaveOpen(false);
+  }
+
+  async function handleOpenPlan(plan: LoadedPlan) {
+    const gpx = new File([plan.route.gpx], `${plan.route.name}.gpx`, { type: "application/gpx+xml" });
+    handleFile(gpx);
+    setRouteName(plan.route.name);
+    setPois(plan.pois);
+    setExcludedPoiIds(new Set(plan.excluded_poi_ids));
+    setSelectedCategories(new Set(plan.category_ids));
+    setRadiusM(plan.radius_m);
+    setSearched({ categoryIds: plan.category_ids, radiusM: plan.radius_m });
+    setSavedRouteId(plan.route.id);
+    setOpenPlan({ id: plan.id, name: plan.name });
+    setFiltersOpen(false);
+    setPlansOpen(false);
+  }
+
+  function handlePlanDeleted(plan: PlanSummary, routeRemoved: boolean) {
+    if (openPlan?.id === plan.id) setOpenPlan(null);
+    if (routeRemoved && savedRouteId === plan.route.id) setSavedRouteId(null);
   }
 
   async function handleExport() {
@@ -198,13 +275,7 @@ export default function App() {
 
     setExporting(true);
     try {
-      const blob = await exportGpx(
-        file,
-        Array.from(selectedCategories),
-        radiusM,
-        accessToken,
-        Array.from(excludedPoiIds),
-      );
+      const blob = await exportGpx(file, pois, accessToken, Array.from(excludedPoiIds));
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -296,6 +367,19 @@ export default function App() {
             >
               {file ? t("app.changeRoute") : t("app.uploadGpx")}
             </button>
+            {pois.length > 0 && (
+              <button
+                className={`btn btn-ghost ${!canSavePlans ? "btn-locked" : ""}`}
+                onClick={() => {
+                  setMenuOpen(false);
+                  handleSaveClick();
+                }}
+                title={canSavePlans ? undefined : t("plans.premiumOnly")}
+              >
+                <Bookmark size={14} strokeWidth={2} aria-hidden="true" />
+                {t("plans.saveButton")}
+              </button>
+            )}
             <button
               className={`btn btn-primary ${!user ? "btn-locked" : ""}`}
               onClick={() => {
@@ -322,6 +406,14 @@ export default function App() {
                 setMenuOpen(false);
                 setAccountOpen(true);
               }}
+              onOpenPlans={
+                canSavePlans
+                  ? () => {
+                      setMenuOpen(false);
+                      setPlansOpen(true);
+                    }
+                  : undefined
+              }
             />
           </div>
         </div>
@@ -353,7 +445,23 @@ export default function App() {
           )}
           {deleteOpen && <DeleteAccountDialog onClose={() => setDeleteOpen(false)} />}
 
-          {!file && !signInOpen && !accountOpen && !deleteOpen && (
+          {saveOpen && (
+            <SavePlanDialog
+              defaultName={(searched?.categoryIds ?? [])
+                .map((id) => t(`categories.${id}`))
+                .concat(t("categories.radiusValue", { value: searched?.radiusM ?? radiusM }))
+                .join(", ")}
+              openPlanName={openPlan?.name ?? null}
+              onSave={savePlan}
+              onClose={() => setSaveOpen(false)}
+            />
+          )}
+
+          {plansOpen && (
+            <PlansDialog onOpen={handleOpenPlan} onDeleted={handlePlanDeleted} onClose={() => setPlansOpen(false)} />
+          )}
+
+          {!file && !signInOpen && !accountOpen && !deleteOpen && !saveOpen && !plansOpen && (
             <div className="map-empty">
               <div className="map-empty-card">
                 <div className="icon">
