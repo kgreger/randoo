@@ -25,6 +25,7 @@ export function SavePlanDialog({ defaultName, openPlanName, onSave, onClose }: P
     try {
       await onSave(trimmed, asNew);
     } catch (err) {
+      console.error("Saving the plan failed", err);
       setBusy(false);
       const message = err instanceof Error ? err.message : "";
       setError(message.includes("limit reached") ? t("plans.errorLimit") : t("plans.errorSave"));
