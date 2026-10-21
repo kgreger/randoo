@@ -7,6 +7,7 @@ export function LegalLinks() {
   const { t } = useTranslation();
   return (
     <footer className="legal-links">
+      <span className="app-version">v{__APP_VERSION__}</span>
       <a href={IMPRINT_URL} target="_blank" rel="noopener noreferrer">
         {t("legal.imprint")}
       </a>
