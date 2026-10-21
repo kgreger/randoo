@@ -1,0 +1,49 @@
+name: Release
+
+# Creates the tag and the GitHub Release once a version number that has no
+# tag yet lands on main. The notes list the pull requests merged since the
+# previous release.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/package.json"
+      - "backend/pyproject.toml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read versions
+        id: version
+        run: |
+          frontend=$(node -p "require('./frontend/package.json').version")
+          backend=$(python3 -c "import tomllib; print(tomllib.load(open('backend/pyproject.toml', 'rb'))['project']['version'])")
+          if [ "$frontend" != "$backend" ]; then
+            echo "::error::frontend ($frontend) and backend ($backend) versions differ"
+            exit 1
+          fi
+          echo "number=$frontend" >> "$GITHUB_OUTPUT"
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.number }}
+        run: |
+          tag="v$VERSION"
+          if gh release view "$tag" > /dev/null 2>&1; then
+            echo "$tag already exists, nothing to do"
+            exit 0
+          fi
+          flags=""
+          if [ "${VERSION%%.*}" = "0" ]; then
+            flags="--prerelease"
+          fi
+          gh release create "$tag" --target "$GITHUB_SHA" --title "$tag" --generate-notes $flags
