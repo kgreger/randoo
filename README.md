@@ -6,20 +6,25 @@ Upload a GPX track, pick the categories you care about, and Randoo pulls matchin
 
 ## Status
 
-Early, active development. The current focus is a minimal working version: GPX upload, a fixed-radius corridor search, category filtering, and GPX export. No accounts, no saved routes, no route-network buffering yet; see the roadmap in `docs/` for what's planned beyond that.
+Beta. Running at [demo.konstantingreger.net/randoo](https://demo.konstantingreger.net/randoo/). You can use the search without an account; exporting needs one. Premium and beta accounts additionally get faster searches from a local copy of the OpenStreetMap data, bike-routed connections to each point, and saved plans. The interface is available in English and German and works on phones. Feature requests and bug reports go to the [ideas board](https://demo.konstantingreger.net/ideas/?project=randoo).
 
 ## How it works
 
 1. Upload a GPX track in the browser.
-2. The backend parses it and builds a buffer around the route (currently straight-line distance, not on-road distance).
-3. It queries the Overpass API for OpenStreetMap points of interest inside that buffer, filtered by the categories you selected.
-4. Results come back as a map layer and a sortable list, and can be exported as GPX waypoints.
+2. The backend parses it and builds a buffer around the route (straight-line distance).
+3. It finds OpenStreetMap points of interest inside that buffer for the categories you selected, either through the Overpass API or, for premium accounts, from a local Parquet copy of the data.
+4. Each point gets a connection from the route to it: a straight line, or for premium accounts a path routed by a self-hosted [BRouter](https://github.com/abrensch/brouter).
+5. Results come back as a map layer and a list in route order. Untick points you don't want, then export the rest as GPX waypoints next to the track.
+6. Premium and beta accounts can save a result as a plan. A route can have several plans, each keeping its categories, radius, points and selection.
 
 ## Stack
 
-- **Backend:** Python, FastAPI, gpxpy, Shapely, pyproj, httpx
-- **Frontend:** React, Vite, TypeScript, Leaflet
-- **Data:** OpenStreetMap via the Overpass API
+- **Backend:** Python, FastAPI, gpxpy, Shapely, pyproj, httpx, DuckDB
+- **Frontend:** React, Vite, TypeScript, Leaflet, react-i18next
+- **Accounts and data:** Supabase (auth, Postgres, Edge Functions; schema in `supabase/schema.sql`)
+- **Map data:** OpenStreetMap, routing by BRouter
+
+Related repositories: `randoo-infra` builds the local POI data and the BRouter segments, `idea-portal` is the ideas board.
 
 ## Running it locally
 
