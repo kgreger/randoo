@@ -51,10 +51,7 @@ The frontend expects the backend at `http://localhost:8000` by default (see `fro
 
 Versions follow [Semantic Versioning](https://semver.org): `MAJOR.MINOR.PATCH`, with `0.x` while the app is in beta. A new feature raises the minor number, a bug fix only the patch number. Every release is a tag named `vMAJOR.MINOR.PATCH` with a GitHub Release whose notes list the merged pull requests.
 
-To cut a release:
-
-1. Set the new version in `frontend/package.json` and `backend/pyproject.toml` (same number in both) in a pull request titled `Release x.y.z` and merge it.
-2. On GitHub, create a new release, enter the tag `vx.y.z` on `main`, and use "Generate release notes". Labels on the merged pull requests (`feature`, `improvement`, `bug`, `skip-changelog`) sort them into sections, see `.github/release.yml`.
+To cut a release, set the new version in `frontend/package.json` and `backend/pyproject.toml` (the same number in both) as part of a pull request. Once it is merged, the `Release` workflow creates the tag `vx.y.z` and a GitHub Release with generated notes (marked as a pre-release while the major version is 0). Labels on the merged pull requests (`feature`, `improvement`, `bug`, `skip-changelog`) sort them into sections, see `.github/release.yml`. A release can also be created by hand on GitHub: new release, tag `vx.y.z` on `main`, "Generate release notes".
 
 The running version is shown in the footer of the app and returned by `/health`.
 
