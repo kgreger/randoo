@@ -12,6 +12,7 @@ import { SignInDialog } from "./components/SignInDialog";
 import { SUPPORTED_LANGUAGES, type SupportedLanguage } from "./i18n";
 import { analyzeRoute, exportGpx, type Poi } from "./lib/api";
 import { routeLengthM } from "./lib/geo";
+import { isStackedLayout } from "./lib/layout";
 import { parseGpxPreview, type LatLon } from "./lib/gpxPreview";
 import { supabase } from "./lib/supabase";
 import { useAuth } from "./lib/useAuth";
@@ -44,6 +45,7 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(true);
   const menuRef = useRef<HTMLDivElement>(null);
+  const mapPanelRef = useRef<HTMLDivElement>(null);
   // A slow search (real Overpass round-trips can take tens of seconds) that
   // a rider re-runs before it finishes - a new category, say - must never
   // have its late answer overwrite the newer search's already-shown
@@ -146,6 +148,9 @@ export default function App() {
     // since it's the same reference as last render.
     setFocusRequest((prev) => ({ poi, nonce: (prev?.nonce ?? 0) + 1 }));
     setSelectedPoiId(poi.id);
+    // With the list below the map, the picked point would otherwise be
+    // centered somewhere off-screen.
+    if (isStackedLayout()) mapPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   async function runSearch() {
@@ -325,7 +330,7 @@ export default function App() {
       {error && <div className="error-banner">{error}</div>}
 
       <div className="content-row">
-        <div className="map-panel">
+        <div className="map-panel" ref={mapPanelRef}>
           {signInOpen && (
             <SignInDialog
               onClose={() => setSignInOpen(false)}
@@ -366,14 +371,15 @@ export default function App() {
           )}
 
           {file && (
-            <div className={`controls-panel ${filtersOpen ? "" : "collapsed"}`}>
+            <div className={`controls-panel ${filtersOpen ? "" : "collapsed"} ${loading ? "busy" : ""}`}>
               <button
                 className="controls-toggle"
                 onClick={() => setFiltersOpen((open) => !open)}
                 aria-expanded={filtersOpen}
+                aria-label={t("app.filters")}
               >
-                <SlidersHorizontal size={14} strokeWidth={2} aria-hidden="true" />
-                {t("app.filters")}
+                <SlidersHorizontal size={16} strokeWidth={2} aria-hidden="true" />
+                <span className="controls-toggle-label">{t("app.filters")}</span>
                 <span className="controls-toggle-count">{selectedCategories.size}</span>
               </button>
               <div className="controls-body">
@@ -383,19 +389,19 @@ export default function App() {
                   radiusM={radiusM}
                   onRadiusChange={setRadiusM}
                 />
+                <button
+                  className="btn btn-primary"
+                  onClick={runSearch}
+                  disabled={selectedCategories.size === 0 || loading}
+                >
+                  {loading ? t("app.searchingElapsed", { s: searchElapsedS }) : t("app.findPoints")}
+                </button>
+                {loading && (
+                  <div className="search-progress" role="progressbar" aria-label={t("app.searching")}>
+                    <div className="search-progress-bar" />
+                  </div>
+                )}
               </div>
-              <button
-                className="btn btn-primary"
-                onClick={runSearch}
-                disabled={selectedCategories.size === 0 || loading}
-              >
-                {loading ? t("app.searchingElapsed", { s: searchElapsedS }) : t("app.findPoints")}
-              </button>
-              {loading && (
-                <div className="search-progress" role="progressbar" aria-label={t("app.searching")}>
-                  <div className="search-progress-bar" />
-                </div>
-              )}
             </div>
           )}
 

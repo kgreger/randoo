@@ -1042,7 +1042,7 @@ button {
     position: absolute;
     top: calc(100% + 8px);
     right: 0;
-    z-index: 1100;
+    z-index: 1200;
     width: min(260px, calc(100vw - 28px));
     flex-direction: column;
     align-items: stretch;
@@ -1084,6 +1084,7 @@ button {
   }
 
   .controls-panel {
+    z-index: 1100;
     left: 10px;
     right: 10px;
     top: 10px;
@@ -1114,8 +1115,59 @@ button {
     color: var(--ink-faint);
   }
 
-  .controls-panel.collapsed .controls-body {
+  /* Folded away, the panel is just a small button (same shape as the menu
+     button) so the map stays free. */
+  .controls-panel.collapsed {
+    right: auto;
+    width: auto;
+    padding: 0;
+    border-radius: 12px;
+    overflow: visible;
+  }
+
+  .controls-panel.collapsed .controls-body,
+  .controls-panel.collapsed .controls-toggle-label {
     display: none;
+  }
+
+  .controls-panel.collapsed .controls-toggle {
+    position: relative;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: 12px;
+  }
+
+  .controls-panel.collapsed .controls-toggle-count {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 18px;
+    padding: 1px 5px;
+    border-radius: 999px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-size: 10.5px;
+    font-weight: 700;
+    line-height: 1.4;
+    text-align: center;
+  }
+
+  .controls-panel.collapsed.busy .controls-toggle svg {
+    animation: filters-busy 1.2s ease-in-out infinite;
+  }
+
+  @keyframes filters-busy {
+    50% {
+      opacity: 0.3;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .controls-panel.collapsed.busy .controls-toggle svg {
+      animation: none;
+    }
   }
 
   .side-panel {

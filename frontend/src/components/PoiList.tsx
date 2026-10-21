@@ -3,6 +3,7 @@ import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import type { Poi } from "../lib/api";
 import { categoryById } from "../lib/categories";
+import { isStackedLayout } from "../lib/layout";
 
 interface Props {
   pois: Poi[];
@@ -58,9 +59,10 @@ export function PoiList({
 
   // Clicking a marker on the map selects it here too (see MapView's
   // onSelectPoi) - scrolling it into view is what makes that selection
-  // actually visible instead of happening off-screen in a long list.
+  // actually visible instead of happening off-screen in a long list. In the
+  // stacked layout the map is what stays in view, so the page isn't moved.
   useEffect(() => {
-    if (!selectedId) return;
+    if (!selectedId || isStackedLayout()) return;
     const el = listRef.current?.querySelector<HTMLElement>(`[data-poi-id="${CSS.escape(selectedId)}"]`);
     el?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [selectedId]);
