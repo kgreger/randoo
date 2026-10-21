@@ -1,6 +1,5 @@
 -- Initial schema. Auth itself is handled by Supabase (auth.users); everything
--- here just extends it for Randoo's own data. Not wired into the backend yet —
--- accounts and saved routes are a post-MVP feature.
+-- here just extends it for Randoo's own data.
 
 create table if not exists profiles (
   id uuid primary key references auth.users (id) on delete cascade,
@@ -310,3 +309,93 @@ create policy "idea-attachments: authenticated upload own" on storage.objects fo
     bucket_id = 'idea-attachments'
     and (storage.foldername(name))[1] = auth.uid()::text
   );
+
+-- Saved plans: a route (the uploaded GPX) can carry several plans, each one
+-- a search result with its categories, radius and the rider's point
+-- selection. Saving is limited to premium, beta and admin accounts; the
+-- check lives in the policies so it holds for any client. The GPX is kept
+-- as text on the route row, so deleting the account removes it through the
+-- foreign keys without any file clean-up.
+alter table routes drop column if exists gpx_path;
+alter table routes add column if not exists gpx text;
+alter table routes drop constraint if exists routes_gpx_size;
+alter table routes add constraint routes_gpx_size check (gpx is not null and length(gpx) <= 5000000);
+
+create table if not exists plans (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references profiles (id) on delete cascade,
+  route_id uuid not null references routes (id) on delete cascade,
+  name text not null,
+  category_ids text[] not null,
+  radius_m integer not null,
+  pois jsonb not null,
+  poi_count integer not null,
+  excluded_poi_ids text[] not null default '{}',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists plans_user_idx on plans (user_id, updated_at desc);
+create index if not exists plans_route_idx on plans (route_id);
+
+create or replace function public.can_save_plans()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from profiles
+    where id = auth.uid() and tier in ('premium', 'beta', 'admin')
+  );
+$$;
+
+-- At most 50 saved routes and 50 plans per account.
+create or replace function public.limit_saved_plans()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if tg_table_name = 'routes' and (select count(*) from routes where user_id = new.user_id) >= 50 then
+    raise exception 'saved route limit reached';
+  elsif tg_table_name = 'plans' and (select count(*) from plans where user_id = new.user_id) >= 50 then
+    raise exception 'saved plan limit reached';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists routes_limit on routes;
+create trigger routes_limit before insert on routes
+  for each row execute function public.limit_saved_plans();
+
+drop trigger if exists plans_limit on plans;
+create trigger plans_limit before insert on plans
+  for each row execute function public.limit_saved_plans();
+
+alter table plans enable row level security;
+
+drop policy if exists "routes: owner full access" on routes;
+create policy "routes: owner read" on routes for select
+  using (auth.uid() = user_id);
+create policy "routes: owner insert" on routes for insert
+  with check (auth.uid() = user_id and public.can_save_plans());
+create policy "routes: owner update" on routes for update
+  using (auth.uid() = user_id) with check (auth.uid() = user_id and public.can_save_plans());
+create policy "routes: owner delete" on routes for delete
+  using (auth.uid() = user_id);
+
+create policy "plans: owner read" on plans for select
+  using (auth.uid() = user_id);
+create policy "plans: owner insert" on plans for insert
+  with check (
+    auth.uid() = user_id
+    and public.can_save_plans()
+    and exists (select 1 from routes where routes.id = route_id and routes.user_id = auth.uid())
+  );
+create policy "plans: owner update" on plans for update
+  using (auth.uid() = user_id) with check (auth.uid() = user_id and public.can_save_plans());
+create policy "plans: owner delete" on plans for delete
+  using (auth.uid() = user_id);

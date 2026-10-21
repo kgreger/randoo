@@ -110,5 +110,24 @@
   "legal": {
     "imprint": "Impressum",
     "privacy": "Datenschutz"
+  },
+  "plans": {
+    "menuItem": "Meine Pläne",
+    "title": "Meine Pläne",
+    "loading": "Lade…",
+    "empty": "Noch keine Pläne gespeichert. Suche Punkte entlang einer Route und speichere das Ergebnis als Plan.",
+    "saveButton": "Plan speichern",
+    "premiumOnly": "Pläne speichern ist mit einem Premium- oder Beta-Konto möglich.",
+    "nameLabel": "Name des Plans",
+    "save": "Plan speichern",
+    "update": "Plan aktualisieren",
+    "saveAsNew": "Als neuen Plan speichern",
+    "delete": "Plan löschen",
+    "confirmDelete": "Löschen?",
+    "errorLoad": "Deine Pläne konnten nicht geladen werden.",
+    "errorSave": "Der Plan konnte nicht gespeichert werden.",
+    "errorLimit": "Du hast die Grenze von 50 gespeicherten Plänen erreicht. Lösche einen, um einen weiteren zu speichern.",
+    "errorDelete": "Der Plan konnte nicht gelöscht werden.",
+    "meta": "{{count}} Punkte"
   }
 }
