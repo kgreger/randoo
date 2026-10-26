@@ -201,13 +201,14 @@ export function MapView({ route, pois, excludedIds, focusRequest, hoveredId, sel
     }
   }, [pois, excludedIds, i18n.language, t]);
 
-  // Mirrors the hovered - or clicked-and-selected - list card on the map,
-  // both with the same "hovered" look: a selected card stays picked out on
-  // the map even once the mouse moves on, while every other marker still
-  // lights up on its own hover as usual.
+  // Mirrors the hovered list card and the clicked-and-selected one on the
+  // map, each with its own look: a hover follows the mouse, a selection stays
+  // picked out until another point is chosen.
   useEffect(() => {
     for (const [id, marker] of markersRef.current) {
-      marker.getElement()?.classList.toggle("hovered", id === hoveredId || id === selectedId);
+      const element = marker.getElement();
+      element?.classList.toggle("hovered", id === hoveredId);
+      element?.classList.toggle("selected", id === selectedId);
     }
   }, [hoveredId, selectedId, pois]);
 

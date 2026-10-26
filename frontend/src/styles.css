@@ -390,8 +390,22 @@ button {
 /* Mirrors the hovered list card - the marker grows rather than just
    glowing, so it's findable even at a glance across a busy cluster. */
 .poi-marker.hovered .poi-marker-dot {
-  transform: scale(1.45);
+  transform: scale(1.3);
   box-shadow: 0 0 0 4px rgba(255, 143, 107, 0.28);
+}
+
+/* The picked point: larger than a hovered one, with a light ring of its own
+   that stays until another point is picked, and drawn above its neighbours
+   (Leaflet sets an inline z-index on the marker element). */
+.poi-marker.selected {
+  z-index: 1000 !important;
+}
+
+.poi-marker.selected .poi-marker-dot {
+  transform: scale(1.6);
+  box-shadow:
+    0 0 0 2px #f7f1ef,
+    0 0 0 7px rgba(255, 143, 107, 0.45);
 }
 
 .poi-marker.pulse .poi-marker-dot {
@@ -988,19 +1002,22 @@ button {
   cursor: pointer;
 }
 
-/* Was a permanent highlight on the first card - stale once the list moved
-   to route-order (that's just "first thing you pass", not "closest"), and
-   a much better fit as hover feedback: reinforces that the card is
-   clickable (it focuses the map) rather than pointing at one arbitrary row.
-   .selected gets the identical look: the card a rider clicked stays picked
-   out the same way, without hovering it, until another one is clicked. */
-.poi-card:hover,
-.poi-card.selected {
+/* Hover is a light tint that follows the mouse and reinforces that the card
+   is clickable (it focuses the map). The clicked card stays picked out in a
+   stronger way - solid accent border, deeper tint, gradient badge - until
+   another one is clicked. */
+.poi-card:hover {
   background: rgba(255, 143, 107, 0.1);
   border-color: rgba(255, 143, 107, 0.26);
 }
 
-.poi-card:hover .badge,
+.poi-card.selected,
+.poi-card.selected:hover {
+  background: rgba(255, 143, 107, 0.2);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent) inset;
+}
+
 .poi-card.selected .badge {
   background: linear-gradient(135deg, var(--accent), var(--accent-2));
   color: var(--accent-ink);
