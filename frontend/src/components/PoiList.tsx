@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useRef } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import type { Poi } from "../lib/api";
@@ -9,6 +10,8 @@ interface Props {
   pois: Poi[];
   radiusM: number;
   excludedIds: Set<string>;
+  hideExcluded: boolean;
+  onToggleHideExcluded: () => void;
   selectedId: string | null;
   onToggleExcluded: (id: string) => void;
   onFocusPoi: (poi: Poi) => void;
@@ -48,13 +51,20 @@ export function PoiList({
   pois,
   radiusM,
   excludedIds,
+  hideExcluded,
+  onToggleHideExcluded,
   selectedId,
   onToggleExcluded,
   onFocusPoi,
   onHoverPoi,
 }: Props) {
   const { t } = useTranslation();
-  const includedCount = pois.length - excludedIds.size;
+  // excludedIds also remembers points that are not in the current results.
+  const includedCount = pois.filter((poi) => !excludedIds.has(poi.id)).length;
+  // Hidden points drop out of the list, and the gaps between the remaining
+  // stops are measured across them.
+  const visiblePois = hideExcluded ? pois.filter((poi) => !excludedIds.has(poi.id)) : pois;
+  const positionInResults = new Map(pois.map((poi, index) => [poi.id, index]));
   const listRef = useRef<HTMLDivElement>(null);
 
   // Clicking a marker on the map selects it here too (see MapView's
@@ -72,16 +82,28 @@ export function PoiList({
       <div className="side-panel-head">
         <h2>{t("poiList.title")}</h2>
         {pois.length > 0 && (
-          <span className="count">
-            {includedCount < pois.length
-              ? t("poiList.count", { included: includedCount, total: pois.length })
-              : pois.length}
-          </span>
+          <div className="side-panel-head-right">
+            <button
+              className="poi-hide-toggle"
+              onClick={onToggleHideExcluded}
+              aria-pressed={hideExcluded}
+              title={t(hideExcluded ? "poiList.showExcluded" : "poiList.hideExcluded")}
+              aria-label={t(hideExcluded ? "poiList.showExcluded" : "poiList.hideExcluded")}
+            >
+              {hideExcluded ? <EyeOff size={15} strokeWidth={2} aria-hidden="true" /> : <Eye size={15} strokeWidth={2} aria-hidden="true" />}
+            </button>
+            <span className="count">
+              {includedCount < pois.length
+                ? t("poiList.count", { included: includedCount, total: pois.length })
+                : pois.length}
+            </span>
+          </div>
         )}
       </div>
       <div className="poi-list" ref={listRef}>
         {pois.length === 0 && <div className="empty-state">{t("poiList.empty")}</div>}
-        {pois.map((poi, index) => {
+        {pois.length > 0 && visiblePois.length === 0 && <div className="empty-state">{t("poiList.allHidden")}</div>}
+        {visiblePois.map((poi, index) => {
           const excluded = excludedIds.has(poi.id);
           const cat = categoryById(poi.category_id);
           const Icon = cat?.icon;
@@ -93,8 +115,14 @@ export function PoiList({
           // A stretch of route with nothing found reads as empty scroll
           // space otherwise - a stop on this line, then a long stretch of
           // track, then the next stop, like a schematic transit map.
-          const gapM = index > 0 ? poi.distance_along_route_m - pois[index - 1].distance_along_route_m : 0;
+          const gapM = index > 0 ? poi.distance_along_route_m - visiblePois[index - 1].distance_along_route_m : 0;
           const showGap = gapM >= GAP_THRESHOLD_M;
+          // Points hidden between this stop and the one before it, so a long
+          // stretch says it spans stops that were left out.
+          const hiddenBetween =
+            hideExcluded && index > 0
+              ? (positionInResults.get(poi.id) ?? 0) - (positionInResults.get(visiblePois[index - 1].id) ?? 0) - 1
+              : 0;
           const gapHeight = showGap ? gapHeightPx(gapM) : 0;
 
           return (
@@ -102,7 +130,10 @@ export function PoiList({
               {showGap && (
                 <div className="poi-gap" style={{ height: `${gapHeight}px` }}>
                   <div className="poi-gap-line" />
-                  <span className="poi-gap-label">{formatGap(gapM, t)}</span>
+                  <span className="poi-gap-label">
+                    {formatGap(gapM, t)}
+                    {hiddenBetween > 0 && ` (${t("poiList.hiddenBetween", { count: hiddenBetween })})`}
+                  </span>
                 </div>
               )}
               <div

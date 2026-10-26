@@ -403,3 +403,6 @@ create policy "plans: owner delete" on plans for delete
 -- Table-level grants for saved plans, same reason as for ideas above:
 -- row level security only narrows what a role may already touch.
 grant select, insert, update, delete on routes, plans to authenticated;
+
+-- Whether unticked points are hidden (map and list) when the plan is opened.
+alter table plans add column if not exists hide_excluded boolean not null default false;

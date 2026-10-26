@@ -18,7 +18,8 @@
     "findPoints": "Punkte finden",
     "errorGpxParse": "Diese GPX-Datei konnte nicht gelesen werden.",
     "errorSearchFailed": "Suche fehlgeschlagen.",
-    "errorExportFailed": "Export fehlgeschlagen."
+    "errorExportFailed": "Export fehlgeschlagen.",
+    "sameRoute": "Diese Route ist bereits geladen. Es bleibt alles, wie es ist."
   },
   "account": {
     "userAccount": "Konto",
@@ -52,7 +53,9 @@
   },
   "map": {
     "zoomToRoute": "Auf Route zoomen",
-    "popupDistance": "{{distance}} m von der Route"
+    "popupDistance": "{{distance}} m von der Route",
+    "hideExcluded": "Abgewählte Punkte ausblenden",
+    "showExcluded": "Abgewählte Punkte einblenden"
   },
   "poiList": {
     "title": "Punkte in der Nähe",
@@ -62,7 +65,12 @@
     "metaDistance": "{{distance}} m",
     "distanceBarTitle": "{{distance}} m von {{radius}} m Radius",
     "gapKm": "{{km}} km",
-    "gapM": "{{m}} m"
+    "gapM": "{{m}} m",
+    "hideExcluded": "Abgewählte Punkte ausblenden",
+    "showExcluded": "Abgewählte Punkte einblenden",
+    "allHidden": "Alle Punkte sind abgewählt und ausgeblendet.",
+    "hiddenBetween_one": "{{count}} Punkt ausgeblendet",
+    "hiddenBetween_other": "{{count}} Punkte ausgeblendet"
   },
   "signInDialog": {
     "recoveryPrompt": "Wähle ein neues Passwort für dein Konto.",
@@ -130,5 +138,25 @@
     "errorDelete": "Der Plan konnte nicht gelöscht werden.",
     "meta": "{{count}} Punkte",
     "openPlan": "Plan „{{name}}“ ist geöffnet."
+  },
+  "searchWarning": {
+    "text": "Diese Suche entfernt bisher gefundene Punkte aus den Ergebnissen: {{categories}}.",
+    "hint": "Ob du sie an- oder abgewählt hattest, bleibt gemerkt. Findet eine spätere Suche sie wieder, kommen sie so zurück, wie du sie verlassen hast.",
+    "confirm": "Trotzdem suchen",
+    "cancel": "Abbrechen",
+    "hintFree": "Ob du sie an- oder abgewählt hattest, bleibt gemerkt, solange diese Route geladen ist. Mit einem Premium-Konto lässt es sich in Plänen dauerhaft speichern."
+  },
+  "openPlanWarning": {
+    "text": "Alles, was gerade angezeigt wird, geht verloren, wenn du es nicht als Plan gespeichert hast. Plan trotzdem laden?",
+    "confirm": "Trotzdem laden",
+    "cancel": "Abbrechen"
+  },
+  "changeRouteWarning": {
+    "text": "Alles, was gerade angezeigt wird, geht verloren, wenn du es nicht als Plan gespeichert hast. Trotzdem eine andere Route wählen?",
+    "confirm": "Andere Route wählen",
+    "cancel": "Abbrechen",
+    "hint": "Wählst du dieselbe Datei noch einmal, bleibt alles, wie es ist.",
+    "textFree": "Alles, was gerade angezeigt wird, geht verloren, auch deine Auswahl der Punkte. Trotzdem eine andere Route wählen?",
+    "hintFree": "Mit einem Premium-Konto kannst du Ergebnisse als Pläne speichern, mehrere pro Strecke anlegen und später wieder öffnen. Wählst du dieselbe Datei noch einmal, bleibt alles, wie es ist."
   }
 }

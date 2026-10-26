@@ -469,7 +469,7 @@ button {
 .map-empty {
   position: absolute;
   inset: 0;
-  z-index: 600;
+  z-index: 1150;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -977,6 +977,40 @@ button {
   margin: 0;
 }
 
+.side-panel-head-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.poi-hide-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+
+.poi-hide-toggle:hover,
+.poi-hide-toggle[aria-pressed="true"] {
+  color: var(--ink);
+  background: var(--surface-strong);
+}
+
+.confirm-text {
+  margin: 0 !important;
+  font-size: 13.5px !important;
+  line-height: 1.5;
+  color: var(--ink) !important;
+  text-align: center;
+}
+
 .side-panel-head .count {
   font-family: "JetBrains Mono", monospace;
   font-size: 11.5px;
@@ -1115,6 +1149,15 @@ button {
   padding: 12px 14px 14px;
 }
 
+
+.notice-banner {
+  background: rgba(255, 143, 107, 0.1);
+  border: 1px solid rgba(255, 143, 107, 0.3);
+  color: var(--ink);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+}
 
 .error-banner {
   background: rgba(226, 138, 121, 0.14);

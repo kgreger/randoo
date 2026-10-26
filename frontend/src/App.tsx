@@ -5,6 +5,7 @@ import { AccountControl } from "./components/AccountControl";
 import { AccountDialog } from "./components/AccountDialog";
 import { DeleteAccountDialog } from "./components/DeleteAccountDialog";
 import { CategoryFilter } from "./components/CategoryFilter";
+import { ConfirmDialog } from "./components/ConfirmDialog";
 import { LegalLinks } from "./components/LegalLinks";
 import { MapView } from "./components/MapView";
 import { PlansDialog } from "./components/PlansDialog";
@@ -22,6 +23,24 @@ import { useAuth } from "./lib/useAuth";
 import { useCanSavePlans } from "./lib/useTier";
 import logoUrl from "./assets/randoo-logo.svg";
 
+// Comparable form of what a plan stores, for telling saved results from
+// changed ones.
+function resultsSignature(state: {
+  poiIds: string[];
+  excludedIds: string[];
+  hideExcluded: boolean;
+  categoryIds: string[];
+  radiusM: number;
+}): string {
+  return JSON.stringify([
+    state.poiIds,
+    [...state.excludedIds].sort(),
+    state.hideExcluded,
+    [...state.categoryIds].sort(),
+    state.radiusM,
+  ]);
+}
+
 const DEFAULT_CATEGORIES = ["water", "food"];
 const IDEAS_URL = import.meta.env.VITE_IDEAS_URL as string | undefined;
 
@@ -33,6 +52,9 @@ export default function App() {
   const [routeName, setRouteName] = useState<string | null>(null);
   const [route, setRoute] = useState<LatLon[][]>([]);
   const [pois, setPois] = useState<Poi[]>([]);
+  // Every point the rider unticked for this route, not only those in the
+  // current results: a search that finds one again restores its state, and a
+  // saved plan keeps them all. Cleared when another route is loaded.
   const [excludedPoiIds, setExcludedPoiIds] = useState(new Set<string>());
   const [focusRequest, setFocusRequest] = useState<{ poi: Poi; nonce: number } | null>(null);
   const [hoveredPoiId, setHoveredPoiId] = useState<string | null>(null);
@@ -47,6 +69,19 @@ export default function App() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [hideExcluded, setHideExcluded] = useState(false);
+  // Set while the rider is asked to confirm a search that drops points
+  // already found, with how many of each category would go.
+  const [searchWarning, setSearchWarning] = useState<{ categoryId: string; count: number }[] | null>(null);
+  // A plan the rider picked while the current results are not saved, waiting
+  // for the confirmation to replace them.
+  const [pendingPlan, setPendingPlan] = useState<LoadedPlan | null>(null);
+  // Same for choosing another route file.
+  const [routeChangePending, setRouteChangePending] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  // What the shown results looked like when they were last saved or opened
+  // as a plan (see resultsSignature), to tell unsaved results from saved ones.
+  const [savedSignature, setSavedSignature] = useState<string | null>(null);
   const [saveOpen, setSaveOpen] = useState(false);
   const [plansOpen, setPlansOpen] = useState(false);
   // Which saved route and plan the current results belong to, so a further
@@ -83,6 +118,26 @@ export default function App() {
     document.addEventListener("mousedown", handlePointerDown);
     return () => document.removeEventListener("mousedown", handlePointerDown);
   }, [menuOpen]);
+
+  // Closing or reloading the tab with unsaved results: the browser asks
+  // first, with its own fixed wording. Accounts that cannot save plans are
+  // asked too, they lose the same results.
+  const unsavedResults = hasUnsavedResults();
+  useEffect(() => {
+    if (!unsavedResults) return;
+    function warnBeforeLeaving(e: BeforeUnloadEvent) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+    window.addEventListener("beforeunload", warnBeforeLeaving);
+    return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
+  }, [unsavedResults]);
+
+  useEffect(() => {
+    if (!notice) return;
+    const timer = window.setTimeout(() => setNotice(null), 6000);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
 
   useEffect(() => {
     if (!user) {
@@ -124,15 +179,28 @@ export default function App() {
     }
   }, [user, i18n]);
 
+  // Picking the route that is already loaded changes nothing: no results are
+  // dropped, no selection is lost.
+  async function handlePickedFile(selected: File) {
+    if (file && selected.size === file.size && (await selected.text()) === (await file.text())) {
+      setNotice(t("app.sameRoute"));
+      return;
+    }
+    handleFile(selected);
+  }
+
   async function handleFile(selected: File) {
+    setNotice(null);
     setFile(selected);
     setRouteName(selected.name.replace(/\.gpx$/i, ""));
     setPois([]);
     setExcludedPoiIds(new Set());
+    setHideExcluded(false);
     setSelectedPoiId(null);
     setFiltersOpen(true);
     setSavedRouteId(null);
     setOpenPlan(null);
+    setSavedSignature(null);
     setSearched(null);
     setError(null);
     try {
@@ -151,6 +219,22 @@ export default function App() {
       else next.add(id);
       return next;
     });
+  }
+
+  // A search replaces the shown results, so points of a category that is no
+  // longer selected would silently disappear: ask first.
+  function requestSearch() {
+    const dropped = new Map<string, number>();
+    for (const poi of pois) {
+      if (!selectedCategories.has(poi.category_id)) {
+        dropped.set(poi.category_id, (dropped.get(poi.category_id) ?? 0) + 1);
+      }
+    }
+    if (dropped.size === 0) {
+      runSearch();
+      return;
+    }
+    setSearchWarning(Array.from(dropped, ([categoryId, count]) => ({ categoryId, count })));
   }
 
   function toggleExcluded(id: string) {
@@ -179,6 +263,7 @@ export default function App() {
     const requestId = ++searchRequestId.current;
     setLoading(true);
     setError(null);
+    setHideExcluded(false);
     setFiltersOpen(false);
     try {
       // Sent along when there's a session, but search runs fine without one
@@ -193,11 +278,8 @@ export default function App() {
       // now would silently undo whatever the rider is already looking at.
       if (requestId !== searchRequestId.current) return;
       setPois(results);
-      // A previous search's exclusions and selection don't carry meaning
-      // for a new set of results - stale ids just wouldn't match anything,
-      // but starting fresh (and fully included) is the state a rider
-      // actually expects.
-      setExcludedPoiIds(new Set());
+      // The unticked points stay remembered (see excludedPoiIds), so a point
+      // found again comes back unticked; only the highlighted one is reset.
       setSelectedPoiId(null);
       setSearched({ categoryIds: Array.from(selectedCategories), radiusM });
     } catch (err) {
@@ -206,6 +288,16 @@ export default function App() {
     } finally {
       if (requestId === searchRequestId.current) setLoading(false);
     }
+  }
+
+  function currentSignature() {
+    return resultsSignature({
+      poiIds: pois.map((poi) => poi.id),
+      excludedIds: Array.from(excludedPoiIds),
+      hideExcluded,
+      categoryIds: searched?.categoryIds ?? [],
+      radiusM: searched?.radiusM ?? radiusM,
+    });
   }
 
   function handleSaveClick() {
@@ -226,6 +318,7 @@ export default function App() {
       radiusM: searched.radiusM,
       pois,
       excludedPoiIds: Array.from(excludedPoiIds),
+      hideExcluded,
     };
     if (openPlan && !asNew) {
       await updatePlan(openPlan.id, input);
@@ -240,7 +333,28 @@ export default function App() {
       setSavedRouteId(saved.routeId);
       setOpenPlan({ id: saved.planId, name });
     }
+    setSavedSignature(currentSignature());
     setSaveOpen(false);
+  }
+
+  // Results that are shown but neither saved nor opened from a plan would be
+  // lost by loading another plan or another route, so those ask first.
+  function hasUnsavedResults() {
+    return pois.length > 0 && currentSignature() !== savedSignature;
+  }
+
+  function requestRouteChange() {
+    if (hasUnsavedResults()) setRouteChangePending(true);
+    else fileInputRef.current?.click();
+  }
+
+  function requestOpenPlan(plan: LoadedPlan) {
+    if (hasUnsavedResults()) {
+      setPlansOpen(false);
+      setPendingPlan(plan);
+    } else {
+      handleOpenPlan(plan);
+    }
   }
 
   async function handleOpenPlan(plan: LoadedPlan) {
@@ -249,11 +363,21 @@ export default function App() {
     setRouteName(plan.route.name);
     setPois(plan.pois);
     setExcludedPoiIds(new Set(plan.excluded_poi_ids));
+    setHideExcluded(plan.hide_excluded);
     setSelectedCategories(new Set(plan.category_ids));
     setRadiusM(plan.radius_m);
     setSearched({ categoryIds: plan.category_ids, radiusM: plan.radius_m });
     setSavedRouteId(plan.route.id);
     setOpenPlan({ id: plan.id, name: plan.name });
+    setSavedSignature(
+      resultsSignature({
+        poiIds: plan.pois.map((poi) => poi.id),
+        excludedIds: plan.excluded_poi_ids,
+        hideExcluded: plan.hide_excluded,
+        categoryIds: plan.category_ids,
+        radiusM: plan.radius_m,
+      }),
+    );
     setFiltersOpen(false);
     setPlansOpen(false);
   }
@@ -320,7 +444,9 @@ export default function App() {
         accept=".gpx"
         onChange={(e) => {
           const selected = e.target.files?.[0];
-          if (selected) handleFile(selected);
+          // Cleared so picking the same file again still fires a change.
+          e.target.value = "";
+          if (selected) handlePickedFile(selected);
         }}
       />
 
@@ -362,7 +488,7 @@ export default function App() {
               className="btn btn-ghost"
               onClick={() => {
                 setMenuOpen(false);
-                fileInputRef.current?.click();
+                requestRouteChange();
               }}
             >
               {file ? t("app.changeRoute") : t("app.uploadGpx")}
@@ -420,6 +546,7 @@ export default function App() {
       </div>
 
       {error && <div className="error-banner">{error}</div>}
+      {notice && <div className="notice-banner">{notice}</div>}
 
       <div className="content-row">
         <div className="map-panel" ref={mapPanelRef}>
@@ -457,11 +584,60 @@ export default function App() {
             />
           )}
 
-          {plansOpen && (
-            <PlansDialog onOpen={handleOpenPlan} onDeleted={handlePlanDeleted} onClose={() => setPlansOpen(false)} />
+          {searchWarning && (
+            <ConfirmDialog
+              text={t("searchWarning.text", {
+                categories: searchWarning
+                  .map(({ categoryId, count }) => `${t(`categories.${categoryId}`)} (${count})`)
+                  .join(", "),
+              })}
+              hint={t(canSavePlans ? "searchWarning.hint" : "searchWarning.hintFree")}
+              confirmLabel={t("searchWarning.confirm")}
+              cancelLabel={t("searchWarning.cancel")}
+              onConfirm={() => {
+                setSearchWarning(null);
+                runSearch();
+              }}
+              onCancel={() => setSearchWarning(null)}
+            />
           )}
 
-          {!file && !signInOpen && !accountOpen && !deleteOpen && !saveOpen && !plansOpen && (
+          {routeChangePending && (
+            <ConfirmDialog
+              text={t(canSavePlans ? "changeRouteWarning.text" : "changeRouteWarning.textFree")}
+              hint={t(canSavePlans ? "changeRouteWarning.hint" : "changeRouteWarning.hintFree")}
+              confirmLabel={t("changeRouteWarning.confirm")}
+              cancelLabel={t("changeRouteWarning.cancel")}
+              onConfirm={() => {
+                setRouteChangePending(false);
+                fileInputRef.current?.click();
+              }}
+              onCancel={() => setRouteChangePending(false)}
+            />
+          )}
+
+          {pendingPlan && (
+            <ConfirmDialog
+              text={t("openPlanWarning.text")}
+              confirmLabel={t("openPlanWarning.confirm")}
+              cancelLabel={t("openPlanWarning.cancel")}
+              onConfirm={() => {
+                const plan = pendingPlan;
+                setPendingPlan(null);
+                handleOpenPlan(plan);
+              }}
+              onCancel={() => {
+                setPendingPlan(null);
+                setPlansOpen(true);
+              }}
+            />
+          )}
+
+          {plansOpen && (
+            <PlansDialog onOpen={requestOpenPlan} onDeleted={handlePlanDeleted} onClose={() => setPlansOpen(false)} />
+          )}
+
+          {!file && !signInOpen && !accountOpen && !deleteOpen && !saveOpen && !plansOpen && !searchWarning && !pendingPlan && !routeChangePending && (
             <div className="map-empty">
               <div className="map-empty-card">
                 <div className="icon">
@@ -499,7 +675,7 @@ export default function App() {
                 />
                 <button
                   className="btn btn-primary"
-                  onClick={runSearch}
+                  onClick={requestSearch}
                   disabled={selectedCategories.size === 0 || loading}
                 >
                   {loading ? t("app.searchingElapsed", { s: searchElapsedS }) : t("app.findPoints")}
@@ -517,6 +693,8 @@ export default function App() {
             route={route}
             pois={pois}
             excludedIds={excludedPoiIds}
+            hideExcluded={hideExcluded}
+            onToggleHideExcluded={() => setHideExcluded((hidden) => !hidden)}
             focusRequest={focusRequest}
             hoveredId={hoveredPoiId}
             selectedId={selectedPoiId}
@@ -528,6 +706,8 @@ export default function App() {
           pois={pois}
           radiusM={radiusM}
           excludedIds={excludedPoiIds}
+          hideExcluded={hideExcluded}
+          onToggleHideExcluded={() => setHideExcluded((hidden) => !hidden)}
           selectedId={selectedPoiId}
           onToggleExcluded={toggleExcluded}
           onFocusPoi={focusPoi}

@@ -20,6 +20,10 @@ interface Props {
   route: LatLon[][];
   pois: Poi[];
   excludedIds?: Set<string>;
+  // Draws unticked points not at all, instead of faded, so gaps in what is
+  // actually going into the export read at a glance.
+  hideExcluded?: boolean;
+  onToggleHideExcluded?: () => void;
   focusRequest?: { poi: Poi; nonce: number } | null;
   hoveredId?: string | null;
   selectedId?: string | null;
@@ -38,7 +42,25 @@ function poiDivIcon(poi: Poi, excluded: boolean): L.DivIcon {
   });
 }
 
-export function MapView({ route, pois, excludedIds, focusRequest, hoveredId, selectedId, onSelectPoi }: Props) {
+const EYE_ICON =
+  '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+  '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+const EYE_OFF_ICON =
+  '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+  '<path d="M10.6 5.1A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4M6.6 6.6C3.7 8.5 2 12 2 12s3.5 7 10 7a9.7 9.7 0 0 0 4.4-1"/>' +
+  '<path d="M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18"/></svg>';
+
+export function MapView({
+  route,
+  pois,
+  excludedIds,
+  hideExcluded = false,
+  onToggleHideExcluded,
+  focusRequest,
+  hoveredId,
+  selectedId,
+  onSelectPoi,
+}: Props) {
   const { t, i18n } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -57,6 +79,9 @@ export function MapView({ route, pois, excludedIds, focusRequest, hoveredId, sel
   // keeps changing on every render.
   const routeBoundsRef = useRef<L.LatLngBounds | null>(null);
   const fitButtonRef = useRef<HTMLButtonElement | null>(null);
+  const hideButtonRef = useRef<HTMLButtonElement | null>(null);
+  const onToggleHideExcludedRef = useRef(onToggleHideExcluded);
+  onToggleHideExcludedRef.current = onToggleHideExcluded;
   // Read from inside the POI effect below instead of adding onSelectPoi to
   // its deps - the marker layer only needs rebuilding when the POIs
   // themselves change, not on every render a new inline callback comes in.
@@ -97,6 +122,22 @@ export function MapView({ route, pois, excludedIds, focusRequest, hoveredId, sel
       },
     });
     new FitRouteControl({ position: "bottomright" }).addTo(map);
+
+    // Toggles whether unticked points are drawn at all; its icon and title
+    // follow the current state (set in the effect below), and it only shows
+    // once there are points.
+    const HideExcludedControl = L.Control.extend({
+      onAdd: () => {
+        const button = L.DomUtil.create("button", "map-fit-route-btn");
+        button.type = "button";
+        button.hidden = true;
+        L.DomEvent.disableClickPropagation(button);
+        button.addEventListener("click", () => onToggleHideExcludedRef.current?.());
+        hideButtonRef.current = button;
+        return button;
+      },
+    });
+    new HideExcludedControl({ position: "bottomright" }).addTo(map);
 
     // Standard OSM tiles, darkened with a CSS filter (see .map-tiles-dark in
     // styles.css) rather than a separate dark-tile provider: CARTO's free
@@ -166,6 +207,17 @@ export function MapView({ route, pois, excludedIds, focusRequest, hoveredId, sel
   }, [i18n.language, t]);
 
   useEffect(() => {
+    const button = hideButtonRef.current;
+    if (!button) return;
+    const label = t(hideExcluded ? "map.showExcluded" : "map.hideExcluded");
+    button.hidden = pois.length === 0;
+    button.title = label;
+    button.setAttribute("aria-label", label);
+    button.setAttribute("aria-pressed", String(hideExcluded));
+    button.innerHTML = hideExcluded ? EYE_OFF_ICON : EYE_ICON;
+  }, [hideExcluded, pois.length, i18n.language, t]);
+
+  useEffect(() => {
     const map = mapRef.current;
     const layer = poiLayerRef.current;
     if (!map || !layer) return;
@@ -177,6 +229,7 @@ export function MapView({ route, pois, excludedIds, focusRequest, hoveredId, sel
       // Faded, not hidden, for a POI the rider unchecked in the list - still
       // there to reconsider, just clearly not going into the export.
       const excluded = excludedIds?.has(poi.id) ?? false;
+      if (excluded && hideExcluded) continue;
       const fade = excluded ? 0.35 : 1;
 
       // The path from the route to this POI: a straight beeline unless
@@ -199,7 +252,7 @@ export function MapView({ route, pois, excludedIds, focusRequest, hoveredId, sel
         .addTo(layer);
       markersRef.current.set(poi.id, marker);
     }
-  }, [pois, excludedIds, i18n.language, t]);
+  }, [pois, excludedIds, hideExcluded, i18n.language, t]);
 
   // Mirrors the hovered list card and the clicked-and-selected one on the
   // map, each with its own look: a hover follows the mouse, a selection stays

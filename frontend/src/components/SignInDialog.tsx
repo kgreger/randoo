@@ -24,7 +24,7 @@ function ErrorText({ message }: { message: string | null }) {
 export function SignInDialog({ onClose, recoveryMode, onRecoveryDone }: Props) {
   const { t, i18n } = useTranslation();
   const language = i18n.resolvedLanguage ?? "en";
-  const [tab, setTab] = useState<Tab>("magic");
+  const [tab, setTab] = useState<Tab>("password");
   const [passwordView, setPasswordView] = useState<PasswordView>("signin");
 
   const [email, setEmail] = useState("");
@@ -134,15 +134,6 @@ export function SignInDialog({ onClose, recoveryMode, onRecoveryDone }: Props) {
 
         <div className="dialog-tabs">
           <button
-            className={`dialog-tab ${tab === "magic" ? "active" : ""}`}
-            onClick={() => {
-              setTab("magic");
-              setError(null);
-            }}
-          >
-            {t("signInDialog.magicLink")}
-          </button>
-          <button
             className={`dialog-tab ${tab === "password" ? "active" : ""}`}
             onClick={() => {
               setTab("password");
@@ -150,6 +141,15 @@ export function SignInDialog({ onClose, recoveryMode, onRecoveryDone }: Props) {
             }}
           >
             {t("signInDialog.password")}
+          </button>
+          <button
+            className={`dialog-tab ${tab === "magic" ? "active" : ""}`}
+            onClick={() => {
+              setTab("magic");
+              setError(null);
+            }}
+          >
+            {t("signInDialog.magicLink")}
           </button>
         </div>
 
