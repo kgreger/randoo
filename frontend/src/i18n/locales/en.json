@@ -143,7 +143,8 @@
     "text": "This search removes points found so far from the results: {{categories}}.",
     "hint": "Whether you ticked or unticked them is remembered. If a later search finds them again, they come back as you left them.",
     "confirm": "Search anyway",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "hintFree": "Whether you ticked or unticked them is remembered while this route stays loaded. With a Premium account you can keep it in plans."
   },
   "openPlanWarning": {
     "text": "Everything currently shown is gone unless you saved it as a plan. Load the plan anyway?",
@@ -154,6 +155,8 @@
     "text": "Everything currently shown is gone unless you saved it as a plan. Choose another route anyway?",
     "confirm": "Choose another route",
     "cancel": "Cancel",
-    "hint": "Choosing the same file again keeps everything as it is."
+    "hint": "Choosing the same file again keeps everything as it is.",
+    "textFree": "Everything currently shown is gone, including your selection of points. Choose another route anyway?",
+    "hintFree": "With a Premium account you can save results as plans, keep several per route and open them again later. Choosing the same file again keeps everything as it is."
   }
 }

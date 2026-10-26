@@ -143,7 +143,8 @@
     "text": "Diese Suche entfernt bisher gefundene Punkte aus den Ergebnissen: {{categories}}.",
     "hint": "Ob du sie an- oder abgewählt hattest, bleibt gemerkt. Findet eine spätere Suche sie wieder, kommen sie so zurück, wie du sie verlassen hast.",
     "confirm": "Trotzdem suchen",
-    "cancel": "Abbrechen"
+    "cancel": "Abbrechen",
+    "hintFree": "Ob du sie an- oder abgewählt hattest, bleibt gemerkt, solange diese Route geladen ist. Mit einem Premium-Konto lässt es sich in Plänen dauerhaft speichern."
   },
   "openPlanWarning": {
     "text": "Alles, was gerade angezeigt wird, geht verloren, wenn du es nicht als Plan gespeichert hast. Plan trotzdem laden?",
@@ -154,6 +155,8 @@
     "text": "Alles, was gerade angezeigt wird, geht verloren, wenn du es nicht als Plan gespeichert hast. Trotzdem eine andere Route wählen?",
     "confirm": "Andere Route wählen",
     "cancel": "Abbrechen",
-    "hint": "Wählst du dieselbe Datei noch einmal, bleibt alles, wie es ist."
+    "hint": "Wählst du dieselbe Datei noch einmal, bleibt alles, wie es ist.",
+    "textFree": "Alles, was gerade angezeigt wird, geht verloren, auch deine Auswahl der Punkte. Trotzdem eine andere Route wählen?",
+    "hintFree": "Mit einem Premium-Konto kannst du Ergebnisse als Pläne speichern, mehrere pro Strecke anlegen und später wieder öffnen. Wählst du dieselbe Datei noch einmal, bleibt alles, wie es ist."
   }
 }
