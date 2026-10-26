@@ -153,6 +153,7 @@
   "changeRouteWarning": {
     "text": "Everything currently shown is gone unless you saved it as a plan. Choose another route anyway?",
     "confirm": "Choose another route",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "hint": "Choosing the same file again keeps everything as it is."
   }
 }

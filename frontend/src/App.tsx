@@ -119,6 +119,19 @@ export default function App() {
     return () => document.removeEventListener("mousedown", handlePointerDown);
   }, [menuOpen]);
 
+  // Closing or reloading the tab with unsaved results: the browser asks
+  // first, with its own fixed wording.
+  const unsavedResults = hasUnsavedResults();
+  useEffect(() => {
+    if (!unsavedResults) return;
+    function warnBeforeLeaving(e: BeforeUnloadEvent) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+    window.addEventListener("beforeunload", warnBeforeLeaving);
+    return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
+  }, [unsavedResults]);
+
   useEffect(() => {
     if (!notice) return;
     const timer = window.setTimeout(() => setNotice(null), 6000);
@@ -326,7 +339,9 @@ export default function App() {
   // Results that are shown but neither saved nor opened from a plan would be
   // lost by loading another plan or another route, so those ask first.
   function hasUnsavedResults() {
-    return pois.length > 0 && currentSignature() !== savedSignature;
+    // Without the right to save plans there is nothing to lose that saving
+    // could have kept, so nothing to warn about either.
+    return canSavePlans && pois.length > 0 && currentSignature() !== savedSignature;
   }
 
   function requestRouteChange() {
@@ -591,6 +606,7 @@ export default function App() {
           {routeChangePending && (
             <ConfirmDialog
               text={t("changeRouteWarning.text")}
+              hint={t("changeRouteWarning.hint")}
               confirmLabel={t("changeRouteWarning.confirm")}
               cancelLabel={t("changeRouteWarning.cancel")}
               onConfirm={() => {
