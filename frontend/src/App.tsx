@@ -76,6 +76,8 @@ export default function App() {
   // A plan the rider picked while the current results are not saved, waiting
   // for the confirmation to replace them.
   const [pendingPlan, setPendingPlan] = useState<LoadedPlan | null>(null);
+  // Same for choosing another route file.
+  const [routeChangePending, setRouteChangePending] = useState(false);
   // What the shown results looked like when they were last saved or opened
   // as a plan (see resultsSignature), to tell unsaved results from saved ones.
   const [savedSignature, setSavedSignature] = useState<string | null>(null);
@@ -304,9 +306,18 @@ export default function App() {
   }
 
   // Results that are shown but neither saved nor opened from a plan would be
-  // lost by loading another plan, so that asks first.
+  // lost by loading another plan or another route, so those ask first.
+  function hasUnsavedResults() {
+    return pois.length > 0 && currentSignature() !== savedSignature;
+  }
+
+  function requestRouteChange() {
+    if (hasUnsavedResults()) setRouteChangePending(true);
+    else fileInputRef.current?.click();
+  }
+
   function requestOpenPlan(plan: LoadedPlan) {
-    if (pois.length > 0 && currentSignature() !== savedSignature) {
+    if (hasUnsavedResults()) {
       setPlansOpen(false);
       setPendingPlan(plan);
     } else {
@@ -443,7 +454,7 @@ export default function App() {
               className="btn btn-ghost"
               onClick={() => {
                 setMenuOpen(false);
-                fileInputRef.current?.click();
+                requestRouteChange();
               }}
             >
               {file ? t("app.changeRoute") : t("app.uploadGpx")}
@@ -556,6 +567,19 @@ export default function App() {
             />
           )}
 
+          {routeChangePending && (
+            <ConfirmDialog
+              text={t("changeRouteWarning.text")}
+              confirmLabel={t("changeRouteWarning.confirm")}
+              cancelLabel={t("changeRouteWarning.cancel")}
+              onConfirm={() => {
+                setRouteChangePending(false);
+                fileInputRef.current?.click();
+              }}
+              onCancel={() => setRouteChangePending(false)}
+            />
+          )}
+
           {pendingPlan && (
             <ConfirmDialog
               text={t("openPlanWarning.text")}
@@ -577,7 +601,7 @@ export default function App() {
             <PlansDialog onOpen={requestOpenPlan} onDeleted={handlePlanDeleted} onClose={() => setPlansOpen(false)} />
           )}
 
-          {!file && !signInOpen && !accountOpen && !deleteOpen && !saveOpen && !plansOpen && !searchWarning && !pendingPlan && (
+          {!file && !signInOpen && !accountOpen && !deleteOpen && !saveOpen && !plansOpen && !searchWarning && !pendingPlan && !routeChangePending && (
             <div className="map-empty">
               <div className="map-empty-card">
                 <div className="icon">

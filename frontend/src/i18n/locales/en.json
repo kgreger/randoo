@@ -148,5 +148,10 @@
     "text": "Everything currently shown is gone unless you saved it as a plan. Load the plan anyway?",
     "confirm": "Load anyway",
     "cancel": "Cancel"
+  },
+  "changeRouteWarning": {
+    "text": "Everything currently shown is gone unless you saved it as a plan. Choose another route anyway?",
+    "confirm": "Choose another route",
+    "cancel": "Cancel"
   }
 }
