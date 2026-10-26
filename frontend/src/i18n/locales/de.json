@@ -52,7 +52,9 @@
   },
   "map": {
     "zoomToRoute": "Auf Route zoomen",
-    "popupDistance": "{{distance}} m von der Route"
+    "popupDistance": "{{distance}} m von der Route",
+    "hideExcluded": "Abgewählte Punkte ausblenden",
+    "showExcluded": "Abgewählte Punkte einblenden"
   },
   "poiList": {
     "title": "Punkte in der Nähe",

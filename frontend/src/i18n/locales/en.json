@@ -52,7 +52,9 @@
   },
   "map": {
     "zoomToRoute": "Zoom to route",
-    "popupDistance": "{{distance}} m from route"
+    "popupDistance": "{{distance}} m from route",
+    "hideExcluded": "Hide unticked points",
+    "showExcluded": "Show unticked points"
   },
   "poiList": {
     "title": "Nearby points",

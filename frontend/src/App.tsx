@@ -47,6 +47,7 @@ export default function App() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [hideExcluded, setHideExcluded] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const [plansOpen, setPlansOpen] = useState(false);
   // Which saved route and plan the current results belong to, so a further
@@ -517,6 +518,8 @@ export default function App() {
             route={route}
             pois={pois}
             excludedIds={excludedPoiIds}
+            hideExcluded={hideExcluded}
+            onToggleHideExcluded={() => setHideExcluded((hidden) => !hidden)}
             focusRequest={focusRequest}
             hoveredId={hoveredPoiId}
             selectedId={selectedPoiId}
