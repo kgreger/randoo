@@ -1,14 +1,12 @@
 changelog:
   exclude:
     labels:
-      - skip-changelog
+      - release
+      - documentation
   categories:
-    - title: New
+    - title: New and improved
       labels:
-        - feature
-    - title: Improved
-      labels:
-        - improvement
+        - enhancement
     - title: Fixed
       labels:
         - bug
