@@ -1003,7 +1003,7 @@ button {
   background: var(--surface-strong);
 }
 
-.search-warning-text {
+.confirm-text {
   margin: 0 !important;
   font-size: 13.5px !important;
   line-height: 1.5;

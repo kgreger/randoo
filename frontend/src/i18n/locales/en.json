@@ -143,5 +143,10 @@
     "hint": "Whether you ticked or unticked them is remembered. If a later search finds them again, they come back as you left them.",
     "confirm": "Search anyway",
     "cancel": "Cancel"
+  },
+  "openPlanWarning": {
+    "text": "Everything currently shown is gone unless you saved it as a plan. Load the plan anyway?",
+    "confirm": "Load anyway",
+    "cancel": "Cancel"
   }
 }

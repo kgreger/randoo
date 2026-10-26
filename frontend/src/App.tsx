@@ -5,10 +5,10 @@ import { AccountControl } from "./components/AccountControl";
 import { AccountDialog } from "./components/AccountDialog";
 import { DeleteAccountDialog } from "./components/DeleteAccountDialog";
 import { CategoryFilter } from "./components/CategoryFilter";
+import { ConfirmDialog } from "./components/ConfirmDialog";
 import { LegalLinks } from "./components/LegalLinks";
 import { MapView } from "./components/MapView";
 import { PlansDialog } from "./components/PlansDialog";
-import { SearchWarningDialog } from "./components/SearchWarningDialog";
 import { PoiList } from "./components/PoiList";
 import { SavePlanDialog } from "./components/SavePlanDialog";
 import { SignInDialog } from "./components/SignInDialog";
@@ -22,6 +22,24 @@ import { supabase } from "./lib/supabase";
 import { useAuth } from "./lib/useAuth";
 import { useCanSavePlans } from "./lib/useTier";
 import logoUrl from "./assets/randoo-logo.svg";
+
+// Comparable form of what a plan stores, for telling saved results from
+// changed ones.
+function resultsSignature(state: {
+  poiIds: string[];
+  excludedIds: string[];
+  hideExcluded: boolean;
+  categoryIds: string[];
+  radiusM: number;
+}): string {
+  return JSON.stringify([
+    state.poiIds,
+    [...state.excludedIds].sort(),
+    state.hideExcluded,
+    [...state.categoryIds].sort(),
+    state.radiusM,
+  ]);
+}
 
 const DEFAULT_CATEGORIES = ["water", "food"];
 const IDEAS_URL = import.meta.env.VITE_IDEAS_URL as string | undefined;
@@ -55,6 +73,12 @@ export default function App() {
   // Set while the rider is asked to confirm a search that drops points
   // already found, with how many of each category would go.
   const [searchWarning, setSearchWarning] = useState<{ categoryId: string; count: number }[] | null>(null);
+  // A plan the rider picked while the current results are not saved, waiting
+  // for the confirmation to replace them.
+  const [pendingPlan, setPendingPlan] = useState<LoadedPlan | null>(null);
+  // What the shown results looked like when they were last saved or opened
+  // as a plan (see resultsSignature), to tell unsaved results from saved ones.
+  const [savedSignature, setSavedSignature] = useState<string | null>(null);
   const [saveOpen, setSaveOpen] = useState(false);
   const [plansOpen, setPlansOpen] = useState(false);
   // Which saved route and plan the current results belong to, so a further
@@ -142,6 +166,7 @@ export default function App() {
     setFiltersOpen(true);
     setSavedRouteId(null);
     setOpenPlan(null);
+    setSavedSignature(null);
     setSearched(null);
     setError(null);
     try {
@@ -231,6 +256,16 @@ export default function App() {
     }
   }
 
+  function currentSignature() {
+    return resultsSignature({
+      poiIds: pois.map((poi) => poi.id),
+      excludedIds: Array.from(excludedPoiIds),
+      hideExcluded,
+      categoryIds: searched?.categoryIds ?? [],
+      radiusM: searched?.radiusM ?? radiusM,
+    });
+  }
+
   function handleSaveClick() {
     if (!user) {
       setSignInOpen(true);
@@ -264,7 +299,19 @@ export default function App() {
       setSavedRouteId(saved.routeId);
       setOpenPlan({ id: saved.planId, name });
     }
+    setSavedSignature(currentSignature());
     setSaveOpen(false);
+  }
+
+  // Results that are shown but neither saved nor opened from a plan would be
+  // lost by loading another plan, so that asks first.
+  function requestOpenPlan(plan: LoadedPlan) {
+    if (pois.length > 0 && currentSignature() !== savedSignature) {
+      setPlansOpen(false);
+      setPendingPlan(plan);
+    } else {
+      handleOpenPlan(plan);
+    }
   }
 
   async function handleOpenPlan(plan: LoadedPlan) {
@@ -279,6 +326,15 @@ export default function App() {
     setSearched({ categoryIds: plan.category_ids, radiusM: plan.radius_m });
     setSavedRouteId(plan.route.id);
     setOpenPlan({ id: plan.id, name: plan.name });
+    setSavedSignature(
+      resultsSignature({
+        poiIds: plan.pois.map((poi) => poi.id),
+        excludedIds: plan.excluded_poi_ids,
+        hideExcluded: plan.hide_excluded,
+        categoryIds: plan.category_ids,
+        radiusM: plan.radius_m,
+      }),
+    );
     setFiltersOpen(false);
     setPlansOpen(false);
   }
@@ -483,8 +539,15 @@ export default function App() {
           )}
 
           {searchWarning && (
-            <SearchWarningDialog
-              dropped={searchWarning}
+            <ConfirmDialog
+              text={t("searchWarning.text", {
+                categories: searchWarning
+                  .map(({ categoryId, count }) => `${t(`categories.${categoryId}`)} (${count})`)
+                  .join(", "),
+              })}
+              hint={t("searchWarning.hint")}
+              confirmLabel={t("searchWarning.confirm")}
+              cancelLabel={t("searchWarning.cancel")}
               onConfirm={() => {
                 setSearchWarning(null);
                 runSearch();
@@ -493,11 +556,28 @@ export default function App() {
             />
           )}
 
-          {plansOpen && (
-            <PlansDialog onOpen={handleOpenPlan} onDeleted={handlePlanDeleted} onClose={() => setPlansOpen(false)} />
+          {pendingPlan && (
+            <ConfirmDialog
+              text={t("openPlanWarning.text")}
+              confirmLabel={t("openPlanWarning.confirm")}
+              cancelLabel={t("openPlanWarning.cancel")}
+              onConfirm={() => {
+                const plan = pendingPlan;
+                setPendingPlan(null);
+                handleOpenPlan(plan);
+              }}
+              onCancel={() => {
+                setPendingPlan(null);
+                setPlansOpen(true);
+              }}
+            />
           )}
 
-          {!file && !signInOpen && !accountOpen && !deleteOpen && !saveOpen && !plansOpen && !searchWarning && (
+          {plansOpen && (
+            <PlansDialog onOpen={requestOpenPlan} onDeleted={handlePlanDeleted} onClose={() => setPlansOpen(false)} />
+          )}
+
+          {!file && !signInOpen && !accountOpen && !deleteOpen && !saveOpen && !plansOpen && !searchWarning && !pendingPlan && (
             <div className="map-empty">
               <div className="map-empty-card">
                 <div className="icon">

@@ -143,5 +143,10 @@
     "hint": "Ob du sie an- oder abgewählt hattest, bleibt gemerkt. Findet eine spätere Suche sie wieder, kommen sie so zurück, wie du sie verlassen hast.",
     "confirm": "Trotzdem suchen",
     "cancel": "Abbrechen"
+  },
+  "openPlanWarning": {
+    "text": "Alles, was gerade angezeigt wird, geht verloren, wenn du es nicht als Plan gespeichert hast. Plan trotzdem laden?",
+    "confirm": "Trotzdem laden",
+    "cancel": "Abbrechen"
   }
 }
