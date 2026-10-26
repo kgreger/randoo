@@ -64,7 +64,12 @@
     "metaDistance": "{{distance}} m",
     "distanceBarTitle": "{{distance}} m of {{radius}} m radius",
     "gapKm": "{{km}} km",
-    "gapM": "{{m}} m"
+    "gapM": "{{m}} m",
+    "hideExcluded": "Hide unticked points",
+    "showExcluded": "Show unticked points",
+    "allHidden": "All points are unticked and hidden.",
+    "hiddenBetween_one": "{{count}} point hidden",
+    "hiddenBetween_other": "{{count}} points hidden"
   },
   "signInDialog": {
     "recoveryPrompt": "Choose a new password for your account.",
@@ -132,5 +137,11 @@
     "errorDelete": "Could not delete the plan.",
     "meta": "{{count}} points",
     "openPlan": "Plan “{{name}}” is open."
+  },
+  "searchWarning": {
+    "text": "This search removes points found so far from the results: {{categories}}.",
+    "hint": "Whether you ticked or unticked them is remembered. If a later search finds them again, they come back as you left them.",
+    "confirm": "Search anyway",
+    "cancel": "Cancel"
   }
 }

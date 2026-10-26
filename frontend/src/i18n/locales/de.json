@@ -64,7 +64,12 @@
     "metaDistance": "{{distance}} m",
     "distanceBarTitle": "{{distance}} m von {{radius}} m Radius",
     "gapKm": "{{km}} km",
-    "gapM": "{{m}} m"
+    "gapM": "{{m}} m",
+    "hideExcluded": "Abgewählte Punkte ausblenden",
+    "showExcluded": "Abgewählte Punkte einblenden",
+    "allHidden": "Alle Punkte sind abgewählt und ausgeblendet.",
+    "hiddenBetween_one": "{{count}} Punkt ausgeblendet",
+    "hiddenBetween_other": "{{count}} Punkte ausgeblendet"
   },
   "signInDialog": {
     "recoveryPrompt": "Wähle ein neues Passwort für dein Konto.",
@@ -132,5 +137,11 @@
     "errorDelete": "Der Plan konnte nicht gelöscht werden.",
     "meta": "{{count}} Punkte",
     "openPlan": "Plan „{{name}}“ ist geöffnet."
+  },
+  "searchWarning": {
+    "text": "Diese Suche entfernt bisher gefundene Punkte aus den Ergebnissen: {{categories}}.",
+    "hint": "Ob du sie an- oder abgewählt hattest, bleibt gemerkt. Findet eine spätere Suche sie wieder, kommen sie so zurück, wie du sie verlassen hast.",
+    "confirm": "Trotzdem suchen",
+    "cancel": "Abbrechen"
   }
 }

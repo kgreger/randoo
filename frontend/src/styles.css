@@ -469,7 +469,7 @@ button {
 .map-empty {
   position: absolute;
   inset: 0;
-  z-index: 600;
+  z-index: 1150;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -975,6 +975,40 @@ button {
 .side-panel-head h2 {
   font-size: 14.5px;
   margin: 0;
+}
+
+.side-panel-head-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.poi-hide-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+
+.poi-hide-toggle:hover,
+.poi-hide-toggle[aria-pressed="true"] {
+  color: var(--ink);
+  background: var(--surface-strong);
+}
+
+.search-warning-text {
+  margin: 0 !important;
+  font-size: 13.5px !important;
+  line-height: 1.5;
+  color: var(--ink) !important;
+  text-align: center;
 }
 
 .side-panel-head .count {

@@ -8,6 +8,7 @@ import { CategoryFilter } from "./components/CategoryFilter";
 import { LegalLinks } from "./components/LegalLinks";
 import { MapView } from "./components/MapView";
 import { PlansDialog } from "./components/PlansDialog";
+import { SearchWarningDialog } from "./components/SearchWarningDialog";
 import { PoiList } from "./components/PoiList";
 import { SavePlanDialog } from "./components/SavePlanDialog";
 import { SignInDialog } from "./components/SignInDialog";
@@ -33,6 +34,9 @@ export default function App() {
   const [routeName, setRouteName] = useState<string | null>(null);
   const [route, setRoute] = useState<LatLon[][]>([]);
   const [pois, setPois] = useState<Poi[]>([]);
+  // Every point the rider unticked for this route, not only those in the
+  // current results: a search that finds one again restores its state, and a
+  // saved plan keeps them all. Cleared when another route is loaded.
   const [excludedPoiIds, setExcludedPoiIds] = useState(new Set<string>());
   const [focusRequest, setFocusRequest] = useState<{ poi: Poi; nonce: number } | null>(null);
   const [hoveredPoiId, setHoveredPoiId] = useState<string | null>(null);
@@ -48,6 +52,9 @@ export default function App() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [hideExcluded, setHideExcluded] = useState(false);
+  // Set while the rider is asked to confirm a search that drops points
+  // already found, with how many of each category would go.
+  const [searchWarning, setSearchWarning] = useState<{ categoryId: string; count: number }[] | null>(null);
   const [saveOpen, setSaveOpen] = useState(false);
   const [plansOpen, setPlansOpen] = useState(false);
   // Which saved route and plan the current results belong to, so a further
@@ -130,6 +137,7 @@ export default function App() {
     setRouteName(selected.name.replace(/\.gpx$/i, ""));
     setPois([]);
     setExcludedPoiIds(new Set());
+    setHideExcluded(false);
     setSelectedPoiId(null);
     setFiltersOpen(true);
     setSavedRouteId(null);
@@ -152,6 +160,22 @@ export default function App() {
       else next.add(id);
       return next;
     });
+  }
+
+  // A search replaces the shown results, so points of a category that is no
+  // longer selected would silently disappear: ask first.
+  function requestSearch() {
+    const dropped = new Map<string, number>();
+    for (const poi of pois) {
+      if (!selectedCategories.has(poi.category_id)) {
+        dropped.set(poi.category_id, (dropped.get(poi.category_id) ?? 0) + 1);
+      }
+    }
+    if (dropped.size === 0) {
+      runSearch();
+      return;
+    }
+    setSearchWarning(Array.from(dropped, ([categoryId, count]) => ({ categoryId, count })));
   }
 
   function toggleExcluded(id: string) {
@@ -180,6 +204,7 @@ export default function App() {
     const requestId = ++searchRequestId.current;
     setLoading(true);
     setError(null);
+    setHideExcluded(false);
     setFiltersOpen(false);
     try {
       // Sent along when there's a session, but search runs fine without one
@@ -194,11 +219,8 @@ export default function App() {
       // now would silently undo whatever the rider is already looking at.
       if (requestId !== searchRequestId.current) return;
       setPois(results);
-      // A previous search's exclusions and selection don't carry meaning
-      // for a new set of results - stale ids just wouldn't match anything,
-      // but starting fresh (and fully included) is the state a rider
-      // actually expects.
-      setExcludedPoiIds(new Set());
+      // The unticked points stay remembered (see excludedPoiIds), so a point
+      // found again comes back unticked; only the highlighted one is reset.
       setSelectedPoiId(null);
       setSearched({ categoryIds: Array.from(selectedCategories), radiusM });
     } catch (err) {
@@ -227,6 +249,7 @@ export default function App() {
       radiusM: searched.radiusM,
       pois,
       excludedPoiIds: Array.from(excludedPoiIds),
+      hideExcluded,
     };
     if (openPlan && !asNew) {
       await updatePlan(openPlan.id, input);
@@ -250,6 +273,7 @@ export default function App() {
     setRouteName(plan.route.name);
     setPois(plan.pois);
     setExcludedPoiIds(new Set(plan.excluded_poi_ids));
+    setHideExcluded(plan.hide_excluded);
     setSelectedCategories(new Set(plan.category_ids));
     setRadiusM(plan.radius_m);
     setSearched({ categoryIds: plan.category_ids, radiusM: plan.radius_m });
@@ -458,11 +482,22 @@ export default function App() {
             />
           )}
 
+          {searchWarning && (
+            <SearchWarningDialog
+              dropped={searchWarning}
+              onConfirm={() => {
+                setSearchWarning(null);
+                runSearch();
+              }}
+              onCancel={() => setSearchWarning(null)}
+            />
+          )}
+
           {plansOpen && (
             <PlansDialog onOpen={handleOpenPlan} onDeleted={handlePlanDeleted} onClose={() => setPlansOpen(false)} />
           )}
 
-          {!file && !signInOpen && !accountOpen && !deleteOpen && !saveOpen && !plansOpen && (
+          {!file && !signInOpen && !accountOpen && !deleteOpen && !saveOpen && !plansOpen && !searchWarning && (
             <div className="map-empty">
               <div className="map-empty-card">
                 <div className="icon">
@@ -500,7 +535,7 @@ export default function App() {
                 />
                 <button
                   className="btn btn-primary"
-                  onClick={runSearch}
+                  onClick={requestSearch}
                   disabled={selectedCategories.size === 0 || loading}
                 >
                   {loading ? t("app.searchingElapsed", { s: searchElapsedS }) : t("app.findPoints")}
@@ -531,6 +566,8 @@ export default function App() {
           pois={pois}
           radiusM={radiusM}
           excludedIds={excludedPoiIds}
+          hideExcluded={hideExcluded}
+          onToggleHideExcluded={() => setHideExcluded((hidden) => !hidden)}
           selectedId={selectedPoiId}
           onToggleExcluded={toggleExcluded}
           onFocusPoi={focusPoi}
