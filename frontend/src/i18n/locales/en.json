@@ -18,7 +18,8 @@
     "findPoints": "Find points",
     "errorGpxParse": "Could not read that GPX file.",
     "errorSearchFailed": "Search failed.",
-    "errorExportFailed": "Export failed."
+    "errorExportFailed": "Export failed.",
+    "sameRoute": "This route is already loaded. Nothing changes."
   },
   "account": {
     "userAccount": "User account",

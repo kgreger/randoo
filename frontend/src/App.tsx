@@ -78,6 +78,7 @@ export default function App() {
   const [pendingPlan, setPendingPlan] = useState<LoadedPlan | null>(null);
   // Same for choosing another route file.
   const [routeChangePending, setRouteChangePending] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   // What the shown results looked like when they were last saved or opened
   // as a plan (see resultsSignature), to tell unsaved results from saved ones.
   const [savedSignature, setSavedSignature] = useState<string | null>(null);
@@ -119,6 +120,12 @@ export default function App() {
   }, [menuOpen]);
 
   useEffect(() => {
+    if (!notice) return;
+    const timer = window.setTimeout(() => setNotice(null), 6000);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
+
+  useEffect(() => {
     if (!user) {
       setAccountOpen(false);
       setDeleteOpen(false);
@@ -158,7 +165,18 @@ export default function App() {
     }
   }, [user, i18n]);
 
+  // Picking the route that is already loaded changes nothing: no results are
+  // dropped, no selection is lost.
+  async function handlePickedFile(selected: File) {
+    if (file && selected.size === file.size && (await selected.text()) === (await file.text())) {
+      setNotice(t("app.sameRoute"));
+      return;
+    }
+    handleFile(selected);
+  }
+
   async function handleFile(selected: File) {
+    setNotice(null);
     setFile(selected);
     setRouteName(selected.name.replace(/\.gpx$/i, ""));
     setPois([]);
@@ -412,7 +430,9 @@ export default function App() {
         accept=".gpx"
         onChange={(e) => {
           const selected = e.target.files?.[0];
-          if (selected) handleFile(selected);
+          // Cleared so picking the same file again still fires a change.
+          e.target.value = "";
+          if (selected) handlePickedFile(selected);
         }}
       />
 
@@ -512,6 +532,7 @@ export default function App() {
       </div>
 
       {error && <div className="error-banner">{error}</div>}
+      {notice && <div className="notice-banner">{notice}</div>}
 
       <div className="content-row">
         <div className="map-panel" ref={mapPanelRef}>

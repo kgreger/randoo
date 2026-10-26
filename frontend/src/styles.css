@@ -1150,6 +1150,15 @@ button {
 }
 
 
+.notice-banner {
+  background: rgba(255, 143, 107, 0.1);
+  border: 1px solid rgba(255, 143, 107, 0.3);
+  color: var(--ink);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+}
+
 .error-banner {
   background: rgba(226, 138, 121, 0.14);
   border: 1px solid rgba(226, 138, 121, 0.4);
