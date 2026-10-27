@@ -49,7 +49,9 @@
     "lodging": "Unterkunft",
     "hut": "Hütte / Unterstand",
     "food": "Essen & Vorräte",
-    "rest": "Rastplatz"
+    "rest": "Rastplatz",
+    "control": "Kontrollpunkt",
+    "waypoint": "Wegpunkt"
   },
   "map": {
     "zoomToRoute": "Auf Route zoomen",
@@ -72,7 +74,9 @@
     "allHidden": "Alle Punkte sind abgewählt und ausgeblendet.",
     "hiddenBetween_one": "{{count}} Punkt ausgeblendet",
     "hiddenBetween_other": "{{count}} Punkte ausgeblendet",
-    "waypointFromFile": "Wegpunkt aus der Datei"
+    "waypointFromFile": "Wegpunkt aus der Datei",
+    "changeType": "Typ ändern",
+    "originalType": "Original: {{type}}"
   },
   "signInDialog": {
     "recoveryPrompt": "Wähle ein neues Passwort für dein Konto.",
@@ -160,5 +164,11 @@
     "hint": "Wählst du dieselbe Datei noch einmal, bleibt alles, wie es ist.",
     "textFree": "Alles, was gerade angezeigt wird, geht verloren, auch deine Auswahl der Punkte. Trotzdem eine andere Route wählen?",
     "hintFree": "Mit einem Premium-Konto kannst du Ergebnisse als Pläne speichern, mehrere pro Strecke anlegen und später wieder öffnen. Wählst du dieselbe Datei noch einmal, bleibt alles, wie es ist."
+  },
+  "typeChange": {
+    "text": "Der gefundene Punkt „{{name}}“ ({{from}}) wird zum Typ {{to}}.",
+    "hint": "Das gilt in Liste, Karte, Export und gespeicherten Plänen. Du kannst ihn jederzeit auf den ursprünglichen Typ zurücksetzen.",
+    "confirm": "Typ ändern",
+    "cancel": "Abbrechen"
   }
 }

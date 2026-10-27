@@ -64,7 +64,25 @@ GARMIN_SYMBOLS: dict[str, str] = {
     "hut": "Campground",
     "food": "Restaurant",
     "rest": "Picnic Area",
+    # A point the rider classed as a control point by hand (see
+    # WAYPOINT_TYPES), not a search category.
+    "control": "Flag, Red",
 }
+
+# Types a rider can give to a point by hand, as the frontend sends them:
+# id -> the <type> written into the file. Anything else is ignored.
+WAYPOINT_TYPES: dict[str, str] = {"control": "Control"}
+
+
+def apply_waypoint_types(waypoints: list[gpxpy.gpx.GPXWaypoint], overrides: dict[str, str]) -> None:
+    """Re-types the file's own waypoints in place. The ids are "wpt:<n>", n
+    counting the file's waypoints in order (see gpx.parse_existing_waypoints)."""
+    for index, waypoint in enumerate(waypoints):
+        type_id = overrides.get(f"wpt:{index}")
+        if type_id in WAYPOINT_TYPES:
+            waypoint.type = WAYPOINT_TYPES[type_id]
+            waypoint.symbol = GARMIN_SYMBOLS[type_id]
+
 
 
 def build_gpx(

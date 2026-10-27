@@ -1088,11 +1088,6 @@ button {
 
 /* A waypoint the loaded file came with: a reference mark among the found
    points, without a checkbox, in the light ink colour instead of the accent. */
-.poi-card-check-spacer {
-  flex: none;
-  width: 16px;
-}
-
 .poi-card.waypoint-card .badge {
   background: rgba(247, 241, 239, 0.14);
   color: var(--ink);
@@ -1101,6 +1096,100 @@ button {
 .waypoint-card:hover {
   background: rgba(247, 241, 239, 0.07);
   border-color: rgba(247, 241, 239, 0.2);
+}
+
+/* The symbol of a point is a button: a pencil shows on hover (always on touch
+   screens) and a small ring marks a type the rider gave by hand. */
+.poi-card .badge-editable {
+  position: relative;
+  padding: 0;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+}
+
+.badge-pencil {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: var(--accent-ink);
+  opacity: 0;
+  transform: scale(0.8);
+  transition:
+    opacity 0.12s ease,
+    transform 0.12s ease;
+}
+
+.badge-editable:hover .badge-pencil,
+.badge-editable:focus-visible .badge-pencil {
+  opacity: 1;
+  transform: scale(1);
+}
+
+@media (hover: none) {
+  .badge-pencil {
+    opacity: 0.85;
+    transform: scale(1);
+  }
+}
+
+.poi-card .badge-overridden {
+  box-shadow: 0 0 0 1.5px var(--accent-2);
+}
+
+.type-menu {
+  position: fixed;
+  z-index: 1300;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: #2a2040;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+
+.type-menu-title {
+  padding: 6px 10px 8px;
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.type-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.type-menu-item span {
+  flex: 1;
+}
+
+.type-menu-item:hover {
+  background: var(--surface-strong);
+}
+
+.waypoint-marker.excluded .waypoint-marker-dot {
+  opacity: 0.4;
 }
 
 .waypoint-marker-dot {

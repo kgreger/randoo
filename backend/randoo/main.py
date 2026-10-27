@@ -13,7 +13,7 @@ from pydantic import TypeAdapter, ValidationError
 from . import categories, geometry, gpx, poi_filter, search_cache
 from .auth import bearer_token, require_user
 from .entitlements import get_tier
-from .export import build_gpx
+from .export import WAYPOINT_TYPES, apply_waypoint_types, build_gpx
 from .overpass import Poi
 from .poi_filter import Connector, RankedPoi
 from .poi_source import OverpassPoiSource, get_poi_source
@@ -183,12 +183,25 @@ def _ranked_from_export(raw: str) -> list[RankedPoi]:
     ]
 
 
+def _parse_type_overrides(raw: str | None) -> dict[str, str]:
+    if raw is None:
+        return {}
+    try:
+        value = json.loads(raw)
+    except ValueError as exc:
+        raise HTTPException(400, "type_overrides is not valid JSON") from exc
+    if not isinstance(value, dict):
+        raise HTTPException(400, "type_overrides must be an object")
+    return {k: v for k, v in value.items() if isinstance(k, str) and isinstance(v, str) and v in WAYPOINT_TYPES}
+
+
 @app.post("/api/export")
 async def export(
     file: UploadFile = File(...),
     categories_param: list[str] = Form(default=[], alias="categories"),
     radius_m: float = Form(500),
     pois: str | None = Form(default=None),
+    type_overrides: str | None = Form(default=None),
     excluded_poi_ids: list[str] = Form(default=[]),
     _user: dict = Depends(require_user),
     token: str | None = Depends(bearer_token),
@@ -196,6 +209,11 @@ async def export(
     raw = await file.read()
     await file.seek(0)
     existing_waypoints, existing_nsmap = gpx.parse_existing_waypoints(raw)
+    # The file's own waypoints keep the ids the frontend shows them under
+    # ("wpt:<n>"), so the rider's choices on them (unticked, re-typed) apply here.
+    excluded = set(excluded_poi_ids)
+    apply_waypoint_types(existing_waypoints, _parse_type_overrides(type_overrides))
+    existing_waypoints = [wp for i, wp in enumerate(existing_waypoints) if f"wpt:{i}" not in excluded]
 
     if pois is not None:
         # The points the rider is looking at come with the request, so a
@@ -214,7 +232,6 @@ async def export(
     # A POI passing the search doesn't mean the rider actually wants it in
     # the file - excluded_poi_ids is how the frontend's per-POI selection
     # gets applied, using the same "osm_type:osm_id" ids /api/analyze returns.
-    excluded = set(excluded_poi_ids)
     ranked = [r for r in ranked if _poi_id(r.poi) not in excluded]
 
     xml = build_gpx(ranked, segments, existing_waypoints, existing_nsmap)

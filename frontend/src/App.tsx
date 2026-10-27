@@ -32,6 +32,7 @@ function resultsSignature(state: {
   hideExcluded: boolean;
   categoryIds: string[];
   radiusM: number;
+  typeOverrides: Record<string, string>;
 }): string {
   return JSON.stringify([
     state.poiIds,
@@ -39,6 +40,7 @@ function resultsSignature(state: {
     state.hideExcluded,
     [...state.categoryIds].sort(),
     state.radiusM,
+    Object.entries(state.typeOverrides).sort(([a], [b]) => a.localeCompare(b)),
   ]);
 }
 
@@ -57,6 +59,12 @@ export default function App() {
   // current results: a search that finds one again restores its state, and a
   // saved plan keeps them all. Cleared when another route is loaded.
   const [excludedPoiIds, setExcludedPoiIds] = useState(new Set<string>());
+  // Types the rider gave points by hand (point or waypoint id -> type id),
+  // remembered like the unticked points; the point itself keeps its original
+  // type, so removing the entry restores it. Cleared with a new route.
+  const [typeOverrides, setTypeOverrides] = useState<Record<string, string>>({});
+  // A found point whose type is about to change, waiting for confirmation.
+  const [pendingTypeChange, setPendingTypeChange] = useState<{ poi: Poi; typeId: string } | null>(null);
   // Waypoints the loaded file already has, shown for orientation next to the
   // found points.
   const [waypoints, setWaypoints] = useState<RouteWaypoint[]>([]);
@@ -199,6 +207,7 @@ export default function App() {
     setRouteName(selected.name.replace(/\.gpx$/i, ""));
     setPois([]);
     setExcludedPoiIds(new Set());
+    setTypeOverrides({});
     setHideExcluded(false);
     setSelectedPoiId(null);
     setFiltersOpen(true);
@@ -248,6 +257,26 @@ export default function App() {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
+      return next;
+    });
+  }
+
+  // Giving a found point another type is a bigger step than re-typing a point
+  // from the file, so it asks first; going back to the original does not.
+  function changePointType(id: string, typeId: string | null) {
+    const poi = pois.find((candidate) => candidate.id === id);
+    if (poi && typeId !== null) {
+      setPendingTypeChange({ poi, typeId });
+      return;
+    }
+    applyPointType(id, typeId);
+  }
+
+  function applyPointType(id: string, typeId: string | null) {
+    setTypeOverrides((prev) => {
+      const next = { ...prev };
+      if (typeId === null) delete next[id];
+      else next[id] = typeId;
       return next;
     });
   }
@@ -308,6 +337,7 @@ export default function App() {
       hideExcluded,
       categoryIds: searched?.categoryIds ?? [],
       radiusM: searched?.radiusM ?? radiusM,
+      typeOverrides,
     });
   }
 
@@ -330,6 +360,7 @@ export default function App() {
       pois,
       excludedPoiIds: Array.from(excludedPoiIds),
       hideExcluded,
+      typeOverrides,
     };
     if (openPlan && !asNew) {
       await updatePlan(openPlan.id, input);
@@ -375,6 +406,7 @@ export default function App() {
     setPois(plan.pois);
     setExcludedPoiIds(new Set(plan.excluded_poi_ids));
     setHideExcluded(plan.hide_excluded);
+    setTypeOverrides(plan.type_overrides ?? {});
     setSelectedCategories(new Set(plan.category_ids));
     setRadiusM(plan.radius_m);
     setSearched({ categoryIds: plan.category_ids, radiusM: plan.radius_m });
@@ -387,6 +419,7 @@ export default function App() {
         hideExcluded: plan.hide_excluded,
         categoryIds: plan.category_ids,
         radiusM: plan.radius_m,
+        typeOverrides: plan.type_overrides ?? {},
       }),
     );
     setFiltersOpen(false);
@@ -410,7 +443,7 @@ export default function App() {
 
     setExporting(true);
     try {
-      const blob = await exportGpx(file, pois, accessToken, Array.from(excludedPoiIds));
+      const blob = await exportGpx(file, pois, accessToken, Array.from(excludedPoiIds), typeOverrides);
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -633,6 +666,24 @@ export default function App() {
             />
           )}
 
+          {pendingTypeChange && (
+            <ConfirmDialog
+              text={t("typeChange.text", {
+                name: pendingTypeChange.poi.name ?? t(`categories.${pendingTypeChange.poi.category_id}`),
+                from: t(`categories.${typeOverrides[pendingTypeChange.poi.id] ?? pendingTypeChange.poi.category_id}`),
+                to: t(`categories.${pendingTypeChange.typeId}`),
+              })}
+              hint={t("typeChange.hint")}
+              confirmLabel={t("typeChange.confirm")}
+              cancelLabel={t("typeChange.cancel")}
+              onConfirm={() => {
+                applyPointType(pendingTypeChange.poi.id, pendingTypeChange.typeId);
+                setPendingTypeChange(null);
+              }}
+              onCancel={() => setPendingTypeChange(null)}
+            />
+          )}
+
           {pendingPlan && (
             <ConfirmDialog
               text={t("openPlanWarning.text")}
@@ -654,7 +705,7 @@ export default function App() {
             <PlansDialog onOpen={requestOpenPlan} onDeleted={handlePlanDeleted} onClose={() => setPlansOpen(false)} />
           )}
 
-          {!file && !signInOpen && !accountOpen && !deleteOpen && !saveOpen && !plansOpen && !searchWarning && !pendingPlan && !routeChangePending && (
+          {!file && !signInOpen && !accountOpen && !deleteOpen && !saveOpen && !plansOpen && !searchWarning && !pendingPlan && !routeChangePending && !pendingTypeChange && (
             <div className="map-empty">
               <div className="map-empty-card">
                 <div className="icon">
@@ -713,6 +764,7 @@ export default function App() {
             hideExcluded={hideExcluded}
             onToggleHideExcluded={() => setHideExcluded((hidden) => !hidden)}
             waypoints={waypoints}
+            typeOverrides={typeOverrides}
             focusRequest={focusRequest}
             hoveredId={hoveredPoiId}
             selectedId={selectedPoiId}
@@ -731,6 +783,8 @@ export default function App() {
           onFocusPoi={focusPoi}
           waypoints={waypointsOnRoute}
           onFocusWaypoint={focusWaypoint}
+          typeOverrides={typeOverrides}
+          onChangeType={changePointType}
           onHoverPoi={setHoveredPoiId}
         />
       </div>

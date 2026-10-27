@@ -5,8 +5,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { LatLon, RouteWaypoint } from "../lib/gpxPreview";
 import type { Poi } from "../lib/api";
-import { Flag } from "lucide-react";
-import { categoryById } from "../lib/categories";
+import { WAYPOINT_TYPE, categoryById, pointTypeById } from "../lib/categories";
 
 // Close enough to make out individual streets, without zooming in so far
 // that the point of the search radius (context around the POI) is lost.
@@ -30,6 +29,8 @@ interface Props {
   route: LatLon[][];
   pois: Poi[];
   waypoints?: RouteWaypoint[];
+  // Types given by hand, by point or waypoint id; they change the icon.
+  typeOverrides?: Record<string, string>;
   excludedIds?: Set<string>;
   // Draws unticked points not at all, instead of faded, so gaps in what is
   // actually going into the export read at a glance.
@@ -41,8 +42,8 @@ interface Props {
   onSelectPoi?: (poi: Poi) => void;
 }
 
-function poiDivIcon(poi: Poi, excluded: boolean): L.DivIcon {
-  const Icon = categoryById(poi.category_id)?.icon;
+function poiDivIcon(poi: Poi, excluded: boolean, typeId: string): L.DivIcon {
+  const Icon = (pointTypeById(typeId) ?? categoryById(poi.category_id))?.icon;
   const iconSvg = Icon ? renderToStaticMarkup(<Icon size={11} strokeWidth={2.4} aria-hidden="true" />) : "";
   return L.divIcon({
     className: `poi-marker ${excluded ? "excluded" : ""}`,
@@ -53,10 +54,11 @@ function poiDivIcon(poi: Poi, excluded: boolean): L.DivIcon {
   });
 }
 
-function waypointDivIcon(): L.DivIcon {
+function waypointDivIcon(typeId: string, excluded: boolean): L.DivIcon {
+  const Icon = (pointTypeById(typeId) ?? WAYPOINT_TYPE).icon;
   return L.divIcon({
-    className: "waypoint-marker",
-    html: `<div class="waypoint-marker-dot">${renderToStaticMarkup(<Flag size={12} strokeWidth={2.4} aria-hidden="true" />)}</div>`,
+    className: `waypoint-marker ${excluded ? "excluded" : ""}`,
+    html: `<div class="waypoint-marker-dot">${renderToStaticMarkup(<Icon size={12} strokeWidth={2.4} aria-hidden="true" />)}</div>`,
     iconSize: [22, 22],
     iconAnchor: [11, 11],
     popupAnchor: [0, -13],
@@ -75,6 +77,7 @@ export function MapView({
   route,
   pois,
   waypoints = [],
+  typeOverrides = {},
   excludedIds,
   hideExcluded = false,
   onToggleHideExcluded,
@@ -269,7 +272,7 @@ export function MapView({
         dashArray: poi.is_routed ? undefined : "2 6",
       }).addTo(layer);
 
-      const marker = L.marker([poi.lat, poi.lon], { icon: poiDivIcon(poi, excluded) })
+      const marker = L.marker([poi.lat, poi.lon], { icon: poiDivIcon(poi, excluded, typeOverrides[poi.id] ?? poi.category_id) })
         .bindPopup(
           `<b>${poi.name ?? poi.category_id}</b><br>${t("map.popupDistance", { distance: Math.round(poi.distance_to_route_m) })}`,
         )
@@ -277,7 +280,7 @@ export function MapView({
         .addTo(layer);
       markersRef.current.set(poi.id, marker);
     }
-  }, [pois, excludedIds, hideExcluded, i18n.language, t]);
+  }, [pois, excludedIds, hideExcluded, typeOverrides, i18n.language, t]);
 
   // The waypoints the file came with, drawn apart from the found points (a
   // flag in a light square) so they read as reference marks, not results.
@@ -287,14 +290,17 @@ export function MapView({
     layer.clearLayers();
     waypointMarkersRef.current.clear();
     for (const waypoint of waypoints) {
-      const label = waypoint.name ?? t("map.waypoint");
+      const excluded = excludedIds?.has(waypoint.id) ?? false;
+      if (excluded && hideExcluded) continue;
+      const typeId = typeOverrides[waypoint.id] ?? WAYPOINT_TYPE.id;
+      const label = waypoint.name ?? t(`categories.${typeId}`);
       const popup = `<b>${label}</b>${waypoint.description ? `<br>${waypoint.description}` : ""}`;
-      const marker = L.marker([waypoint.lat, waypoint.lon], { icon: waypointDivIcon(), zIndexOffset: 500 })
+      const marker = L.marker([waypoint.lat, waypoint.lon], { icon: waypointDivIcon(typeId, excluded), zIndexOffset: 500 })
         .bindPopup(popup)
         .addTo(layer);
       waypointMarkersRef.current.set(waypoint.id, marker);
     }
-  }, [waypoints, i18n.language, t]);
+  }, [waypoints, excludedIds, hideExcluded, typeOverrides, i18n.language, t]);
 
   // Mirrors the hovered list card and the clicked-and-selected one on the
   // map, each with its own look: a hover follows the mouse, a selection stays

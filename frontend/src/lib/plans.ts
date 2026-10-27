@@ -19,6 +19,7 @@ export interface LoadedPlan {
   pois: Poi[];
   excluded_poi_ids: string[];
   hide_excluded: boolean;
+  type_overrides: Record<string, string>;
   route: { id: string; name: string; gpx: string };
 }
 
@@ -29,6 +30,7 @@ export interface PlanInput {
   pois: Poi[];
   excludedPoiIds: string[];
   hideExcluded: boolean;
+  typeOverrides: Record<string, string>;
 }
 
 function client() {
@@ -53,7 +55,7 @@ export async function listPlans(): Promise<PlanSummary[]> {
 export async function loadPlan(id: string): Promise<LoadedPlan> {
   const { data, error } = await client()
     .from("plans")
-    .select("id, name, category_ids, radius_m, pois, excluded_poi_ids, hide_excluded, routes(id, name, gpx)")
+    .select("id, name, category_ids, radius_m, pois, excluded_poi_ids, hide_excluded, type_overrides, routes(id, name, gpx)")
     .eq("id", id)
     .single();
   if (error) throw error;
@@ -100,6 +102,7 @@ export async function createPlan(
       poi_count: input.pois.length,
       excluded_poi_ids: input.excludedPoiIds,
       hide_excluded: input.hideExcluded,
+      type_overrides: input.typeOverrides,
     })
     .select("id")
     .single();
@@ -118,6 +121,7 @@ export async function updatePlan(id: string, input: PlanInput): Promise<void> {
       poi_count: input.pois.length,
       excluded_poi_ids: input.excludedPoiIds,
       hide_excluded: input.hideExcluded,
+      type_overrides: input.typeOverrides,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id);
