@@ -221,7 +221,8 @@ async def export(
     # The file's own waypoints keep the ids the frontend shows them under
     # ("wpt:<n>"), so the rider's choices on them (unticked, re-typed) apply here.
     excluded = set(excluded_poi_ids)
-    apply_waypoint_types(existing_waypoints, _parse_type_overrides(type_overrides))
+    profile = device_profile(device_make if device_make in DEVICE_MAKES else None, device_model)
+    apply_waypoint_types(existing_waypoints, _parse_type_overrides(type_overrides), profile)
     existing_waypoints = [wp for i, wp in enumerate(existing_waypoints) if f"wpt:{i}" not in excluded]
 
     if pois is not None:
@@ -243,8 +244,7 @@ async def export(
     # gets applied, using the same "osm_type:osm_id" ids /api/analyze returns.
     ranked = [r for r in ranked if _poi_id(r.poi) not in excluded]
 
-    profile = device_profile(device_make if device_make in DEVICE_MAKES else None, device_model)
-    xml = build_gpx(ranked, segments_for_device(segments, profile), existing_waypoints, existing_nsmap)
+    xml = build_gpx(ranked, segments_for_device(segments, profile), existing_waypoints, existing_nsmap, profile)
     return Response(
         content=xml,
         media_type="application/gpx+xml",

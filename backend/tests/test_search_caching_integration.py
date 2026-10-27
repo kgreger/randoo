@@ -401,3 +401,70 @@ def test_export_keeps_the_segments_for_other_makes_or_no_device(client):
 
 def test_export_ignores_an_unknown_device_make(client):
     assert _export_with_device(client, device_make="unknown").count("<trkseg>") == 3
+
+
+def _poi_payload(category_id, osm_id):
+    return {
+        "id": f"node:{osm_id}",
+        "osm_id": osm_id,
+        "osm_type": "node",
+        "lat": 48.004,
+        "lon": 8.003,
+        "category_id": category_id,
+        "name": f"Point {osm_id}",
+        "distance_to_route_m": 42.0,
+        "meeting_point": [48.003, 8.003],
+    }
+
+
+def test_export_for_garmin_writes_the_course_point_type_of_each_category(client):
+    expected = {
+        "water": "water",
+        "fuel": "service",
+        "bike_shop": "gear",
+        "lodging": "shelter",
+        "hut": "shelter",
+        "food": "food",
+        "rest": "rest_area",
+        "control": "checkpoint",
+    }
+    points = [_poi_payload(category, i) for i, category in enumerate(expected)]
+    response = client.post(
+        "/api/export",
+        files={"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")},
+        data={"pois": json.dumps(points), "device_make": "garmin", "device_model": "edge_850"},
+    )
+    body = response.content.decode()
+    for i, (category, garmin_type) in enumerate(expected.items()):
+        point = body[body.index(f"<name>Point {i}</name>") :]
+        point = point[: point.index("</wpt>")]
+        assert f"<type>{garmin_type}</type>" in point, category
+    # the turnoff markers carry it too
+    assert body.count("<type>checkpoint</type>") == 2
+
+
+def test_export_for_garmin_retypes_a_file_waypoint_with_the_garmin_control_type(client):
+    response = client.post(
+        "/api/export",
+        files={"file": ("route.gpx", GPX_WITH_TWO_CONTROLS, "application/gpx+xml")},
+        data={"pois": "[]", "type_overrides": json.dumps({"wpt:1": "control"}), "device_make": "garmin"},
+    )
+    body = response.content.decode()
+    cp2 = body[body.index("CP2") - 80 : body.index("CP2") + 120]
+    assert "<type>checkpoint</type>" in cp2
+    assert "<sym>Flag, Red</sym>" in cp2
+    assert "<type>Control</type>" not in body
+
+
+def test_export_for_other_devices_writes_only_the_control_type(client):
+    points = [_poi_payload("water", 1), _poi_payload("control", 2)]
+    for device in ({}, {"device_make": "wahoo"}):
+        response = client.post(
+            "/api/export",
+            files={"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")},
+            data={"pois": json.dumps(points), **device},
+        )
+        body = response.content.decode()
+        assert body.count("<type>Control</type>") == 2
+        assert "<type>water</type>" not in body
+        assert "<type>checkpoint</type>" not in body

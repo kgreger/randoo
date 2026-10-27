@@ -28,14 +28,18 @@ proximity-alert concept of its own:
   faced with a foreign `<extensions>` element: no code path in this file
   breaks output for non-Garmin devices.
 
-Everything here is inferred from Garmin's public GPX Extensions v3 schema and
+For a rider on a Garmin, the file also carries `<type>` with the FIT course
+point type name (see GARMIN_POINT_TYPES): that is what Garmin Connect reads
+to give an imported waypoint its course point type, tested with an import.
+
+Everything else here is inferred from Garmin's public GPX Extensions v3 schema and
 GPX files it's known to produce, not verified against a real device or
 Garmin Connect import. If the on-device alert doesn't fire, this is the
 first place to check.
 """
 
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import gpxpy
 import gpxpy.gpx
@@ -74,6 +78,22 @@ GARMIN_SYMBOLS: dict[str, str] = {
 # id -> the <type> written into the file. Anything else is ignored.
 WAYPOINT_TYPES: dict[str, str] = {"control": "Control"}
 
+# What Garmin Connect makes of a waypoint's <type> when a course is imported:
+# it reads the FIT course point type by name (case does not matter) and ignores
+# <sym>; anything else stays a general point. Randoo category (or hand-assigned
+# type) id -> that name. Only types Ride with GPS also writes, which Garmin
+# devices are known to show.
+GARMIN_POINT_TYPES: dict[str, str] = {
+    "water": "water",
+    "fuel": "service",
+    "bike_shop": "gear",
+    "lodging": "shelter",
+    "hut": "shelter",
+    "food": "food",
+    "rest": "rest_area",
+    "control": "checkpoint",
+}
+
 
 # The device makes a rider can choose in their profile (see the frontend's
 # lib/devices.ts); anything else is treated as no choice at all.
@@ -89,13 +109,15 @@ class DeviceProfile:
     # segment of a track as the course and drops the rest, with every waypoint
     # that lies beyond it.
     merge_segments: bool = False
+    # Randoo type id -> the <type> written for it. Ids missing here get none.
+    point_types: dict[str, str] = field(default_factory=lambda: dict(WAYPOINT_TYPES))
 
 
 def device_profile(make: str | None, model: str | None) -> DeviceProfile:
     """The profile for a make and model as the frontend sends them. The model
     is accepted for models that will need their own adjustments later."""
     if make == "garmin":
-        return DeviceProfile(merge_segments=True)
+        return DeviceProfile(merge_segments=True, point_types=dict(GARMIN_POINT_TYPES))
     return DeviceProfile()
 
 
@@ -112,15 +134,18 @@ def segments_for_device(segments: list[list[Point]], profile: DeviceProfile) -> 
     return [joined]
 
 
-def apply_waypoint_types(waypoints: list[gpxpy.gpx.GPXWaypoint], overrides: dict[str, str]) -> None:
+def apply_waypoint_types(
+    waypoints: list[gpxpy.gpx.GPXWaypoint],
+    overrides: dict[str, str],
+    profile: DeviceProfile = DeviceProfile(),
+) -> None:
     """Re-types the file's own waypoints in place. The ids are "wpt:<n>", n
     counting the file's waypoints in order (see gpx.parse_existing_waypoints)."""
     for index, waypoint in enumerate(waypoints):
         type_id = overrides.get(f"wpt:{index}")
         if type_id in WAYPOINT_TYPES:
-            waypoint.type = WAYPOINT_TYPES[type_id]
+            waypoint.type = profile.point_types.get(type_id)
             waypoint.symbol = GARMIN_SYMBOLS[type_id]
-
 
 
 def build_gpx(
@@ -128,6 +153,7 @@ def build_gpx(
     segments: list[list[Point]],
     existing_waypoints: list[gpxpy.gpx.GPXWaypoint] | None = None,
     existing_nsmap: dict[str, str] | None = None,
+    profile: DeviceProfile = DeviceProfile(),
 ) -> str:
     """The route as a track, the waypoints the uploaded file already had
     (unchanged, first), then Randoo's own POI waypoints."""
@@ -147,13 +173,13 @@ def build_gpx(
     gpx.waypoints.extend(existing_waypoints or [])
 
     for ranked in ranked_pois:
-        gpx.waypoints.append(_poi_waypoint(ranked))
-        gpx.waypoints.append(_turnoff_waypoint(ranked))
+        gpx.waypoints.append(_poi_waypoint(ranked, profile))
+        gpx.waypoints.append(_turnoff_waypoint(ranked, profile))
 
     return gpx.to_xml()
 
 
-def _poi_waypoint(ranked: RankedPoi) -> gpxpy.gpx.GPXWaypoint:
+def _poi_waypoint(ranked: RankedPoi, profile: DeviceProfile) -> gpxpy.gpx.GPXWaypoint:
     poi = ranked.poi
     wpt = gpxpy.gpx.GPXWaypoint(
         latitude=poi.lat,
@@ -161,14 +187,14 @@ def _poi_waypoint(ranked: RankedPoi) -> gpxpy.gpx.GPXWaypoint:
         name=poi.name or poi.category_id,
         comment=f"{poi.category_id}, {round(ranked.distance_to_route_m)} m from route",
         symbol=GARMIN_SYMBOLS.get(poi.category_id),
-        type=WAYPOINT_TYPES.get(poi.category_id),
+        type=profile.point_types.get(poi.category_id),
     )
     wpt.source = RANDOO_SOURCE
     wpt.extensions.append(_garmin_proximity_extension(GARMIN_PROXIMITY_M))
     return wpt
 
 
-def _turnoff_waypoint(ranked: RankedPoi) -> gpxpy.gpx.GPXWaypoint:
+def _turnoff_waypoint(ranked: RankedPoi, profile: DeviceProfile) -> gpxpy.gpx.GPXWaypoint:
     """A synthetic marker sitting on the route (or, for a premium search,
     along the real routed path to the POI) at the point closest to the real
     POI. See the module docstring for why this exists."""
@@ -180,7 +206,7 @@ def _turnoff_waypoint(ranked: RankedPoi) -> gpxpy.gpx.GPXWaypoint:
         name=f"{poi.name or poi.category_id} (turnoff)",
         comment=f"{poi.category_id}, actual spot {round(ranked.distance_to_route_m)} m off-route here",
         symbol=GARMIN_SYMBOLS.get(poi.category_id),
-        type=WAYPOINT_TYPES.get(poi.category_id),
+        type=profile.point_types.get(poi.category_id),
     )
     wpt.source = RANDOO_SOURCE
     wpt.extensions.append(_garmin_proximity_extension(GARMIN_PROXIMITY_M))
