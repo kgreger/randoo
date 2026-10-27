@@ -123,6 +123,7 @@ def _poi_waypoint(ranked: RankedPoi) -> gpxpy.gpx.GPXWaypoint:
         name=poi.name or poi.category_id,
         comment=f"{poi.category_id}, {round(ranked.distance_to_route_m)} m from route",
         symbol=GARMIN_SYMBOLS.get(poi.category_id),
+        type=WAYPOINT_TYPES.get(poi.category_id),
     )
     wpt.source = RANDOO_SOURCE
     wpt.extensions.append(_garmin_proximity_extension(GARMIN_PROXIMITY_M))
@@ -141,6 +142,7 @@ def _turnoff_waypoint(ranked: RankedPoi) -> gpxpy.gpx.GPXWaypoint:
         name=f"{poi.name or poi.category_id} (turnoff)",
         comment=f"{poi.category_id}, actual spot {round(ranked.distance_to_route_m)} m off-route here",
         symbol=GARMIN_SYMBOLS.get(poi.category_id),
+        type=WAYPOINT_TYPES.get(poi.category_id),
     )
     wpt.source = RANDOO_SOURCE
     wpt.extensions.append(_garmin_proximity_extension(GARMIN_PROXIMITY_M))

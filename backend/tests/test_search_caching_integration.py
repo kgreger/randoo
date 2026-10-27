@@ -354,3 +354,4 @@ def test_export_writes_a_retyped_found_point_with_the_control_symbol(client):
         data={"pois": json.dumps([point])},
     )
     assert response.content.decode().count("<sym>Flag, Red</sym>") == 2  # the point and its turnoff marker
+    assert response.content.decode().count("<type>Control</type>") == 2
