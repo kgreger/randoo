@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 import duckdb
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 from pydantic import TypeAdapter, ValidationError
 
 from . import categories, geometry, gpx, poi_filter, search_cache
@@ -18,6 +18,7 @@ from .export import (
     WAYPOINT_TYPES,
     apply_waypoint_types,
     build_gpx,
+    course_point_count,
     device_profile,
     segments_for_device,
 )
@@ -212,6 +213,7 @@ async def export(
     device_make: str | None = Form(default=None),
     device_model: str | None = Form(default=None),
     excluded_poi_ids: list[str] = Form(default=[]),
+    ignore_point_limit: bool = Form(default=False),
     _user: dict = Depends(require_user),
     token: str | None = Depends(bearer_token),
 ) -> Response:
@@ -243,6 +245,15 @@ async def export(
     # the file - excluded_poi_ids is how the frontend's per-POI selection
     # gets applied, using the same "osm_type:osm_id" ids /api/analyze returns.
     ranked = [r for r in ranked if _poi_id(r.poi) not in excluded]
+
+    limit = profile.max_course_points
+    if limit is not None and not ignore_point_limit:
+        course_points = course_point_count(ranked, existing_waypoints, profile)
+        if course_points > limit:
+            return JSONResponse(
+                status_code=409,
+                content={"code": "too_many_course_points", "course_points": course_points, "limit": limit},
+            )
 
     xml = build_gpx(ranked, segments_for_device(segments, profile), existing_waypoints, existing_nsmap, profile)
     return Response(

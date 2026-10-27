@@ -166,6 +166,12 @@
     "textFree": "Everything currently shown is gone, including your selection of points. Choose another route anyway?",
     "hintFree": "With a Premium account you can save results as plans, keep several per route and open them again later. Choosing the same file again keeps everything as it is."
   },
+  "pointLimit": {
+    "text": "This route has {{count}} course points. Garmin Connect takes about {{limit}} reliably, with more the import sometimes never finishes.",
+    "hint": "Choose fewer points (categories, radius, untick single points) or export as one file anyway.",
+    "confirm": "Export as one file anyway",
+    "cancel": "Cancel"
+  },
   "typeChange": {
     "text": "The found point “{{name}}” ({{from}}) becomes a {{to}}.",
     "hint": "This applies in the list, on the map, in the export and in saved plans. You can set it back to its original type at any time.",

@@ -547,3 +547,46 @@ def test_export_for_garmin_keeps_the_turnoff_marker_from_the_snap_distance_on(cl
 def test_export_for_other_devices_always_writes_the_turnoff_marker(client):
     for device in ({}, {"device_make": "wahoo"}):
         assert _export_one_point(client, 5.0, **device).count("<wpt ") == 2
+
+
+def _export_many_points(client, count, distance_m, **data):
+    points = [{**_poi_payload("rest", i), "distance_to_route_m": distance_m} for i in range(count)]
+    return client.post(
+        "/api/export",
+        files={"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")},
+        data={"pois": json.dumps(points), "device_make": "garmin", **data},
+    )
+
+
+def test_export_for_garmin_accepts_exactly_the_most_course_points(client):
+    assert _export_many_points(client, 700, 20.0).status_code == 200
+
+
+def test_export_for_garmin_asks_before_going_over_the_most_course_points(client):
+    response = _export_many_points(client, 701, 20.0)
+    assert response.status_code == 409
+    assert response.json() == {"code": "too_many_course_points", "course_points": 701, "limit": 700}
+
+
+def test_export_for_garmin_counts_a_turnoff_marker_as_a_course_point(client):
+    assert _export_many_points(client, 350, 36.0).status_code == 200
+    assert _export_many_points(client, 351, 36.0).json()["course_points"] == 702
+
+
+def test_export_for_garmin_counts_only_the_turnoff_marker_of_a_point_far_off_the_route(client):
+    assert _export_many_points(client, 700, 60.0).status_code == 200
+    assert _export_many_points(client, 701, 60.0).json()["course_points"] == 701
+
+
+def test_export_for_garmin_goes_over_the_most_course_points_when_told_to(client):
+    assert _export_many_points(client, 701, 20.0, ignore_point_limit="true").status_code == 200
+
+
+def test_export_for_other_devices_has_no_course_point_limit(client):
+    points = [{**_poi_payload("rest", i), "distance_to_route_m": 20.0} for i in range(701)]
+    response = client.post(
+        "/api/export",
+        files={"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")},
+        data={"pois": json.dumps(points), "device_make": "wahoo"},
+    )
+    assert response.status_code == 200
