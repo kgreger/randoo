@@ -282,6 +282,7 @@ export default function App() {
   }
 
   function focusWaypoint(waypoint: RouteWaypoint) {
+    setSelectedPoiId(waypoint.id);
     setFocusRequest((prev) => ({ id: waypoint.id, lat: waypoint.lat, lon: waypoint.lon, nonce: (prev?.nonce ?? 0) + 1 }));
     if (isStackedLayout()) mapPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -769,6 +770,7 @@ export default function App() {
             hoveredId={hoveredPoiId}
             selectedId={selectedPoiId}
             onSelectPoi={(poi) => setSelectedPoiId(poi.id)}
+            onSelectWaypoint={(waypoint) => setSelectedPoiId(waypoint.id)}
           />
         </div>
 

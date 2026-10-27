@@ -1172,53 +1172,94 @@ button {
   background: var(--surface-strong);
 }
 
-/* Points that are not search results come as rings, like the start and finish
-   of the logo: a light ring for a plain waypoint of the file, an amber one for
-   a control point. Found points stay filled coral. Same look for a found point
-   the rider gave a type by hand. */
+/* Points that are not search results use the same language as found points:
+   a filled dot with a dark glyph and a dark outline. A plain waypoint of the
+   file is a quiet lilac-grey one, a control point is amber and a little
+   larger; found points are coral. The look follows the effective type, so a
+   found point given the control type looks like any control point. */
 .waypoint-marker-dot {
   box-sizing: border-box;
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #241a30;
-  border: 2px solid var(--ink);
-  color: var(--ink);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  background: var(--ink-muted);
+  border: 2px solid #241a30;
+  color: #241a30;
   transition: transform 0.15s ease;
 }
 
-.waypoint-marker.excluded .waypoint-marker-dot {
-  opacity: 0.4;
+.waypoint-marker.excluded .waypoint-marker-dot,
+.poi-marker.type-control.excluded .poi-marker-dot {
+  background: transparent;
   border-style: dashed;
+  opacity: 0.55;
 }
 
 .waypoint-marker.type-control .waypoint-marker-dot,
 .poi-marker.type-control .poi-marker-dot {
-  width: 24px;
-  height: 24px;
-  background: #241a30;
-  border: 2.5px solid var(--accent-2);
-  color: var(--accent-2);
-  box-shadow:
-    0 0 0 3px rgba(255, 189, 107, 0.22),
-    0 2px 8px rgba(0, 0, 0, 0.5);
+  width: 22px;
+  height: 22px;
+  background: var(--accent-2);
+  border: 2px solid #241a30;
+  color: #241a30;
+  box-shadow: 0 0 0 3px rgba(255, 189, 107, 0.25);
 }
 
-.poi-card .badge-type-waypoint,
-.poi-card .badge-type-control {
-  background: transparent;
-  border: 1.5px solid var(--ink-muted);
+/* Hover and selection work like for found points. */
+.waypoint-marker.hovered .waypoint-marker-dot {
+  transform: scale(1.3);
+  box-shadow: 0 0 0 4px rgba(198, 188, 206, 0.3);
+}
+
+.waypoint-marker.type-control.hovered .waypoint-marker-dot {
+  box-shadow: 0 0 0 4px rgba(255, 189, 107, 0.35);
+}
+
+.waypoint-marker.selected {
+  z-index: 1000 !important;
+}
+
+.waypoint-marker.selected .waypoint-marker-dot {
+  transform: scale(1.6);
+  box-shadow:
+    0 0 0 2px #f7f1ef,
+    0 0 0 7px rgba(198, 188, 206, 0.45);
+}
+
+.waypoint-marker.type-control.selected .waypoint-marker-dot,
+.poi-marker.type-control.selected .poi-marker-dot {
+  box-shadow:
+    0 0 0 2px #f7f1ef,
+    0 0 0 7px rgba(255, 189, 107, 0.5);
+}
+
+.poi-marker.type-control.hovered .poi-marker-dot {
+  box-shadow: 0 0 0 4px rgba(255, 189, 107, 0.35);
+}
+
+/* List symbols: found points show a coral glyph on the subtle fill, the others
+   the same with their own colour. */
+.poi-card .badge-type-waypoint {
+  background: rgba(198, 188, 206, 0.14);
   color: var(--ink-muted);
 }
 
 .poi-card .badge-type-control {
-  background: rgba(255, 189, 107, 0.12);
-  border-color: var(--accent-2);
+  background: rgba(255, 189, 107, 0.14);
   color: var(--accent-2);
+}
+
+.poi-card.selected .badge-type-waypoint {
+  background: var(--ink-muted);
+  color: var(--accent-ink);
+}
+
+.poi-card.selected .badge-type-control {
+  background: linear-gradient(135deg, var(--accent-2), #ffd9a0);
+  color: var(--accent-ink);
 }
 
 .poi-card-check-wrap {

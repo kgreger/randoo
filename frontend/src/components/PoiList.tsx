@@ -169,9 +169,12 @@ export function PoiList({
               <Fragment key={waypoint.id}>
                 {gap}
                 <div
-                  className={`poi-card waypoint-card ${waypointExcluded ? "excluded" : ""}`}
+                  className={`poi-card waypoint-card ${waypointExcluded ? "excluded" : ""} ${waypoint.id === selectedId ? "selected" : ""}`}
                   data-waypoint-id={waypoint.id}
+                  data-poi-id={waypoint.id}
                   onClick={() => onFocusWaypoint(waypoint)}
+                  onMouseEnter={() => onHoverPoi(waypoint.id)}
+                  onMouseLeave={() => onHoverPoi(null)}
                 >
                   <label className="poi-card-check-wrap" onClick={(e) => e.stopPropagation()}>
                     <input

@@ -40,6 +40,7 @@ interface Props {
   hoveredId?: string | null;
   selectedId?: string | null;
   onSelectPoi?: (poi: Poi) => void;
+  onSelectWaypoint?: (waypoint: RouteWaypoint) => void;
 }
 
 function poiDivIcon(poi: Poi, excluded: boolean, typeId: string): L.DivIcon {
@@ -85,6 +86,7 @@ export function MapView({
   hoveredId,
   selectedId,
   onSelectPoi,
+  onSelectWaypoint,
 }: Props) {
   const { t, i18n } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -114,6 +116,8 @@ export function MapView({
   // themselves change, not on every render a new inline callback comes in.
   const onSelectPoiRef = useRef(onSelectPoi);
   onSelectPoiRef.current = onSelectPoi;
+  const onSelectWaypointRef = useRef(onSelectWaypoint);
+  onSelectWaypointRef.current = onSelectWaypoint;
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -297,6 +301,7 @@ export function MapView({
       const popup = `<b>${label}</b>${waypoint.description ? `<br>${waypoint.description}` : ""}`;
       const marker = L.marker([waypoint.lat, waypoint.lon], { icon: waypointDivIcon(typeId, excluded), zIndexOffset: 500 })
         .bindPopup(popup)
+        .on("click", () => onSelectWaypointRef.current?.(waypoint))
         .addTo(layer);
       waypointMarkersRef.current.set(waypoint.id, marker);
     }
@@ -306,12 +311,14 @@ export function MapView({
   // map, each with its own look: a hover follows the mouse, a selection stays
   // picked out until another point is chosen.
   useEffect(() => {
-    for (const [id, marker] of markersRef.current) {
-      const element = marker.getElement();
-      element?.classList.toggle("hovered", id === hoveredId);
-      element?.classList.toggle("selected", id === selectedId);
+    for (const markers of [markersRef.current, waypointMarkersRef.current]) {
+      for (const [id, marker] of markers) {
+        const element = marker.getElement();
+        element?.classList.toggle("hovered", id === hoveredId);
+        element?.classList.toggle("selected", id === selectedId);
+      }
     }
-  }, [hoveredId, selectedId, pois]);
+  }, [hoveredId, selectedId, pois, waypoints, excludedIds, hideExcluded, typeOverrides]);
 
   useEffect(() => {
     const map = mapRef.current;
