@@ -13,6 +13,9 @@ written out twice:
   presumably because it tries to snap waypoints onto the course and gives up
   past some tolerance. Sitting exactly on the track, the turnoff marker is
   never far enough away to hit that cutoff, whatever it actually is.
+  For Garmin the marker is left out where it would add nothing: a point at
+  most about 35 m from the track (GARMIN_SNAP_DISTANCE_M) is placed on the
+  course by Garmin Connect itself.
 
 Waypoints carry two things aimed specifically at Garmin devices, since
 that's the most common target and the GPX 1.1 base schema has no
@@ -77,6 +80,10 @@ GARMIN_SYMBOLS: dict[str, str] = {
 # Garmin Connect keeps only the first 15 characters of a course point's name.
 GARMIN_NAME_LIMIT = 15
 GARMIN_TURNOFF_PREFIX = "> "
+# Garmin Connect turns a waypoint into a course point on the course itself when
+# it lies within about this distance of the track, so a turnoff marker beside
+# such a point adds nothing but a second course point.
+GARMIN_SNAP_DISTANCE_M = 35.0
 
 # Types a rider can give to a point by hand, as the frontend sends them:
 # id -> the <type> written into the file. Anything else is ignored.
@@ -122,6 +129,9 @@ class DeviceProfile:
     # When set, a turnoff marker is named "<prefix><name>" instead of
     # "<name> (turnoff)", so the mark survives a short name limit.
     turnoff_prefix: str | None = None
+    # A point at most this far from the route gets no turnoff marker, the
+    # device places it on the route itself.
+    skip_turnoff_within_m: float | None = None
 
 
 def device_profile(make: str | None, model: str | None) -> DeviceProfile:
@@ -133,6 +143,7 @@ def device_profile(make: str | None, model: str | None) -> DeviceProfile:
             point_types=dict(GARMIN_POINT_TYPES),
             name_limit=GARMIN_NAME_LIMIT,
             turnoff_prefix=GARMIN_TURNOFF_PREFIX,
+            skip_turnoff_within_m=GARMIN_SNAP_DISTANCE_M,
         )
     return DeviceProfile()
 
@@ -205,7 +216,8 @@ def build_gpx(
 
     for ranked in ranked_pois:
         gpx.waypoints.append(_poi_waypoint(ranked, profile))
-        gpx.waypoints.append(_turnoff_waypoint(ranked, profile))
+        if not _needs_no_turnoff(ranked, profile):
+            gpx.waypoints.append(_turnoff_waypoint(ranked, profile))
 
     return gpx.to_xml()
 
@@ -228,6 +240,11 @@ def _poi_waypoint(ranked: RankedPoi, profile: DeviceProfile) -> gpxpy.gpx.GPXWay
     wpt.source = RANDOO_SOURCE
     wpt.extensions.append(_garmin_proximity_extension(GARMIN_PROXIMITY_M))
     return wpt
+
+
+def _needs_no_turnoff(ranked: RankedPoi, profile: DeviceProfile) -> bool:
+    limit = profile.skip_turnoff_within_m
+    return limit is not None and ranked.distance_to_route_m <= limit
 
 
 def _turnoff_waypoint(ranked: RankedPoi, profile: DeviceProfile) -> gpxpy.gpx.GPXWaypoint:

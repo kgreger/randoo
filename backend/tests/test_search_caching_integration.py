@@ -519,3 +519,31 @@ def test_export_for_other_devices_writes_only_the_control_type(client):
         assert body.count("<type>Control</type>") == 2
         assert "<type>water</type>" not in body
         assert "<type>checkpoint</type>" not in body
+
+
+def _export_one_point(client, distance_m, **device):
+    point = {**_poi_payload("food", 1), "name": "Friterie", "distance_to_route_m": distance_m}
+    response = client.post(
+        "/api/export",
+        files={"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")},
+        data={"pois": json.dumps([point]), **device},
+    )
+    assert response.status_code == 200
+    return response.content.decode()
+
+
+def test_export_for_garmin_leaves_out_the_turnoff_marker_of_a_point_near_the_route(client):
+    body = _export_one_point(client, 20.0, device_make="garmin")
+    assert body.count("<wpt ") == 1
+    assert "<name>Friterie</name>" in body
+    assert "&gt; Friterie" not in body
+
+
+def test_export_for_garmin_keeps_the_turnoff_marker_from_the_snap_distance_on(client):
+    assert _export_one_point(client, 35.0, device_make="garmin").count("<wpt ") == 1
+    assert _export_one_point(client, 35.5, device_make="garmin").count("<wpt ") == 2
+
+
+def test_export_for_other_devices_always_writes_the_turnoff_marker(client):
+    for device in ({}, {"device_make": "wahoo"}):
+        assert _export_one_point(client, 5.0, **device).count("<wpt ") == 2
