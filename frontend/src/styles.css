@@ -1262,9 +1262,11 @@ button {
   color: var(--accent-ink);
 }
 
+/* The checkbox column is 23px wide (16px box plus its margins); rows without a
+   checkbox keep an empty column of the same width so the symbols line up. */
 .poi-card-check-spacer {
   flex: none;
-  width: 16px;
+  width: 23px;
 }
 
 .poi-card-check-wrap {
@@ -1277,6 +1279,7 @@ button {
   flex: none;
   width: 16px;
   height: 16px;
+  margin: 0 3px 0 4px;
   accent-color: var(--accent);
   cursor: pointer;
 }

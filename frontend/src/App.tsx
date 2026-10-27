@@ -52,7 +52,7 @@ const ROUTE_END_TOLERANCE_M = 100;
 function routeEndPoints(
   route: LatLon[][],
   waypoints: RouteWaypoint[],
-  labels: { start: string; end: string; startEnd: string },
+  labels: { start: string; end: string },
 ): RouteWaypoint[] {
   const segments = route.filter((segment) => segment.length > 1);
   if (segments.length === 0) return [];
@@ -70,11 +70,10 @@ function routeEndPoints(
     fixedType: "control",
   });
 
+  // A loop starts and ends in the same place and still gets both points.
   const points: RouteWaypoint[] = [];
-  // A loop starts and ends in the same place: one point for both.
-  const isLoop = haversineM(start, end) <= ROUTE_END_TOLERANCE_M;
-  if (!covered(start)) points.push(make("route:start", isLoop ? labels.startEnd : labels.start, start));
-  if (!isLoop && !covered(end)) points.push(make("route:end", labels.end, end));
+  if (!covered(start)) points.push(make("route:start", labels.start, start));
+  if (!covered(end)) points.push(make("route:end", labels.end, end));
   return points;
 }
 
@@ -525,7 +524,6 @@ export default function App() {
   const routeEnds = routeEndPoints(route, waypoints, {
     start: t("route.start"),
     end: t("route.end"),
-    startEnd: t("route.startEnd"),
   });
   const shownWaypoints = [...routeEnds, ...waypoints];
 

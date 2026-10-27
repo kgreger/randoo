@@ -173,7 +173,6 @@
   },
   "route": {
     "start": "Start of the route",
-    "end": "End of the route",
-    "startEnd": "Start and end of the route"
+    "end": "End of the route"
   }
 }

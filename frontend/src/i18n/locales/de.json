@@ -173,7 +173,6 @@
   },
   "route": {
     "start": "Start der Strecke",
-    "end": "Ende der Strecke",
-    "startEnd": "Start und Ende der Strecke"
+    "end": "Ende der Strecke"
   }
 }
