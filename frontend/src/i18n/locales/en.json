@@ -174,5 +174,15 @@
   "route": {
     "start": "Start of the route",
     "end": "End of the route"
+  },
+  "device": {
+    "label": "Device",
+    "make": "Manufacturer",
+    "model": "Model",
+    "notSet": "Not specified",
+    "other": "Other",
+    "saved": "Device saved.",
+    "error": "The device could not be saved.",
+    "hint": "Used to shape the exported file for your device."
   }
 }

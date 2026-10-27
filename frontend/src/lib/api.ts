@@ -65,6 +65,7 @@ export async function exportGpx(
   accessToken: string,
   excludedPoiIds: string[] = [],
   typeOverrides: Record<string, string> = {},
+  device: { make: string; model: string } | null = null,
 ): Promise<Blob> {
   const form = new FormData();
   form.append("file", file);
@@ -87,6 +88,11 @@ export async function exportGpx(
   );
   excludedPoiIds.forEach((id) => form.append("excluded_poi_ids", id));
   form.append("type_overrides", JSON.stringify(typeOverrides));
+  // The rider's device, so the backend can shape the file for it.
+  if (device?.make) {
+    form.append("device_make", device.make);
+    if (device.model) form.append("device_model", device.model);
+  }
 
   const response = await fetch(`${API_URL}/api/export`, {
     method: "POST",
