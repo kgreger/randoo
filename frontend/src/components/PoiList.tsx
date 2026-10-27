@@ -1,14 +1,30 @@
-import { Fragment, useEffect, useRef } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { Check, Eye, EyeOff, Pencil } from "lucide-react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import type { Poi } from "../lib/api";
-import { categoryById } from "../lib/categories";
+import type { RouteWaypoint } from "../lib/gpxPreview";
+import { ASSIGNABLE_TYPES, WAYPOINT_TYPE, pointTypeById } from "../lib/categories";
 import { isStackedLayout } from "../lib/layout";
+
+export type WaypointOnRoute = RouteWaypoint & { alongM: number; offM: number };
+
+type Row =
+  | { kind: "poi"; poi: Poi; along: number }
+  | { kind: "waypoint"; waypoint: WaypointOnRoute; along: number };
 
 interface Props {
   pois: Poi[];
+  // Waypoints the loaded file already had, listed among the found points in
+  // route order as reference marks.
+  waypoints: WaypointOnRoute[];
+  onFocusWaypoint: (waypoint: WaypointOnRoute) => void;
   radiusM: number;
+  // Types given by hand, by point or waypoint id, and the way to change them
+  // (null restores the original type).
+  typeOverrides: Record<string, string>;
+  onChangeType: (id: string, typeId: string | null) => void;
   excludedIds: Set<string>;
   hideExcluded: boolean;
   onToggleHideExcluded: () => void;
@@ -49,7 +65,11 @@ function gapHeightPx(gapM: number): number {
 
 export function PoiList({
   pois,
+  waypoints,
+  onFocusWaypoint,
   radiusM,
+  typeOverrides,
+  onChangeType,
   excludedIds,
   hideExcluded,
   onToggleHideExcluded,
@@ -60,11 +80,38 @@ export function PoiList({
 }: Props) {
   const { t } = useTranslation();
   // excludedIds also remembers points that are not in the current results.
-  const includedCount = pois.filter((poi) => !excludedIds.has(poi.id)).length;
+  // The route's own start and end are not part of the selection, so they
+  // are not counted.
+  const selectableWaypoints = waypoints.filter((waypoint) => waypoint.fixedType === undefined);
+  const totalCount = pois.length + selectableWaypoints.length;
+  const includedCount =
+    pois.filter((poi) => !excludedIds.has(poi.id)).length +
+    selectableWaypoints.filter((waypoint) => !excludedIds.has(waypoint.id)).length;
+  const [typeMenu, setTypeMenu] = useState<TypeMenuTarget | null>(null);
+  const closeTypeMenu = useCallback(() => setTypeMenu(null), []);
+  // Found points and file waypoints in route order (the sort is stable, so
+  // the found points keep their own order).
+  const rows: Row[] = [
+    ...pois.map((poi): Row => ({ kind: "poi", poi, along: poi.distance_along_route_m })),
+    ...waypoints.map((waypoint): Row => ({ kind: "waypoint", waypoint, along: waypoint.alongM })),
+  ].sort((a, b) => a.along - b.along);
+
   // Hidden points drop out of the list, and the gaps between the remaining
-  // stops are measured across them.
-  const visiblePois = hideExcluded ? pois.filter((poi) => !excludedIds.has(poi.id)) : pois;
-  const positionInResults = new Map(pois.map((poi, index) => [poi.id, index]));
+  // stops are measured across them, counting what was left out.
+  const view: { row: Row; gapM: number; hiddenBetween: number }[] = [];
+  let previousAlong: number | null = null;
+  let hiddenSince = 0;
+  for (const row of rows) {
+    const id = row.kind === "poi" ? row.poi.id : row.waypoint.id;
+    if (hideExcluded && excludedIds.has(id)) {
+      hiddenSince++;
+      continue;
+    }
+    view.push({ row, gapM: previousAlong === null ? 0 : row.along - previousAlong, hiddenBetween: hiddenSince });
+    previousAlong = row.along;
+    hiddenSince = 0;
+  }
+  const nothingShown = rows.length > 0 && view.length === 0;
   const listRef = useRef<HTMLDivElement>(null);
 
   // Clicking a marker on the map selects it here too (see MapView's
@@ -81,7 +128,7 @@ export function PoiList({
     <div className="side-panel">
       <div className="side-panel-head">
         <h2>{t("poiList.title")}</h2>
-        {pois.length > 0 && (
+        {totalCount > 0 && (
           <div className="side-panel-head-right">
             <button
               className="poi-hide-toggle"
@@ -93,49 +140,98 @@ export function PoiList({
               {hideExcluded ? <EyeOff size={15} strokeWidth={2} aria-hidden="true" /> : <Eye size={15} strokeWidth={2} aria-hidden="true" />}
             </button>
             <span className="count">
-              {includedCount < pois.length
-                ? t("poiList.count", { included: includedCount, total: pois.length })
-                : pois.length}
+              {includedCount < totalCount
+                ? t("poiList.count", { included: includedCount, total: totalCount })
+                : totalCount}
             </span>
           </div>
         )}
       </div>
       <div className="poi-list" ref={listRef}>
-        {pois.length === 0 && <div className="empty-state">{t("poiList.empty")}</div>}
-        {pois.length > 0 && visiblePois.length === 0 && <div className="empty-state">{t("poiList.allHidden")}</div>}
-        {visiblePois.map((poi, index) => {
+        {pois.length === 0 && waypoints.length === 0 && <div className="empty-state">{t("poiList.empty")}</div>}
+        {nothingShown && <div className="empty-state">{t("poiList.allHidden")}</div>}
+        {view.map(({ row, gapM, hiddenBetween }) => {
+          const showGap = gapM >= GAP_THRESHOLD_M;
+          const gapHeight = showGap ? gapHeightPx(gapM) : 0;
+          const gap = showGap && (
+            <div className="poi-gap" style={{ height: `${gapHeight}px` }}>
+              <div className="poi-gap-line" />
+              <span className="poi-gap-label">
+                {formatGap(gapM, t)}
+                {hiddenBetween > 0 && ` (${t("poiList.hiddenBetween", { count: hiddenBetween })})`}
+              </span>
+            </div>
+          );
+
+          if (row.kind === "waypoint") {
+            const { waypoint } = row;
+            const waypointExcluded = excludedIds.has(waypoint.id);
+            // The route's own start and end are not in the file: always a control
+            // point, no checkbox, no menu, and no distance from the start.
+            const fixed = waypoint.fixedType !== undefined;
+            const typeId = typeOverrides[waypoint.id] ?? waypoint.fixedType ?? WAYPOINT_TYPE.id;
+            const typeLabel = t(`categories.${typeId}`);
+            return (
+              <Fragment key={waypoint.id}>
+                {gap}
+                <div
+                  className={`poi-card waypoint-card ${waypointExcluded ? "excluded" : ""} ${waypoint.id === selectedId ? "selected" : ""}`}
+                  data-waypoint-id={waypoint.id}
+                  data-poi-id={waypoint.id}
+                  onClick={() => onFocusWaypoint(waypoint)}
+                  onMouseEnter={() => onHoverPoi(waypoint.id)}
+                  onMouseLeave={() => onHoverPoi(null)}
+                >
+                  {fixed ? (
+                    <span className="poi-card-check-spacer" aria-hidden="true" />
+                  ) : (
+                    <label className="poi-card-check-wrap" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        className="poi-card-check"
+                        checked={!waypointExcluded}
+                        onChange={() => onToggleExcluded(waypoint.id)}
+                      />
+                    </label>
+                  )}
+                  <TypeBadge
+                    editable={!fixed}
+                    typeId={typeId}
+                    label={typeLabel}
+                    onOpen={(rect) =>
+                      setTypeMenu({
+                        rect,
+                        id: waypoint.id,
+                        name: waypoint.name ?? typeLabel,
+                        originalTypeId: WAYPOINT_TYPE.id,
+                        overrideId: typeOverrides[waypoint.id] ?? null,
+                      })
+                    }
+                  />
+                  <div className="poi-card-body">
+                    <div className="name">{waypoint.name ?? typeLabel}</div>
+                    <div className="meta">
+                      {waypoint.id !== "route:start" && `${t("poiList.metaKm", { km: (waypoint.alongM / 1000).toFixed(1) })}, `}
+                      {fixed || waypoint.id in typeOverrides ? typeLabel : t("poiList.waypointFromFile")}
+                    </div>
+                  </div>
+                </div>
+              </Fragment>
+            );
+          }
+
+          const poi = row.poi;
           const excluded = excludedIds.has(poi.id);
-          const cat = categoryById(poi.category_id);
-          const Icon = cat?.icon;
+          const typeId = typeOverrides[poi.id] ?? poi.category_id;
+          const typeLabel = pointTypeById(typeId) ? t(`categories.${typeId}`) : poi.category_id;
           // How far out this POI sits within the search radius itself, not
           // just its raw distance - a bar reads at a glance, a number needs
           // the radius held in your head to mean anything.
           const fillPct = Math.min(100, (poi.distance_to_route_m / radiusM) * 100);
 
-          // A stretch of route with nothing found reads as empty scroll
-          // space otherwise - a stop on this line, then a long stretch of
-          // track, then the next stop, like a schematic transit map.
-          const gapM = index > 0 ? poi.distance_along_route_m - visiblePois[index - 1].distance_along_route_m : 0;
-          const showGap = gapM >= GAP_THRESHOLD_M;
-          // Points hidden between this stop and the one before it, so a long
-          // stretch says it spans stops that were left out.
-          const hiddenBetween =
-            hideExcluded && index > 0
-              ? (positionInResults.get(poi.id) ?? 0) - (positionInResults.get(visiblePois[index - 1].id) ?? 0) - 1
-              : 0;
-          const gapHeight = showGap ? gapHeightPx(gapM) : 0;
-
           return (
             <Fragment key={poi.id}>
-              {showGap && (
-                <div className="poi-gap" style={{ height: `${gapHeight}px` }}>
-                  <div className="poi-gap-line" />
-                  <span className="poi-gap-label">
-                    {formatGap(gapM, t)}
-                    {hiddenBetween > 0 && ` (${t("poiList.hiddenBetween", { count: hiddenBetween })})`}
-                  </span>
-                </div>
-              )}
+              {gap}
               <div
                 className={`poi-card ${excluded ? "excluded" : ""} ${poi.id === selectedId ? "selected" : ""}`}
                 data-poi-id={poi.id}
@@ -154,18 +250,25 @@ export function PoiList({
                     onChange={() => onToggleExcluded(poi.id)}
                   />
                 </label>
-                <div className="badge" title={cat ? t(`categories.${cat.id}`) : poi.category_id}>
-                  {Icon ? (
-                    <Icon size={17} strokeWidth={2} aria-hidden="true" />
-                  ) : (
-                    cat && t(`categories.${cat.id}`).slice(0, 2)
-                  )}
-                </div>
+                <TypeBadge
+                  typeId={typeId}
+                  label={typeLabel}
+                  onOpen={(rect) =>
+                    setTypeMenu({
+                      rect,
+                      id: poi.id,
+                      name: poi.name ?? typeLabel,
+                      originalTypeId: poi.category_id,
+                      overrideId: typeOverrides[poi.id] ?? null,
+                    })
+                  }
+                />
                 <div className="poi-card-body">
-                  <div className="name">{poi.name ?? (cat ? t(`categories.${cat.id}`) : poi.category_id)}</div>
+                  <div className="name">{poi.name ?? typeLabel}</div>
                   <div className="meta">
                     {t("poiList.metaKm", { km: (poi.distance_along_route_m / 1000).toFixed(1) })},{" "}
                     {t("poiList.metaDistance", { distance: Math.round(poi.distance_to_route_m) })}
+                    {poi.id in typeOverrides && ` · ${typeLabel}`}
                   </div>
                   <div
                     className="distance-bar"
@@ -181,7 +284,134 @@ export function PoiList({
             </Fragment>
           );
         })}
+        {pois.length === 0 && waypoints.length > 0 && <div className="empty-state">{t("poiList.empty")}</div>}
       </div>
+      {typeMenu && (
+        <TypeMenu
+          target={typeMenu}
+          onChoose={(typeId) => {
+            onChangeType(typeMenu.id, typeId);
+            setTypeMenu(null);
+          }}
+          onClose={closeTypeMenu}
+        />
+      )}
     </div>
+  );
+}
+
+interface TypeMenuTarget {
+  rect: DOMRect;
+  id: string;
+  name: string;
+  originalTypeId: string;
+  overrideId: string | null;
+}
+
+// The point's symbol, which doubles as the way to change its type: a pencil
+// shows on hover (and always on touch screens, see styles.css).
+function TypeBadge({
+  typeId,
+  label,
+  editable = true,
+  onOpen,
+}: {
+  typeId: string;
+  label: string;
+  editable?: boolean;
+  onOpen: (rect: DOMRect) => void;
+}) {
+  const { t } = useTranslation();
+  const Icon = pointTypeById(typeId)?.icon;
+  if (!editable) {
+    return (
+      <div className={`badge badge-type-${typeId}`} title={label}>
+        {Icon ? <Icon size={17} strokeWidth={2} aria-hidden="true" /> : label.slice(0, 2)}
+      </div>
+    );
+  }
+  return (
+    <button
+      type="button"
+      className={`badge badge-editable badge-type-${typeId}`}
+      title={`${label} · ${t("poiList.changeType")}`}
+      aria-label={`${label}, ${t("poiList.changeType")}`}
+      aria-haspopup="menu"
+      onClick={(e) => {
+        e.stopPropagation();
+        onOpen(e.currentTarget.getBoundingClientRect());
+      }}
+    >
+      {Icon ? <Icon size={17} strokeWidth={2} aria-hidden="true" /> : label.slice(0, 2)}
+      <span className="badge-pencil" aria-hidden="true">
+        <Pencil size={9} strokeWidth={2.4} />
+      </span>
+    </button>
+  );
+}
+
+// A small menu next to the symbol: the types a rider can assign, and the
+// original type to go back to. Drawn in the page body so the list's own
+// scrolling cannot clip it.
+function TypeMenu({
+  target,
+  onChoose,
+  onClose,
+}: {
+  target: TypeMenuTarget;
+  onChoose: (typeId: string | null) => void;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handlePointerDown(e: MouseEvent) {
+      if (!menuRef.current?.contains(e.target as Node)) onClose();
+    }
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKey);
+    // Scroll events do not bubble, so listen in the capture phase to also catch
+    // the list and the page scrolling away from under the menu.
+    window.addEventListener("scroll", onClose, true);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKey);
+      window.removeEventListener("scroll", onClose, true);
+    };
+  }, [onClose]);
+
+  const width = 230;
+  const left = Math.max(8, Math.min(target.rect.left, window.innerWidth - width - 8));
+  const below = target.rect.bottom + 6;
+  const top = below + 150 > window.innerHeight ? Math.max(8, target.rect.top - 150) : below;
+  const originalLabel = t(`categories.${target.originalTypeId}`);
+
+  return createPortal(
+    <div className="type-menu" ref={menuRef} role="menu" style={{ left, top, width }}>
+      <div className="type-menu-title">{target.name}</div>
+      {ASSIGNABLE_TYPES.map((type) => {
+        const Icon = type.icon;
+        return (
+          <button key={type.id} className="type-menu-item" role="menuitem" onClick={() => onChoose(type.id)}>
+            <Icon size={15} strokeWidth={2} aria-hidden="true" />
+            <span>{t(`categories.${type.id}`)}</span>
+            {target.overrideId === type.id && <Check size={14} strokeWidth={2.4} aria-hidden="true" />}
+          </button>
+        );
+      })}
+      <button className="type-menu-item" role="menuitem" onClick={() => onChoose(null)}>
+        {(() => {
+          const Icon = pointTypeById(target.originalTypeId)?.icon;
+          return Icon ? <Icon size={15} strokeWidth={2} aria-hidden="true" /> : null;
+        })()}
+        <span>{t("poiList.originalType", { type: originalLabel })}</span>
+        {target.overrideId === null && <Check size={14} strokeWidth={2.4} aria-hidden="true" />}
+      </button>
+    </div>,
+    document.body,
   );
 }

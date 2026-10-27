@@ -29,3 +29,31 @@ export function routeLengthM(segments: LatLon[][]): number {
   }
   return total;
 }
+
+/** Where a point falls on the route: the distance along it from the start
+ * (segments in recording order, never bridged across a break) and how far the
+ * point sits from the nearest stretch of it, both in metres. */
+export function positionOnRoute(segments: LatLon[][], point: LatLon): { alongM: number; offM: number } {
+  let travelled = 0;
+  let best = { alongM: 0, offM: Infinity };
+  const metresPerDegLat = (Math.PI / 180) * EARTH_RADIUS_M;
+  const metresPerDegLon = metresPerDegLat * Math.cos(toRad(point[0]));
+  const toXY = (p: LatLon): [number, number] => [(p[1] - point[1]) * metresPerDegLon, (p[0] - point[0]) * metresPerDegLat];
+
+  for (const segment of segments) {
+    for (let i = 1; i < segment.length; i++) {
+      const [ax, ay] = toXY(segment[i - 1]);
+      const [bx, by] = toXY(segment[i]);
+      const dx = bx - ax;
+      const dy = by - ay;
+      const lengthSq = dx * dx + dy * dy;
+      // The point itself sits at the origin of this local frame.
+      const t = lengthSq === 0 ? 0 : Math.max(0, Math.min(1, -(ax * dx + ay * dy) / lengthSq));
+      const off = Math.hypot(ax + t * dx, ay + t * dy);
+      const edgeM = haversineM(segment[i - 1], segment[i]);
+      if (off < best.offM) best = { alongM: travelled + t * edgeM, offM: off };
+      travelled += edgeM;
+    }
+  }
+  return best;
+}

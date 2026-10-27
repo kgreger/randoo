@@ -213,3 +213,144 @@ def test_export_without_points_or_categories_is_rejected(client):
         files={"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")},
     )
     assert response.status_code == 400
+
+
+GPX_WITH_WAYPOINTS = b"""<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="test" xmlns="http://www.topografix.com/GPX/1/1"
+     xmlns:ext="http://example.com/ext">
+  <wpt lat="48.003" lon="8.003">
+    <ele>312.5</ele>
+    <name>CP1 Start</name>
+    <desc>Brevet control</desc>
+    <sym>Flag, Red</sym>
+    <extensions><ext:opens>08:00</ext:opens></extensions>
+  </wpt>
+  <wpt lat="48.007" lon="8.007"><name>Old Randoo POI</name><src>Randoo</src></wpt>
+  <trk><trkseg>
+    <trkpt lat="48.0" lon="8.0"></trkpt>
+    <trkpt lat="48.01" lon="8.01"></trkpt>
+  </trkseg></trk>
+</gpx>
+"""
+
+
+def test_export_keeps_the_waypoints_the_file_already_had(client):
+    point = {
+        "id": "node:7",
+        "osm_id": 7,
+        "osm_type": "node",
+        "lat": 48.004,
+        "lon": 8.003,
+        "category_id": "water",
+        "name": "Saved Spring",
+        "distance_to_route_m": 42.0,
+        "meeting_point": [48.003, 8.003],
+    }
+    response = client.post(
+        "/api/export",
+        files={"file": ("route.gpx", GPX_WITH_WAYPOINTS, "application/gpx+xml")},
+        data={"pois": json.dumps([point])},
+    )
+
+    assert response.status_code == 200
+    body = response.content.decode()
+    assert "CP1 Start" in body
+    assert "Brevet control" in body
+    assert "Flag, Red" in body
+    assert "312.5" in body
+    assert "08:00" in body  # the extension survives
+    assert "Saved Spring" in body
+    # a waypoint an earlier Randoo export wrote is not carried over as the rider's own
+    assert "Old Randoo POI" not in body
+    # existing waypoints come first, then Randoo's
+    assert body.index("CP1 Start") < body.index("Saved Spring")
+
+
+def test_export_marks_its_own_waypoints_as_generated_by_randoo(client):
+    point = {
+        "id": "node:7",
+        "osm_id": 7,
+        "osm_type": "node",
+        "lat": 48.004,
+        "lon": 8.003,
+        "category_id": "water",
+        "name": "Saved Spring",
+        "distance_to_route_m": 42.0,
+        "meeting_point": [48.003, 8.003],
+    }
+    response = client.post(
+        "/api/export",
+        files={"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")},
+        data={"pois": json.dumps([point])},
+    )
+    assert response.content.decode().count("<src>Randoo</src>") == 2  # the POI and its turnoff marker
+
+
+GPX_WITH_TWO_CONTROLS = b"""<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="test" xmlns="http://www.topografix.com/GPX/1/1">
+  <wpt lat="48.003" lon="8.003"><name>CP1</name><sym>Flag, Green</sym></wpt>
+  <wpt lat="48.004" lon="8.004"><name>Old Randoo POI</name><src>Randoo</src></wpt>
+  <wpt lat="48.007" lon="8.007"><name>CP2</name></wpt>
+  <trk><trkseg>
+    <trkpt lat="48.0" lon="8.0"></trkpt>
+    <trkpt lat="48.01" lon="8.01"></trkpt>
+  </trkseg></trk>
+</gpx>
+"""
+
+
+def test_export_drops_file_waypoints_the_rider_unticked(client):
+    # ids count the file's waypoints without Randoo's own: CP1 is wpt:0, CP2 is wpt:1
+    response = client.post(
+        "/api/export",
+        files={"file": ("route.gpx", GPX_WITH_TWO_CONTROLS, "application/gpx+xml")},
+        data={"pois": "[]", "excluded_poi_ids": "wpt:1"},
+    )
+    body = response.content.decode()
+    assert "CP1" in body
+    assert "CP2" not in body
+
+
+def test_export_retypes_file_waypoints_as_control_points(client):
+    response = client.post(
+        "/api/export",
+        files={"file": ("route.gpx", GPX_WITH_TWO_CONTROLS, "application/gpx+xml")},
+        data={"pois": "[]", "type_overrides": json.dumps({"wpt:1": "control", "wpt:0": "unknown", "poi:3": "control"})},
+    )
+    body = response.content.decode()
+    cp2 = body[body.index("CP2") - 80 : body.index("CP2") + 120]
+    assert "<type>Control</type>" in cp2
+    assert "<sym>Flag, Red</sym>" in cp2
+    # an unknown type changes nothing: CP1 keeps its own symbol and gets no type
+    cp1 = body[body.index("CP1") - 80 : body.index("CP1") + 120]
+    assert "<sym>Flag, Green</sym>" in cp1
+    assert "<type>" not in cp1
+
+
+def test_export_rejects_type_overrides_that_are_not_an_object(client):
+    response = client.post(
+        "/api/export",
+        files={"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")},
+        data={"pois": "[]", "type_overrides": "[1]"},
+    )
+    assert response.status_code == 400
+
+
+def test_export_writes_a_retyped_found_point_with_the_control_symbol(client):
+    point = {
+        "id": "node:7",
+        "osm_id": 7,
+        "osm_type": "node",
+        "lat": 48.004,
+        "lon": 8.003,
+        "category_id": "control",
+        "name": "Spring that is a control",
+        "distance_to_route_m": 42.0,
+        "meeting_point": [48.003, 8.003],
+    }
+    response = client.post(
+        "/api/export",
+        files={"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")},
+        data={"pois": json.dumps([point])},
+    )
+    assert response.content.decode().count("<sym>Flag, Red</sym>") == 2  # the point and its turnoff marker

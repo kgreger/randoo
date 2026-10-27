@@ -39,7 +39,7 @@ import xml.etree.ElementTree as ET
 import gpxpy
 import gpxpy.gpx
 
-from .gpx import Point
+from .gpx import RANDOO_SOURCE, Point
 from .poi_filter import RankedPoi
 
 GARMIN_GPXX_NS = "http://www.garmin.com/xmlschemas/GpxExtensions/v3"
@@ -64,11 +64,37 @@ GARMIN_SYMBOLS: dict[str, str] = {
     "hut": "Campground",
     "food": "Restaurant",
     "rest": "Picnic Area",
+    # A point the rider classed as a control point by hand (see
+    # WAYPOINT_TYPES), not a search category.
+    "control": "Flag, Red",
 }
 
+# Types a rider can give to a point by hand, as the frontend sends them:
+# id -> the <type> written into the file. Anything else is ignored.
+WAYPOINT_TYPES: dict[str, str] = {"control": "Control"}
 
-def build_gpx(ranked_pois: list[RankedPoi], segments: list[list[Point]]) -> str:
+
+def apply_waypoint_types(waypoints: list[gpxpy.gpx.GPXWaypoint], overrides: dict[str, str]) -> None:
+    """Re-types the file's own waypoints in place. The ids are "wpt:<n>", n
+    counting the file's waypoints in order (see gpx.parse_existing_waypoints)."""
+    for index, waypoint in enumerate(waypoints):
+        type_id = overrides.get(f"wpt:{index}")
+        if type_id in WAYPOINT_TYPES:
+            waypoint.type = WAYPOINT_TYPES[type_id]
+            waypoint.symbol = GARMIN_SYMBOLS[type_id]
+
+
+
+def build_gpx(
+    ranked_pois: list[RankedPoi],
+    segments: list[list[Point]],
+    existing_waypoints: list[gpxpy.gpx.GPXWaypoint] | None = None,
+    existing_nsmap: dict[str, str] | None = None,
+) -> str:
+    """The route as a track, the waypoints the uploaded file already had
+    (unchanged, first), then Randoo's own POI waypoints."""
     gpx = gpxpy.gpx.GPX()
+    gpx.nsmap.update(existing_nsmap or {})
     gpx.nsmap["gpxx"] = GARMIN_GPXX_NS
 
     for segment in segments:
@@ -79,6 +105,8 @@ def build_gpx(ranked_pois: list[RankedPoi], segments: list[list[Point]]) -> str:
         if not gpx.tracks:
             gpx.tracks.append(gpxpy.gpx.GPXTrack())
         gpx.tracks[0].segments.append(track_segment)
+
+    gpx.waypoints.extend(existing_waypoints or [])
 
     for ranked in ranked_pois:
         gpx.waypoints.append(_poi_waypoint(ranked))
@@ -96,6 +124,7 @@ def _poi_waypoint(ranked: RankedPoi) -> gpxpy.gpx.GPXWaypoint:
         comment=f"{poi.category_id}, {round(ranked.distance_to_route_m)} m from route",
         symbol=GARMIN_SYMBOLS.get(poi.category_id),
     )
+    wpt.source = RANDOO_SOURCE
     wpt.extensions.append(_garmin_proximity_extension(GARMIN_PROXIMITY_M))
     return wpt
 
@@ -113,6 +142,7 @@ def _turnoff_waypoint(ranked: RankedPoi) -> gpxpy.gpx.GPXWaypoint:
         comment=f"{poi.category_id}, actual spot {round(ranked.distance_to_route_m)} m off-route here",
         symbol=GARMIN_SYMBOLS.get(poi.category_id),
     )
+    wpt.source = RANDOO_SOURCE
     wpt.extensions.append(_garmin_proximity_extension(GARMIN_PROXIMITY_M))
     return wpt
 

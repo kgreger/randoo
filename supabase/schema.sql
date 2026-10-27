@@ -406,3 +406,7 @@ grant select, insert, update, delete on routes, plans to authenticated;
 
 -- Whether unticked points are hidden (map and list) when the plan is opened.
 alter table plans add column if not exists hide_excluded boolean not null default false;
+
+-- Types the rider gave points by hand: point id -> type id, for found points
+-- and for the loaded file's own waypoints.
+alter table plans add column if not exists type_overrides jsonb not null default '{}'::jsonb;

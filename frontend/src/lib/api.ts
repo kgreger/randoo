@@ -64,6 +64,7 @@ export async function exportGpx(
   pois: Poi[],
   accessToken: string,
   excludedPoiIds: string[] = [],
+  typeOverrides: Record<string, string> = {},
 ): Promise<Blob> {
   const form = new FormData();
   form.append("file", file);
@@ -76,7 +77,8 @@ export async function exportGpx(
         osm_type,
         lat,
         lon,
-        category_id,
+        // A type the rider gave the point by hand replaces its category.
+        category_id: typeOverrides[id] ?? category_id,
         name,
         distance_to_route_m,
         meeting_point,
@@ -84,6 +86,7 @@ export async function exportGpx(
     ),
   );
   excludedPoiIds.forEach((id) => form.append("excluded_poi_ids", id));
+  form.append("type_overrides", JSON.stringify(typeOverrides));
 
   const response = await fetch(`${API_URL}/api/export`, {
     method: "POST",

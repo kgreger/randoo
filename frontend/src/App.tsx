@@ -14,13 +14,14 @@ import { SavePlanDialog } from "./components/SavePlanDialog";
 import { SignInDialog } from "./components/SignInDialog";
 import { SUPPORTED_LANGUAGES, type SupportedLanguage } from "./i18n";
 import { analyzeRoute, exportGpx, type Poi } from "./lib/api";
-import { routeLengthM } from "./lib/geo";
+import { positionOnRoute, routeLengthM } from "./lib/geo";
 import { isStackedLayout } from "./lib/layout";
-import { parseGpxPreview, type LatLon } from "./lib/gpxPreview";
+import { parseGpxPreview, parseGpxWaypoints, type LatLon, type RouteWaypoint } from "./lib/gpxPreview";
 import { createPlan, updatePlan, type LoadedPlan, type PlanSummary } from "./lib/plans";
 import { supabase } from "./lib/supabase";
 import { useAuth } from "./lib/useAuth";
 import { useCanSavePlans } from "./lib/useTier";
+import type { FocusRequest } from "./components/MapView";
 import logoUrl from "./assets/randoo-logo.svg";
 
 // Comparable form of what a plan stores, for telling saved results from
@@ -31,6 +32,7 @@ function resultsSignature(state: {
   hideExcluded: boolean;
   categoryIds: string[];
   radiusM: number;
+  typeOverrides: Record<string, string>;
 }): string {
   return JSON.stringify([
     state.poiIds,
@@ -38,7 +40,44 @@ function resultsSignature(state: {
     state.hideExcluded,
     [...state.categoryIds].sort(),
     state.radiusM,
+    Object.entries(state.typeOverrides).sort(([a], [b]) => a.localeCompare(b)),
   ]);
+}
+
+// How close, in degrees, a file waypoint has to be to the first or last point
+// of the route to count as sitting exactly on it (about 10 cm, which only
+// absorbs differences in how the coordinates were written down).
+const SAME_POINT_DEG = 1e-6;
+
+// The start and the end of the route as points of their own, each one only
+// when no waypoint of the file sits exactly on it: such a waypoint already
+// marks the place and follows the usual rules for file waypoints.
+function routeEndPoints(
+  route: LatLon[][],
+  waypoints: RouteWaypoint[],
+  labels: { start: string; end: string },
+): RouteWaypoint[] {
+  const segments = route.filter((segment) => segment.length > 1);
+  if (segments.length === 0) return [];
+  const start = segments[0][0];
+  const lastSegment = segments[segments.length - 1];
+  const end = lastSegment[lastSegment.length - 1];
+
+  const covered = (point: LatLon) =>
+    waypoints.some((w) => Math.abs(w.lat - point[0]) <= SAME_POINT_DEG && Math.abs(w.lon - point[1]) <= SAME_POINT_DEG);
+  const make = (id: string, name: string, point: LatLon): RouteWaypoint => ({
+    id,
+    name,
+    description: null,
+    lat: point[0],
+    lon: point[1],
+    fixedType: "control",
+  });
+
+  const points: RouteWaypoint[] = [];
+  if (!covered(start)) points.push(make("route:start", labels.start, start));
+  if (!covered(end)) points.push(make("route:end", labels.end, end));
+  return points;
 }
 
 const DEFAULT_CATEGORIES = ["water", "food"];
@@ -56,7 +95,16 @@ export default function App() {
   // current results: a search that finds one again restores its state, and a
   // saved plan keeps them all. Cleared when another route is loaded.
   const [excludedPoiIds, setExcludedPoiIds] = useState(new Set<string>());
-  const [focusRequest, setFocusRequest] = useState<{ poi: Poi; nonce: number } | null>(null);
+  // Types the rider gave points by hand (point or waypoint id -> type id),
+  // remembered like the unticked points; the point itself keeps its original
+  // type, so removing the entry restores it. Cleared with a new route.
+  const [typeOverrides, setTypeOverrides] = useState<Record<string, string>>({});
+  // A found point whose type is about to change, waiting for confirmation.
+  const [pendingTypeChange, setPendingTypeChange] = useState<{ poi: Poi; typeId: string } | null>(null);
+  // Waypoints the loaded file already has, shown for orientation next to the
+  // found points.
+  const [waypoints, setWaypoints] = useState<RouteWaypoint[]>([]);
+  const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null);
   const [hoveredPoiId, setHoveredPoiId] = useState<string | null>(null);
   const [selectedPoiId, setSelectedPoiId] = useState<string | null>(null);
   const [selectedCategories, setSelectedCategories] = useState(new Set(DEFAULT_CATEGORIES));
@@ -195,6 +243,7 @@ export default function App() {
     setRouteName(selected.name.replace(/\.gpx$/i, ""));
     setPois([]);
     setExcludedPoiIds(new Set());
+    setTypeOverrides({});
     setHideExcluded(false);
     setSelectedPoiId(null);
     setFiltersOpen(true);
@@ -203,9 +252,11 @@ export default function App() {
     setSavedSignature(null);
     setSearched(null);
     setError(null);
+    setWaypoints([]);
     try {
-      const preview = await parseGpxPreview(selected);
+      const [preview, fileWaypoints] = await Promise.all([parseGpxPreview(selected), parseGpxWaypoints(selected)]);
       setRoute(preview);
+      setWaypoints(fileWaypoints);
     } catch {
       setError(t("app.errorGpxParse"));
       setRoute([]);
@@ -246,12 +297,47 @@ export default function App() {
     });
   }
 
+  // Giving a found point another type is a bigger step than re-typing a point
+  // from the file, so it asks first; going back to the original does not.
+  function changePointType(id: string, typeId: string | null) {
+    const poi = pois.find((candidate) => candidate.id === id);
+    if (poi && typeId !== null) {
+      setPendingTypeChange({ poi, typeId });
+      return;
+    }
+    applyPointType(id, typeId);
+  }
+
+  function applyPointType(id: string, typeId: string | null) {
+    setTypeOverrides((prev) => {
+      const next = { ...prev };
+      if (typeId === null) delete next[id];
+      else next[id] = typeId;
+      return next;
+    });
+  }
+
+  function focusWaypoint(waypoint: RouteWaypoint) {
+    if (waypoint.id === selectedPoiId) {
+      setSelectedPoiId(null);
+      return;
+    }
+    setSelectedPoiId(waypoint.id);
+    setFocusRequest((prev) => ({ id: waypoint.id, lat: waypoint.lat, lon: waypoint.lon, nonce: (prev?.nonce ?? 0) + 1 }));
+    if (isStackedLayout()) mapPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   function focusPoi(poi: Poi) {
     // The nonce means clicking the same card twice in a row (say, after
     // panning away from it) re-centers the map both times - relying on the
     // poi object alone wouldn't re-trigger the effect the second time,
     // since it's the same reference as last render.
-    setFocusRequest((prev) => ({ poi, nonce: (prev?.nonce ?? 0) + 1 }));
+    // Clicking the selected point again clears the selection instead.
+    if (poi.id === selectedPoiId) {
+      setSelectedPoiId(null);
+      return;
+    }
+    setFocusRequest((prev) => ({ id: poi.id, lat: poi.lat, lon: poi.lon, nonce: (prev?.nonce ?? 0) + 1 }));
     setSelectedPoiId(poi.id);
     // With the list below the map, the picked point would otherwise be
     // centered somewhere off-screen.
@@ -297,6 +383,7 @@ export default function App() {
       hideExcluded,
       categoryIds: searched?.categoryIds ?? [],
       radiusM: searched?.radiusM ?? radiusM,
+      typeOverrides,
     });
   }
 
@@ -319,6 +406,7 @@ export default function App() {
       pois,
       excludedPoiIds: Array.from(excludedPoiIds),
       hideExcluded,
+      typeOverrides,
     };
     if (openPlan && !asNew) {
       await updatePlan(openPlan.id, input);
@@ -364,6 +452,7 @@ export default function App() {
     setPois(plan.pois);
     setExcludedPoiIds(new Set(plan.excluded_poi_ids));
     setHideExcluded(plan.hide_excluded);
+    setTypeOverrides(plan.type_overrides ?? {});
     setSelectedCategories(new Set(plan.category_ids));
     setRadiusM(plan.radius_m);
     setSearched({ categoryIds: plan.category_ids, radiusM: plan.radius_m });
@@ -376,6 +465,7 @@ export default function App() {
         hideExcluded: plan.hide_excluded,
         categoryIds: plan.category_ids,
         radiusM: plan.radius_m,
+        typeOverrides: plan.type_overrides ?? {},
       }),
     );
     setFiltersOpen(false);
@@ -399,7 +489,7 @@ export default function App() {
 
     setExporting(true);
     try {
-      const blob = await exportGpx(file, pois, accessToken, Array.from(excludedPoiIds));
+      const blob = await exportGpx(file, pois, accessToken, Array.from(excludedPoiIds), typeOverrides);
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -431,6 +521,23 @@ export default function App() {
     url.hash = `access_token=${session.access_token}&refresh_token=${session.refresh_token}`;
     window.open(url.toString(), "_blank", "noopener,noreferrer");
   }
+
+  const routeEnds = routeEndPoints(route, waypoints, {
+    start: t("route.start"),
+    end: t("route.end"),
+  });
+  const shownWaypoints = [...routeEnds, ...waypoints];
+
+  // Each waypoint with its place along the route, for the list's order.
+  // The route's own start and end sit at 0 and at the full length, whatever
+  // the projection says: on a loop the end lies on the start and would
+  // otherwise come out at 0 km too.
+  const waypointsOnRoute = shownWaypoints.map((waypoint) => {
+    const position = positionOnRoute(route, [waypoint.lat, waypoint.lon]);
+    if (waypoint.id === "route:start") return { ...waypoint, ...position, alongM: 0 };
+    if (waypoint.id === "route:end") return { ...waypoint, ...position, alongM: routeLengthM(route) };
+    return { ...waypoint, ...position };
+  });
 
   const hasRoute = route.some((segment) => segment.length > 1);
   const distanceKm = hasRoute ? routeLengthM(route) / 1000 : null;
@@ -616,6 +723,24 @@ export default function App() {
             />
           )}
 
+          {pendingTypeChange && (
+            <ConfirmDialog
+              text={t("typeChange.text", {
+                name: pendingTypeChange.poi.name ?? t(`categories.${pendingTypeChange.poi.category_id}`),
+                from: t(`categories.${typeOverrides[pendingTypeChange.poi.id] ?? pendingTypeChange.poi.category_id}`),
+                to: t(`categories.${pendingTypeChange.typeId}`),
+              })}
+              hint={t("typeChange.hint")}
+              confirmLabel={t("typeChange.confirm")}
+              cancelLabel={t("typeChange.cancel")}
+              onConfirm={() => {
+                applyPointType(pendingTypeChange.poi.id, pendingTypeChange.typeId);
+                setPendingTypeChange(null);
+              }}
+              onCancel={() => setPendingTypeChange(null)}
+            />
+          )}
+
           {pendingPlan && (
             <ConfirmDialog
               text={t("openPlanWarning.text")}
@@ -637,7 +762,7 @@ export default function App() {
             <PlansDialog onOpen={requestOpenPlan} onDeleted={handlePlanDeleted} onClose={() => setPlansOpen(false)} />
           )}
 
-          {!file && !signInOpen && !accountOpen && !deleteOpen && !saveOpen && !plansOpen && !searchWarning && !pendingPlan && !routeChangePending && (
+          {!file && !signInOpen && !accountOpen && !deleteOpen && !saveOpen && !plansOpen && !searchWarning && !pendingPlan && !routeChangePending && !pendingTypeChange && (
             <div className="map-empty">
               <div className="map-empty-card">
                 <div className="icon">
@@ -695,10 +820,13 @@ export default function App() {
             excludedIds={excludedPoiIds}
             hideExcluded={hideExcluded}
             onToggleHideExcluded={() => setHideExcluded((hidden) => !hidden)}
+            waypoints={shownWaypoints}
+            typeOverrides={typeOverrides}
             focusRequest={focusRequest}
             hoveredId={hoveredPoiId}
             selectedId={selectedPoiId}
-            onSelectPoi={(poi) => setSelectedPoiId(poi.id)}
+            onSelectPoi={(poi) => setSelectedPoiId((current) => (current === poi.id ? null : poi.id))}
+            onSelectWaypoint={(waypoint) => setSelectedPoiId((current) => (current === waypoint.id ? null : waypoint.id))}
           />
         </div>
 
@@ -711,6 +839,10 @@ export default function App() {
           selectedId={selectedPoiId}
           onToggleExcluded={toggleExcluded}
           onFocusPoi={focusPoi}
+          waypoints={waypointsOnRoute}
+          onFocusWaypoint={focusWaypoint}
+          typeOverrides={typeOverrides}
+          onChangeType={changePointType}
           onHoverPoi={setHoveredPoiId}
         />
       </div>

@@ -49,13 +49,16 @@
     "lodging": "Lodging",
     "hut": "Hut / shelter",
     "food": "Food & supplies",
-    "rest": "Rest spot"
+    "rest": "Rest spot",
+    "control": "Control point",
+    "waypoint": "Waypoint"
   },
   "map": {
     "zoomToRoute": "Zoom to route",
     "popupDistance": "{{distance}} m from route",
     "hideExcluded": "Hide unticked points",
-    "showExcluded": "Show unticked points"
+    "showExcluded": "Show unticked points",
+    "waypoint": "Waypoint"
   },
   "poiList": {
     "title": "Nearby points",
@@ -70,7 +73,10 @@
     "showExcluded": "Show unticked points",
     "allHidden": "All points are unticked and hidden.",
     "hiddenBetween_one": "{{count}} point hidden",
-    "hiddenBetween_other": "{{count}} points hidden"
+    "hiddenBetween_other": "{{count}} points hidden",
+    "waypointFromFile": "Waypoint from the file",
+    "changeType": "Change type",
+    "originalType": "Original: {{type}}"
   },
   "signInDialog": {
     "recoveryPrompt": "Choose a new password for your account.",
@@ -158,5 +164,15 @@
     "hint": "Choosing the same file again keeps everything as it is.",
     "textFree": "Everything currently shown is gone, including your selection of points. Choose another route anyway?",
     "hintFree": "With a Premium account you can save results as plans, keep several per route and open them again later. Choosing the same file again keeps everything as it is."
+  },
+  "typeChange": {
+    "text": "The found point “{{name}}” ({{from}}) becomes a {{to}}.",
+    "hint": "This applies in the list, on the map, in the export and in saved plans. You can set it back to its original type at any time.",
+    "confirm": "Change type",
+    "cancel": "Cancel"
+  },
+  "route": {
+    "start": "Start of the route",
+    "end": "End of the route"
   }
 }
