@@ -529,10 +529,15 @@ export default function App() {
   const shownWaypoints = [...routeEnds, ...waypoints];
 
   // Each waypoint with its place along the route, for the list's order.
-  const waypointsOnRoute = shownWaypoints.map((waypoint) => ({
-    ...waypoint,
-    ...positionOnRoute(route, [waypoint.lat, waypoint.lon]),
-  }));
+  // The route's own start and end sit at 0 and at the full length, whatever
+  // the projection says: on a loop the end lies on the start and would
+  // otherwise come out at 0 km too.
+  const waypointsOnRoute = shownWaypoints.map((waypoint) => {
+    const position = positionOnRoute(route, [waypoint.lat, waypoint.lon]);
+    if (waypoint.id === "route:start") return { ...waypoint, ...position, alongM: 0 };
+    if (waypoint.id === "route:end") return { ...waypoint, ...position, alongM: routeLengthM(route) };
+    return { ...waypoint, ...position };
+  });
 
   const hasRoute = route.some((segment) => segment.length > 1);
   const distanceKm = hasRoute ? routeLengthM(route) / 1000 : null;
