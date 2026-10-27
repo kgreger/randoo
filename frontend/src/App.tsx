@@ -44,15 +44,27 @@ function resultsSignature(state: {
   ]);
 }
 
-// The start and the end of the route as points of their own, whatever
-// waypoints the file has near them.
-function routeEndPoints(route: LatLon[][], labels: { start: string; end: string }): RouteWaypoint[] {
+// How close, in degrees, a file waypoint has to be to the first or last point
+// of the route to count as sitting exactly on it (about 10 cm, which only
+// absorbs differences in how the coordinates were written down).
+const SAME_POINT_DEG = 1e-6;
+
+// The start and the end of the route as points of their own, each one only
+// when no waypoint of the file sits exactly on it: such a waypoint already
+// marks the place and follows the usual rules for file waypoints.
+function routeEndPoints(
+  route: LatLon[][],
+  waypoints: RouteWaypoint[],
+  labels: { start: string; end: string },
+): RouteWaypoint[] {
   const segments = route.filter((segment) => segment.length > 1);
   if (segments.length === 0) return [];
   const start = segments[0][0];
   const lastSegment = segments[segments.length - 1];
   const end = lastSegment[lastSegment.length - 1];
 
+  const covered = (point: LatLon) =>
+    waypoints.some((w) => Math.abs(w.lat - point[0]) <= SAME_POINT_DEG && Math.abs(w.lon - point[1]) <= SAME_POINT_DEG);
   const make = (id: string, name: string, point: LatLon): RouteWaypoint => ({
     id,
     name,
@@ -62,7 +74,10 @@ function routeEndPoints(route: LatLon[][], labels: { start: string; end: string 
     fixedType: "control",
   });
 
-  return [make("route:start", labels.start, start), make("route:end", labels.end, end)];
+  const points: RouteWaypoint[] = [];
+  if (!covered(start)) points.push(make("route:start", labels.start, start));
+  if (!covered(end)) points.push(make("route:end", labels.end, end));
+  return points;
 }
 
 const DEFAULT_CATEGORIES = ["water", "food"];
@@ -507,7 +522,7 @@ export default function App() {
     window.open(url.toString(), "_blank", "noopener,noreferrer");
   }
 
-  const routeEnds = routeEndPoints(route, {
+  const routeEnds = routeEndPoints(route, waypoints, {
     start: t("route.start"),
     end: t("route.end"),
   });
