@@ -1262,6 +1262,11 @@ button {
   color: var(--accent-ink);
 }
 
+.poi-card-check-spacer {
+  flex: none;
+  width: 16px;
+}
+
 .poi-card-check-wrap {
   flex: none;
   display: flex;

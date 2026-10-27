@@ -35,6 +35,10 @@ export interface RouteWaypoint {
   description: string | null;
   lat: number;
   lon: number;
+  // Set for the start and end of the route that Randoo adds itself: the type
+  // such a point always has (it is not in the file, so it is neither exported
+  // nor tickable).
+  fixedType?: string;
 }
 
 // Matches the <src> Randoo writes into the waypoints it generates (see

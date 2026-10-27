@@ -6,7 +6,7 @@ function toRad(deg: number): number {
   return (deg * Math.PI) / 180;
 }
 
-function haversineM(a: LatLon, b: LatLon): number {
+export function haversineM(a: LatLon, b: LatLon): number {
   const [lat1, lon1] = a;
   const [lat2, lon2] = b;
   const dLat = toRad(lat2 - lat1);

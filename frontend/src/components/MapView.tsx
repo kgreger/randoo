@@ -296,7 +296,7 @@ export function MapView({
     for (const waypoint of waypoints) {
       const excluded = excludedIds?.has(waypoint.id) ?? false;
       if (excluded && hideExcluded) continue;
-      const typeId = typeOverrides[waypoint.id] ?? WAYPOINT_TYPE.id;
+      const typeId = typeOverrides[waypoint.id] ?? waypoint.fixedType ?? WAYPOINT_TYPE.id;
       const label = waypoint.name ?? t(`categories.${typeId}`);
       const popup = `<b>${label}</b>${waypoint.description ? `<br>${waypoint.description}` : ""}`;
       const marker = L.marker([waypoint.lat, waypoint.lon], { icon: waypointDivIcon(typeId, excluded), zIndexOffset: 500 })

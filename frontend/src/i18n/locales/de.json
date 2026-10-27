@@ -170,5 +170,10 @@
     "hint": "Das gilt in Liste, Karte, Export und gespeicherten Plänen. Du kannst ihn jederzeit auf den ursprünglichen Typ zurücksetzen.",
     "confirm": "Typ ändern",
     "cancel": "Abbrechen"
+  },
+  "route": {
+    "start": "Start der Strecke",
+    "end": "Ende der Strecke",
+    "startEnd": "Start und Ende der Strecke"
   }
 }

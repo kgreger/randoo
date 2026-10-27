@@ -80,10 +80,13 @@ export function PoiList({
 }: Props) {
   const { t } = useTranslation();
   // excludedIds also remembers points that are not in the current results.
-  const totalCount = pois.length + waypoints.length;
+  // The route's own start and end are not part of the selection, so they
+  // are not counted.
+  const selectableWaypoints = waypoints.filter((waypoint) => waypoint.fixedType === undefined);
+  const totalCount = pois.length + selectableWaypoints.length;
   const includedCount =
     pois.filter((poi) => !excludedIds.has(poi.id)).length +
-    waypoints.filter((waypoint) => !excludedIds.has(waypoint.id)).length;
+    selectableWaypoints.filter((waypoint) => !excludedIds.has(waypoint.id)).length;
   const [typeMenu, setTypeMenu] = useState<TypeMenuTarget | null>(null);
   const closeTypeMenu = useCallback(() => setTypeMenu(null), []);
   // Found points and file waypoints in route order (the sort is stable, so
@@ -163,7 +166,10 @@ export function PoiList({
           if (row.kind === "waypoint") {
             const { waypoint } = row;
             const waypointExcluded = excludedIds.has(waypoint.id);
-            const typeId = typeOverrides[waypoint.id] ?? WAYPOINT_TYPE.id;
+            // The route's own start and end are not in the file: always a control
+            // point, no checkbox, no menu, and no distance from the start.
+            const fixed = waypoint.fixedType !== undefined;
+            const typeId = typeOverrides[waypoint.id] ?? waypoint.fixedType ?? WAYPOINT_TYPE.id;
             const typeLabel = t(`categories.${typeId}`);
             return (
               <Fragment key={waypoint.id}>
@@ -176,15 +182,20 @@ export function PoiList({
                   onMouseEnter={() => onHoverPoi(waypoint.id)}
                   onMouseLeave={() => onHoverPoi(null)}
                 >
-                  <label className="poi-card-check-wrap" onClick={(e) => e.stopPropagation()}>
-                    <input
-                      type="checkbox"
-                      className="poi-card-check"
-                      checked={!waypointExcluded}
-                      onChange={() => onToggleExcluded(waypoint.id)}
-                    />
-                  </label>
+                  {fixed ? (
+                    <span className="poi-card-check-spacer" aria-hidden="true" />
+                  ) : (
+                    <label className="poi-card-check-wrap" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        className="poi-card-check"
+                        checked={!waypointExcluded}
+                        onChange={() => onToggleExcluded(waypoint.id)}
+                      />
+                    </label>
+                  )}
                   <TypeBadge
+                    editable={!fixed}
                     typeId={typeId}
                     label={typeLabel}
                     onOpen={(rect) =>
@@ -200,8 +211,8 @@ export function PoiList({
                   <div className="poi-card-body">
                     <div className="name">{waypoint.name ?? typeLabel}</div>
                     <div className="meta">
-                      {t("poiList.metaKm", { km: (waypoint.alongM / 1000).toFixed(1) })},{" "}
-                      {waypoint.id in typeOverrides ? typeLabel : t("poiList.waypointFromFile")}
+                      {waypoint.id !== "route:start" && `${t("poiList.metaKm", { km: (waypoint.alongM / 1000).toFixed(1) })}, `}
+                      {fixed || waypoint.id in typeOverrides ? typeLabel : t("poiList.waypointFromFile")}
                     </div>
                   </div>
                 </div>
@@ -302,14 +313,23 @@ interface TypeMenuTarget {
 function TypeBadge({
   typeId,
   label,
+  editable = true,
   onOpen,
 }: {
   typeId: string;
   label: string;
+  editable?: boolean;
   onOpen: (rect: DOMRect) => void;
 }) {
   const { t } = useTranslation();
   const Icon = pointTypeById(typeId)?.icon;
+  if (!editable) {
+    return (
+      <div className={`badge badge-type-${typeId}`} title={label}>
+        {Icon ? <Icon size={17} strokeWidth={2} aria-hidden="true" /> : label.slice(0, 2)}
+      </div>
+    );
+  }
   return (
     <button
       type="button"

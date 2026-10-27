@@ -14,7 +14,8 @@ import { SavePlanDialog } from "./components/SavePlanDialog";
 import { SignInDialog } from "./components/SignInDialog";
 import { SUPPORTED_LANGUAGES, type SupportedLanguage } from "./i18n";
 import { analyzeRoute, exportGpx, type Poi } from "./lib/api";
-import { positionOnRoute, routeLengthM } from "./lib/geo";
+import { haversineM, positionOnRoute } from "./lib/geo";
+import { routeLengthM } from "./lib/geo";
 import { isStackedLayout } from "./lib/layout";
 import { parseGpxPreview, parseGpxWaypoints, type LatLon, type RouteWaypoint } from "./lib/gpxPreview";
 import { createPlan, updatePlan, type LoadedPlan, type PlanSummary } from "./lib/plans";
@@ -42,6 +43,39 @@ function resultsSignature(state: {
     state.radiusM,
     Object.entries(state.typeOverrides).sort(([a], [b]) => a.localeCompare(b)),
   ]);
+}
+
+// A file waypoint this close to the start or end of the route counts as the
+// start or end itself.
+const ROUTE_END_TOLERANCE_M = 100;
+
+function routeEndPoints(
+  route: LatLon[][],
+  waypoints: RouteWaypoint[],
+  labels: { start: string; end: string; startEnd: string },
+): RouteWaypoint[] {
+  const segments = route.filter((segment) => segment.length > 1);
+  if (segments.length === 0) return [];
+  const start = segments[0][0];
+  const lastSegment = segments[segments.length - 1];
+  const end = lastSegment[lastSegment.length - 1];
+
+  const covered = (point: LatLon) => waypoints.some((w) => haversineM([w.lat, w.lon], point) <= ROUTE_END_TOLERANCE_M);
+  const make = (id: string, name: string, point: LatLon): RouteWaypoint => ({
+    id,
+    name,
+    description: null,
+    lat: point[0],
+    lon: point[1],
+    fixedType: "control",
+  });
+
+  const points: RouteWaypoint[] = [];
+  // A loop starts and ends in the same place: one point for both.
+  const isLoop = haversineM(start, end) <= ROUTE_END_TOLERANCE_M;
+  if (!covered(start)) points.push(make("route:start", isLoop ? labels.startEnd : labels.start, start));
+  if (!isLoop && !covered(end)) points.push(make("route:end", labels.end, end));
+  return points;
 }
 
 const DEFAULT_CATEGORIES = ["water", "food"];
@@ -282,6 +316,10 @@ export default function App() {
   }
 
   function focusWaypoint(waypoint: RouteWaypoint) {
+    if (waypoint.id === selectedPoiId) {
+      setSelectedPoiId(null);
+      return;
+    }
     setSelectedPoiId(waypoint.id);
     setFocusRequest((prev) => ({ id: waypoint.id, lat: waypoint.lat, lon: waypoint.lon, nonce: (prev?.nonce ?? 0) + 1 }));
     if (isStackedLayout()) mapPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -292,6 +330,11 @@ export default function App() {
     // panning away from it) re-centers the map both times - relying on the
     // poi object alone wouldn't re-trigger the effect the second time,
     // since it's the same reference as last render.
+    // Clicking the selected point again clears the selection instead.
+    if (poi.id === selectedPoiId) {
+      setSelectedPoiId(null);
+      return;
+    }
     setFocusRequest((prev) => ({ id: poi.id, lat: poi.lat, lon: poi.lon, nonce: (prev?.nonce ?? 0) + 1 }));
     setSelectedPoiId(poi.id);
     // With the list below the map, the picked point would otherwise be
@@ -477,8 +520,17 @@ export default function App() {
     window.open(url.toString(), "_blank", "noopener,noreferrer");
   }
 
+  // Start and end of the route as points of their own, unless the file already
+  // has a waypoint there.
+  const routeEnds = routeEndPoints(route, waypoints, {
+    start: t("route.start"),
+    end: t("route.end"),
+    startEnd: t("route.startEnd"),
+  });
+  const shownWaypoints = [...routeEnds, ...waypoints];
+
   // Each waypoint with its place along the route, for the list's order.
-  const waypointsOnRoute = waypoints.map((waypoint) => ({
+  const waypointsOnRoute = shownWaypoints.map((waypoint) => ({
     ...waypoint,
     ...positionOnRoute(route, [waypoint.lat, waypoint.lon]),
   }));
@@ -764,13 +816,13 @@ export default function App() {
             excludedIds={excludedPoiIds}
             hideExcluded={hideExcluded}
             onToggleHideExcluded={() => setHideExcluded((hidden) => !hidden)}
-            waypoints={waypoints}
+            waypoints={shownWaypoints}
             typeOverrides={typeOverrides}
             focusRequest={focusRequest}
             hoveredId={hoveredPoiId}
             selectedId={selectedPoiId}
-            onSelectPoi={(poi) => setSelectedPoiId(poi.id)}
-            onSelectWaypoint={(waypoint) => setSelectedPoiId(waypoint.id)}
+            onSelectPoi={(poi) => setSelectedPoiId((current) => (current === poi.id ? null : poi.id))}
+            onSelectWaypoint={(waypoint) => setSelectedPoiId((current) => (current === waypoint.id ? null : waypoint.id))}
           />
         </div>
 

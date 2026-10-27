@@ -170,5 +170,10 @@
     "hint": "This applies in the list, on the map, in the export and in saved plans. You can set it back to its original type at any time.",
     "confirm": "Change type",
     "cancel": "Cancel"
+  },
+  "route": {
+    "start": "Start of the route",
+    "end": "End of the route",
+    "startEnd": "Start and end of the route"
   }
 }
