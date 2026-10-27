@@ -35,6 +35,7 @@ first place to check.
 """
 
 import xml.etree.ElementTree as ET
+from dataclasses import dataclass
 
 import gpxpy
 import gpxpy.gpx
@@ -72,6 +73,43 @@ GARMIN_SYMBOLS: dict[str, str] = {
 # Types a rider can give to a point by hand, as the frontend sends them:
 # id -> the <type> written into the file. Anything else is ignored.
 WAYPOINT_TYPES: dict[str, str] = {"control": "Control"}
+
+
+# The device makes a rider can choose in their profile (see the frontend's
+# lib/devices.ts); anything else is treated as no choice at all.
+DEVICE_MAKES = {"garmin", "wahoo", "karoo", "sigma", "other"}
+
+
+@dataclass(frozen=True)
+class DeviceProfile:
+    """How the exported file is shaped for the rider's device. The defaults
+    are what every device gets; a make adds its own adjustments."""
+
+    # Join the route's segments into one. Garmin Connect takes only the first
+    # segment of a track as the course and drops the rest, with every waypoint
+    # that lies beyond it.
+    merge_segments: bool = False
+
+
+def device_profile(make: str | None, model: str | None) -> DeviceProfile:
+    """The profile for a make and model as the frontend sends them. The model
+    is accepted for models that will need their own adjustments later."""
+    if make == "garmin":
+        return DeviceProfile(merge_segments=True)
+    return DeviceProfile()
+
+
+def segments_for_device(segments: list[list[Point]], profile: DeviceProfile) -> list[list[Point]]:
+    if not profile.merge_segments or len(segments) < 2:
+        return segments
+    joined: list[Point] = []
+    for segment in segments:
+        for point in segment:
+            # Segments that follow on from each other share their end and start
+            # point; it is written once.
+            if not joined or joined[-1] != point:
+                joined.append(point)
+    return [joined]
 
 
 def apply_waypoint_types(waypoints: list[gpxpy.gpx.GPXWaypoint], overrides: dict[str, str]) -> None:

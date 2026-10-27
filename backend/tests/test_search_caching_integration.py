@@ -355,3 +355,49 @@ def test_export_writes_a_retyped_found_point_with_the_control_symbol(client):
     )
     assert response.content.decode().count("<sym>Flag, Red</sym>") == 2  # the point and its turnoff marker
     assert response.content.decode().count("<type>Control</type>") == 2
+
+
+GPX_WITH_SEGMENTS = b"""<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="test" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    <trkseg>
+      <trkpt lat="48.00" lon="8.00"></trkpt>
+      <trkpt lat="48.01" lon="8.01"></trkpt>
+    </trkseg>
+    <trkseg>
+      <trkpt lat="48.01" lon="8.01"></trkpt>
+      <trkpt lat="48.02" lon="8.02"></trkpt>
+    </trkseg>
+    <trkseg>
+      <trkpt lat="48.02" lon="8.02"></trkpt>
+      <trkpt lat="48.03" lon="8.03"></trkpt>
+    </trkseg>
+  </trk>
+</gpx>
+"""
+
+
+def _export_with_device(client, **device):
+    response = client.post(
+        "/api/export",
+        files={"file": ("route.gpx", GPX_WITH_SEGMENTS, "application/gpx+xml")},
+        data={"pois": "[]", **device},
+    )
+    assert response.status_code == 200
+    return response.content.decode()
+
+
+def test_export_for_garmin_joins_the_segments_into_one_track(client):
+    body = _export_with_device(client, device_make="garmin", device_model="edge_840")
+    assert body.count("<trkseg>") == 1
+    # the shared end and start points are written once: 4 distinct points
+    assert body.count("<trkpt ") == 4
+
+
+def test_export_keeps_the_segments_for_other_makes_or_no_device(client):
+    for device in ({}, {"device_make": "wahoo"}, {"device_make": "other", "device_model": "other"}):
+        assert _export_with_device(client, **device).count("<trkseg>") == 3
+
+
+def test_export_ignores_an_unknown_device_make(client):
+    assert _export_with_device(client, device_make="unknown").count("<trkseg>") == 3

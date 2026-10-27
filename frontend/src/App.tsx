@@ -17,6 +17,7 @@ import { analyzeRoute, exportGpx, type Poi } from "./lib/api";
 import { positionOnRoute, routeLengthM } from "./lib/geo";
 import { isStackedLayout } from "./lib/layout";
 import { parseGpxPreview, parseGpxWaypoints, type LatLon, type RouteWaypoint } from "./lib/gpxPreview";
+import { deviceFromUser } from "./lib/devices";
 import { createPlan, updatePlan, type LoadedPlan, type PlanSummary } from "./lib/plans";
 import { supabase } from "./lib/supabase";
 import { useAuth } from "./lib/useAuth";
@@ -489,7 +490,14 @@ export default function App() {
 
     setExporting(true);
     try {
-      const blob = await exportGpx(file, pois, accessToken, Array.from(excludedPoiIds), typeOverrides);
+      const blob = await exportGpx(
+        file,
+        pois,
+        accessToken,
+        Array.from(excludedPoiIds),
+        typeOverrides,
+        deviceFromUser(user?.user_metadata),
+      );
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;

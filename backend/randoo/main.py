@@ -13,7 +13,14 @@ from pydantic import TypeAdapter, ValidationError
 from . import categories, geometry, gpx, poi_filter, search_cache
 from .auth import bearer_token, require_user
 from .entitlements import get_tier
-from .export import WAYPOINT_TYPES, apply_waypoint_types, build_gpx
+from .export import (
+    DEVICE_MAKES,
+    WAYPOINT_TYPES,
+    apply_waypoint_types,
+    build_gpx,
+    device_profile,
+    segments_for_device,
+)
 from .overpass import Poi
 from .poi_filter import Connector, RankedPoi
 from .poi_source import OverpassPoiSource, get_poi_source
@@ -202,6 +209,8 @@ async def export(
     radius_m: float = Form(500),
     pois: str | None = Form(default=None),
     type_overrides: str | None = Form(default=None),
+    device_make: str | None = Form(default=None),
+    device_model: str | None = Form(default=None),
     excluded_poi_ids: list[str] = Form(default=[]),
     _user: dict = Depends(require_user),
     token: str | None = Depends(bearer_token),
@@ -234,7 +243,8 @@ async def export(
     # gets applied, using the same "osm_type:osm_id" ids /api/analyze returns.
     ranked = [r for r in ranked if _poi_id(r.poi) not in excluded]
 
-    xml = build_gpx(ranked, segments, existing_waypoints, existing_nsmap)
+    profile = device_profile(device_make if device_make in DEVICE_MAKES else None, device_model)
+    xml = build_gpx(ranked, segments_for_device(segments, profile), existing_waypoints, existing_nsmap)
     return Response(
         content=xml,
         media_type="application/gpx+xml",

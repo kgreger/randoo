@@ -174,5 +174,15 @@
   "route": {
     "start": "Start der Strecke",
     "end": "Ende der Strecke"
+  },
+  "device": {
+    "label": "Gerät",
+    "make": "Hersteller",
+    "model": "Modell",
+    "notSet": "Nicht angegeben",
+    "other": "Andere",
+    "saved": "Gerät gespeichert.",
+    "error": "Das Gerät konnte nicht gespeichert werden.",
+    "hint": "Damit passen wir die exportierte Datei an dein Gerät an."
   }
 }
