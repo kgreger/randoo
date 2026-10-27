@@ -19,6 +19,24 @@ export interface Poi {
   is_routed: boolean;
 }
 
+// A failed request, with the HTTP status so the caller can word it for the
+// rider (a body too large for the server, for one, comes back as nginx's own
+// HTML page, which is no message to show).
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
+}
+
+async function failure(response: Response, what: string): Promise<ApiError> {
+  const detail = (await response.text()).trim();
+  const readable = detail.startsWith("<") ? `${response.status} ${response.statusText}`.trim() : detail;
+  return new ApiError(`${what} failed: ${readable}`, response.status);
+}
+
 interface AnalyzeResponse {
   pois: Poi[];
   attribution: string;
@@ -47,10 +65,7 @@ export async function analyzeRoute(
     body: buildFormData(file, categoryIds, radiusM),
   });
 
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(`analyze failed: ${detail}`);
-  }
+  if (!response.ok) throw await failure(response, "analyze");
 
   const data: AnalyzeResponse = await response.json();
   return data.pois;
@@ -103,10 +118,7 @@ export async function exportGpx(
   if (response.status === 401) {
     throw new Error("Your session expired, sign in again to export.");
   }
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(`export failed: ${detail}`);
-  }
+  if (!response.ok) throw await failure(response, "export");
 
   return response.blob();
 }

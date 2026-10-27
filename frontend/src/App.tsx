@@ -13,7 +13,7 @@ import { PoiList } from "./components/PoiList";
 import { SavePlanDialog } from "./components/SavePlanDialog";
 import { SignInDialog } from "./components/SignInDialog";
 import { SUPPORTED_LANGUAGES, type SupportedLanguage } from "./i18n";
-import { analyzeRoute, exportGpx, type Poi } from "./lib/api";
+import { analyzeRoute, ApiError, exportGpx, type Poi } from "./lib/api";
 import { positionOnRoute, routeLengthM } from "./lib/geo";
 import { isStackedLayout } from "./lib/layout";
 import { parseGpxPreview, parseGpxWaypoints, type LatLon, type RouteWaypoint } from "./lib/gpxPreview";
@@ -371,10 +371,15 @@ export default function App() {
       setSearched({ categoryIds: Array.from(selectedCategories), radiusM });
     } catch (err) {
       if (requestId !== searchRequestId.current) return;
-      setError(err instanceof Error ? err.message : t("app.errorSearchFailed"));
+      setError(requestErrorMessage(err, t("app.errorSearchFailed")));
     } finally {
       if (requestId === searchRequestId.current) setLoading(false);
     }
+  }
+
+  function requestErrorMessage(err: unknown, fallback: string): string {
+    if (err instanceof ApiError && err.status === 413) return t("app.errorRequestTooLarge");
+    return err instanceof Error ? err.message : fallback;
   }
 
   function currentSignature() {
@@ -505,7 +510,7 @@ export default function App() {
       link.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("app.errorExportFailed"));
+      setError(requestErrorMessage(err, t("app.errorExportFailed")));
     } finally {
       setExporting(false);
     }

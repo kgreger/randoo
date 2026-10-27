@@ -19,6 +19,7 @@
     "errorGpxParse": "Diese GPX-Datei konnte nicht gelesen werden.",
     "errorSearchFailed": "Suche fehlgeschlagen.",
     "errorExportFailed": "Export fehlgeschlagen.",
+    "errorRequestTooLarge": "Die Datei und die gewählten Punkte sind zu groß für eine Anfrage. Bitte weniger Punkte (Kategorien, Radius) oder eine kleinere GPX-Datei verwenden.",
     "sameRoute": "Diese Route ist bereits geladen. Es bleibt alles, wie es ist."
   },
   "account": {
