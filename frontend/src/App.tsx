@@ -14,8 +14,7 @@ import { SavePlanDialog } from "./components/SavePlanDialog";
 import { SignInDialog } from "./components/SignInDialog";
 import { SUPPORTED_LANGUAGES, type SupportedLanguage } from "./i18n";
 import { analyzeRoute, exportGpx, type Poi } from "./lib/api";
-import { haversineM, positionOnRoute } from "./lib/geo";
-import { routeLengthM } from "./lib/geo";
+import { positionOnRoute, routeLengthM } from "./lib/geo";
 import { isStackedLayout } from "./lib/layout";
 import { parseGpxPreview, parseGpxWaypoints, type LatLon, type RouteWaypoint } from "./lib/gpxPreview";
 import { createPlan, updatePlan, type LoadedPlan, type PlanSummary } from "./lib/plans";
@@ -45,22 +44,15 @@ function resultsSignature(state: {
   ]);
 }
 
-// A file waypoint this close to the start or end of the route counts as the
-// start or end itself.
-const ROUTE_END_TOLERANCE_M = 100;
-
-function routeEndPoints(
-  route: LatLon[][],
-  waypoints: RouteWaypoint[],
-  labels: { start: string; end: string },
-): RouteWaypoint[] {
+// The start and the end of the route as points of their own, whatever
+// waypoints the file has near them.
+function routeEndPoints(route: LatLon[][], labels: { start: string; end: string }): RouteWaypoint[] {
   const segments = route.filter((segment) => segment.length > 1);
   if (segments.length === 0) return [];
   const start = segments[0][0];
   const lastSegment = segments[segments.length - 1];
   const end = lastSegment[lastSegment.length - 1];
 
-  const covered = (point: LatLon) => waypoints.some((w) => haversineM([w.lat, w.lon], point) <= ROUTE_END_TOLERANCE_M);
   const make = (id: string, name: string, point: LatLon): RouteWaypoint => ({
     id,
     name,
@@ -70,11 +62,7 @@ function routeEndPoints(
     fixedType: "control",
   });
 
-  // A loop starts and ends in the same place and still gets both points.
-  const points: RouteWaypoint[] = [];
-  if (!covered(start)) points.push(make("route:start", labels.start, start));
-  if (!covered(end)) points.push(make("route:end", labels.end, end));
-  return points;
+  return [make("route:start", labels.start, start), make("route:end", labels.end, end)];
 }
 
 const DEFAULT_CATEGORIES = ["water", "food"];
@@ -519,9 +507,7 @@ export default function App() {
     window.open(url.toString(), "_blank", "noopener,noreferrer");
   }
 
-  // Start and end of the route as points of their own, unless the file already
-  // has a waypoint there.
-  const routeEnds = routeEndPoints(route, waypoints, {
+  const routeEnds = routeEndPoints(route, {
     start: t("route.start"),
     end: t("route.end"),
   });
