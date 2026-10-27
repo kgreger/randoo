@@ -1,13 +1,24 @@
 import { Fragment, useEffect, useRef } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Flag } from "lucide-react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import type { Poi } from "../lib/api";
+import type { RouteWaypoint } from "../lib/gpxPreview";
 import { categoryById } from "../lib/categories";
 import { isStackedLayout } from "../lib/layout";
 
+export type WaypointOnRoute = RouteWaypoint & { alongM: number; offM: number };
+
+type Row =
+  | { kind: "poi"; poi: Poi; along: number }
+  | { kind: "waypoint"; waypoint: WaypointOnRoute; along: number };
+
 interface Props {
   pois: Poi[];
+  // Waypoints the loaded file already had, listed among the found points in
+  // route order as reference marks.
+  waypoints: WaypointOnRoute[];
+  onFocusWaypoint: (waypoint: WaypointOnRoute) => void;
   radiusM: number;
   excludedIds: Set<string>;
   hideExcluded: boolean;
@@ -49,6 +60,8 @@ function gapHeightPx(gapM: number): number {
 
 export function PoiList({
   pois,
+  waypoints,
+  onFocusWaypoint,
   radiusM,
   excludedIds,
   hideExcluded,
@@ -61,10 +74,28 @@ export function PoiList({
   const { t } = useTranslation();
   // excludedIds also remembers points that are not in the current results.
   const includedCount = pois.filter((poi) => !excludedIds.has(poi.id)).length;
+  // Found points and file waypoints in route order (the sort is stable, so
+  // the found points keep their own order).
+  const rows: Row[] = [
+    ...pois.map((poi): Row => ({ kind: "poi", poi, along: poi.distance_along_route_m })),
+    ...waypoints.map((waypoint): Row => ({ kind: "waypoint", waypoint, along: waypoint.alongM })),
+  ].sort((a, b) => a.along - b.along);
+
   // Hidden points drop out of the list, and the gaps between the remaining
-  // stops are measured across them.
-  const visiblePois = hideExcluded ? pois.filter((poi) => !excludedIds.has(poi.id)) : pois;
-  const positionInResults = new Map(pois.map((poi, index) => [poi.id, index]));
+  // stops are measured across them, counting what was left out.
+  const view: { row: Row; gapM: number; hiddenBetween: number }[] = [];
+  let previousAlong: number | null = null;
+  let hiddenSince = 0;
+  for (const row of rows) {
+    if (row.kind === "poi" && hideExcluded && excludedIds.has(row.poi.id)) {
+      hiddenSince++;
+      continue;
+    }
+    view.push({ row, gapM: previousAlong === null ? 0 : row.along - previousAlong, hiddenBetween: hiddenSince });
+    previousAlong = row.along;
+    hiddenSince = 0;
+  }
+  const anyPoiShown = view.some(({ row }) => row.kind === "poi");
   const listRef = useRef<HTMLDivElement>(null);
 
   // Clicking a marker on the map selects it here too (see MapView's
@@ -101,9 +132,43 @@ export function PoiList({
         )}
       </div>
       <div className="poi-list" ref={listRef}>
-        {pois.length === 0 && <div className="empty-state">{t("poiList.empty")}</div>}
-        {pois.length > 0 && visiblePois.length === 0 && <div className="empty-state">{t("poiList.allHidden")}</div>}
-        {visiblePois.map((poi, index) => {
+        {pois.length === 0 && waypoints.length === 0 && <div className="empty-state">{t("poiList.empty")}</div>}
+        {pois.length > 0 && !anyPoiShown && <div className="empty-state">{t("poiList.allHidden")}</div>}
+        {view.map(({ row, gapM, hiddenBetween }) => {
+          const showGap = gapM >= GAP_THRESHOLD_M;
+          const gapHeight = showGap ? gapHeightPx(gapM) : 0;
+          const gap = showGap && (
+            <div className="poi-gap" style={{ height: `${gapHeight}px` }}>
+              <div className="poi-gap-line" />
+              <span className="poi-gap-label">
+                {formatGap(gapM, t)}
+                {hiddenBetween > 0 && ` (${t("poiList.hiddenBetween", { count: hiddenBetween })})`}
+              </span>
+            </div>
+          );
+
+          if (row.kind === "waypoint") {
+            const { waypoint } = row;
+            return (
+              <Fragment key={waypoint.id}>
+                {gap}
+                <div className="poi-card waypoint-card" data-waypoint-id={waypoint.id} onClick={() => onFocusWaypoint(waypoint)}>
+                  <span className="poi-card-check-spacer" aria-hidden="true" />
+                  <div className="badge waypoint-badge" title={t("poiList.waypointFromFile")}>
+                    <Flag size={17} strokeWidth={2} aria-hidden="true" />
+                  </div>
+                  <div className="poi-card-body">
+                    <div className="name">{waypoint.name ?? t("poiList.waypointFromFile")}</div>
+                    <div className="meta">
+                      {t("poiList.metaKm", { km: (waypoint.alongM / 1000).toFixed(1) })}, {t("poiList.waypointFromFile")}
+                    </div>
+                  </div>
+                </div>
+              </Fragment>
+            );
+          }
+
+          const poi = row.poi;
           const excluded = excludedIds.has(poi.id);
           const cat = categoryById(poi.category_id);
           const Icon = cat?.icon;
@@ -112,30 +177,9 @@ export function PoiList({
           // the radius held in your head to mean anything.
           const fillPct = Math.min(100, (poi.distance_to_route_m / radiusM) * 100);
 
-          // A stretch of route with nothing found reads as empty scroll
-          // space otherwise - a stop on this line, then a long stretch of
-          // track, then the next stop, like a schematic transit map.
-          const gapM = index > 0 ? poi.distance_along_route_m - visiblePois[index - 1].distance_along_route_m : 0;
-          const showGap = gapM >= GAP_THRESHOLD_M;
-          // Points hidden between this stop and the one before it, so a long
-          // stretch says it spans stops that were left out.
-          const hiddenBetween =
-            hideExcluded && index > 0
-              ? (positionInResults.get(poi.id) ?? 0) - (positionInResults.get(visiblePois[index - 1].id) ?? 0) - 1
-              : 0;
-          const gapHeight = showGap ? gapHeightPx(gapM) : 0;
-
           return (
             <Fragment key={poi.id}>
-              {showGap && (
-                <div className="poi-gap" style={{ height: `${gapHeight}px` }}>
-                  <div className="poi-gap-line" />
-                  <span className="poi-gap-label">
-                    {formatGap(gapM, t)}
-                    {hiddenBetween > 0 && ` (${t("poiList.hiddenBetween", { count: hiddenBetween })})`}
-                  </span>
-                </div>
-              )}
+              {gap}
               <div
                 className={`poi-card ${excluded ? "excluded" : ""} ${poi.id === selectedId ? "selected" : ""}`}
                 data-poi-id={poi.id}
@@ -181,6 +225,7 @@ export function PoiList({
             </Fragment>
           );
         })}
+        {pois.length === 0 && waypoints.length > 0 && <div className="empty-state">{t("poiList.empty")}</div>}
       </div>
     </div>
   );

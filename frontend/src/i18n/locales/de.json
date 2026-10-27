@@ -55,7 +55,8 @@
     "zoomToRoute": "Auf Route zoomen",
     "popupDistance": "{{distance}} m von der Route",
     "hideExcluded": "Abgewählte Punkte ausblenden",
-    "showExcluded": "Abgewählte Punkte einblenden"
+    "showExcluded": "Abgewählte Punkte einblenden",
+    "waypoint": "Wegpunkt"
   },
   "poiList": {
     "title": "Punkte in der Nähe",
@@ -70,7 +71,8 @@
     "showExcluded": "Abgewählte Punkte einblenden",
     "allHidden": "Alle Punkte sind abgewählt und ausgeblendet.",
     "hiddenBetween_one": "{{count}} Punkt ausgeblendet",
-    "hiddenBetween_other": "{{count}} Punkte ausgeblendet"
+    "hiddenBetween_other": "{{count}} Punkte ausgeblendet",
+    "waypointFromFile": "Wegpunkt aus der Datei"
   },
   "signInDialog": {
     "recoveryPrompt": "Wähle ein neues Passwort für dein Konto.",

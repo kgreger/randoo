@@ -55,7 +55,8 @@
     "zoomToRoute": "Zoom to route",
     "popupDistance": "{{distance}} m from route",
     "hideExcluded": "Hide unticked points",
-    "showExcluded": "Show unticked points"
+    "showExcluded": "Show unticked points",
+    "waypoint": "Waypoint"
   },
   "poiList": {
     "title": "Nearby points",
@@ -70,7 +71,8 @@
     "showExcluded": "Show unticked points",
     "allHidden": "All points are unticked and hidden.",
     "hiddenBetween_one": "{{count}} point hidden",
-    "hiddenBetween_other": "{{count}} points hidden"
+    "hiddenBetween_other": "{{count}} points hidden",
+    "waypointFromFile": "Waypoint from the file"
   },
   "signInDialog": {
     "recoveryPrompt": "Choose a new password for your account.",

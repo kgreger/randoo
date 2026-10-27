@@ -193,11 +193,15 @@ async def export(
     _user: dict = Depends(require_user),
     token: str | None = Depends(bearer_token),
 ) -> Response:
+    raw = await file.read()
+    await file.seek(0)
+    existing_waypoints, existing_nsmap = gpx.parse_existing_waypoints(raw)
+
     if pois is not None:
         # The points the rider is looking at come with the request, so a
         # saved plan exports as saved and nothing is searched again.
         try:
-            segments = gpx.parse_track(await file.read())
+            segments = gpx.parse_track(raw)
         except gpx.InvalidGpxError as exc:
             raise HTTPException(400, str(exc)) from exc
         ranked = _ranked_from_export(pois)
@@ -213,7 +217,7 @@ async def export(
     excluded = set(excluded_poi_ids)
     ranked = [r for r in ranked if _poi_id(r.poi) not in excluded]
 
-    xml = build_gpx(ranked, segments)
+    xml = build_gpx(ranked, segments, existing_waypoints, existing_nsmap)
     return Response(
         content=xml,
         media_type="application/gpx+xml",

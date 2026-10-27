@@ -14,13 +14,14 @@ import { SavePlanDialog } from "./components/SavePlanDialog";
 import { SignInDialog } from "./components/SignInDialog";
 import { SUPPORTED_LANGUAGES, type SupportedLanguage } from "./i18n";
 import { analyzeRoute, exportGpx, type Poi } from "./lib/api";
-import { routeLengthM } from "./lib/geo";
+import { positionOnRoute, routeLengthM } from "./lib/geo";
 import { isStackedLayout } from "./lib/layout";
-import { parseGpxPreview, type LatLon } from "./lib/gpxPreview";
+import { parseGpxPreview, parseGpxWaypoints, type LatLon, type RouteWaypoint } from "./lib/gpxPreview";
 import { createPlan, updatePlan, type LoadedPlan, type PlanSummary } from "./lib/plans";
 import { supabase } from "./lib/supabase";
 import { useAuth } from "./lib/useAuth";
 import { useCanSavePlans } from "./lib/useTier";
+import type { FocusRequest } from "./components/MapView";
 import logoUrl from "./assets/randoo-logo.svg";
 
 // Comparable form of what a plan stores, for telling saved results from
@@ -56,7 +57,10 @@ export default function App() {
   // current results: a search that finds one again restores its state, and a
   // saved plan keeps them all. Cleared when another route is loaded.
   const [excludedPoiIds, setExcludedPoiIds] = useState(new Set<string>());
-  const [focusRequest, setFocusRequest] = useState<{ poi: Poi; nonce: number } | null>(null);
+  // Waypoints the loaded file already has, shown for orientation next to the
+  // found points.
+  const [waypoints, setWaypoints] = useState<RouteWaypoint[]>([]);
+  const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null);
   const [hoveredPoiId, setHoveredPoiId] = useState<string | null>(null);
   const [selectedPoiId, setSelectedPoiId] = useState<string | null>(null);
   const [selectedCategories, setSelectedCategories] = useState(new Set(DEFAULT_CATEGORIES));
@@ -203,9 +207,11 @@ export default function App() {
     setSavedSignature(null);
     setSearched(null);
     setError(null);
+    setWaypoints([]);
     try {
-      const preview = await parseGpxPreview(selected);
+      const [preview, fileWaypoints] = await Promise.all([parseGpxPreview(selected), parseGpxWaypoints(selected)]);
       setRoute(preview);
+      setWaypoints(fileWaypoints);
     } catch {
       setError(t("app.errorGpxParse"));
       setRoute([]);
@@ -246,12 +252,17 @@ export default function App() {
     });
   }
 
+  function focusWaypoint(waypoint: RouteWaypoint) {
+    setFocusRequest((prev) => ({ id: waypoint.id, lat: waypoint.lat, lon: waypoint.lon, nonce: (prev?.nonce ?? 0) + 1 }));
+    if (isStackedLayout()) mapPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   function focusPoi(poi: Poi) {
     // The nonce means clicking the same card twice in a row (say, after
     // panning away from it) re-centers the map both times - relying on the
     // poi object alone wouldn't re-trigger the effect the second time,
     // since it's the same reference as last render.
-    setFocusRequest((prev) => ({ poi, nonce: (prev?.nonce ?? 0) + 1 }));
+    setFocusRequest((prev) => ({ id: poi.id, lat: poi.lat, lon: poi.lon, nonce: (prev?.nonce ?? 0) + 1 }));
     setSelectedPoiId(poi.id);
     // With the list below the map, the picked point would otherwise be
     // centered somewhere off-screen.
@@ -431,6 +442,12 @@ export default function App() {
     url.hash = `access_token=${session.access_token}&refresh_token=${session.refresh_token}`;
     window.open(url.toString(), "_blank", "noopener,noreferrer");
   }
+
+  // Each waypoint with its place along the route, for the list's order.
+  const waypointsOnRoute = waypoints.map((waypoint) => ({
+    ...waypoint,
+    ...positionOnRoute(route, [waypoint.lat, waypoint.lon]),
+  }));
 
   const hasRoute = route.some((segment) => segment.length > 1);
   const distanceKm = hasRoute ? routeLengthM(route) / 1000 : null;
@@ -695,6 +712,7 @@ export default function App() {
             excludedIds={excludedPoiIds}
             hideExcluded={hideExcluded}
             onToggleHideExcluded={() => setHideExcluded((hidden) => !hidden)}
+            waypoints={waypoints}
             focusRequest={focusRequest}
             hoveredId={hoveredPoiId}
             selectedId={selectedPoiId}
@@ -711,6 +729,8 @@ export default function App() {
           selectedId={selectedPoiId}
           onToggleExcluded={toggleExcluded}
           onFocusPoi={focusPoi}
+          waypoints={waypointsOnRoute}
+          onFocusWaypoint={focusWaypoint}
           onHoverPoi={setHoveredPoiId}
         />
       </div>

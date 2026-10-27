@@ -3,8 +3,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { useTranslation } from "react-i18next";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import type { LatLon } from "../lib/gpxPreview";
+import type { LatLon, RouteWaypoint } from "../lib/gpxPreview";
 import type { Poi } from "../lib/api";
+import { Flag } from "lucide-react";
 import { categoryById } from "../lib/categories";
 
 // Close enough to make out individual streets, without zooming in so far
@@ -16,15 +17,25 @@ const FOCUS_ZOOM = 16;
 // still-animating markers.
 const PULSE_DURATION_MS = 900;
 
+// Where to look, by the id of a found point or of a file waypoint; the nonce
+// makes asking for the same one twice count as a new request.
+export interface FocusRequest {
+  id: string;
+  lat: number;
+  lon: number;
+  nonce: number;
+}
+
 interface Props {
   route: LatLon[][];
   pois: Poi[];
+  waypoints?: RouteWaypoint[];
   excludedIds?: Set<string>;
   // Draws unticked points not at all, instead of faded, so gaps in what is
   // actually going into the export read at a glance.
   hideExcluded?: boolean;
   onToggleHideExcluded?: () => void;
-  focusRequest?: { poi: Poi; nonce: number } | null;
+  focusRequest?: FocusRequest | null;
   hoveredId?: string | null;
   selectedId?: string | null;
   onSelectPoi?: (poi: Poi) => void;
@@ -42,6 +53,16 @@ function poiDivIcon(poi: Poi, excluded: boolean): L.DivIcon {
   });
 }
 
+function waypointDivIcon(): L.DivIcon {
+  return L.divIcon({
+    className: "waypoint-marker",
+    html: `<div class="waypoint-marker-dot">${renderToStaticMarkup(<Flag size={12} strokeWidth={2.4} aria-hidden="true" />)}</div>`,
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
+    popupAnchor: [0, -13],
+  });
+}
+
 const EYE_ICON =
   '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
   '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
@@ -53,6 +74,7 @@ const EYE_OFF_ICON =
 export function MapView({
   route,
   pois,
+  waypoints = [],
   excludedIds,
   hideExcluded = false,
   onToggleHideExcluded,
@@ -70,6 +92,8 @@ export function MapView({
   // focused in on.
   const routeLayerRef = useRef<L.LayerGroup | null>(null);
   const poiLayerRef = useRef<L.LayerGroup | null>(null);
+  const waypointLayerRef = useRef<L.LayerGroup | null>(null);
+  const waypointMarkersRef = useRef<Map<string, L.Marker>>(new Map());
   // Looked up by id when the list is hovered or a card is clicked, so
   // those effects can touch one marker's element directly instead of
   // rebuilding the whole layer just to toggle a class.
@@ -152,6 +176,7 @@ export function MapView({
     mapRef.current = map;
     routeLayerRef.current = L.layerGroup().addTo(map);
     poiLayerRef.current = L.layerGroup().addTo(map);
+    waypointLayerRef.current = L.layerGroup().addTo(map);
 
     // The container's real size can settle after this runs (web fonts loading,
     // flex layout reflow), and Leaflet has no way to notice on its own, it
@@ -254,6 +279,23 @@ export function MapView({
     }
   }, [pois, excludedIds, hideExcluded, i18n.language, t]);
 
+  // The waypoints the file came with, drawn apart from the found points (a
+  // flag in a light square) so they read as reference marks, not results.
+  useEffect(() => {
+    const layer = waypointLayerRef.current;
+    if (!layer) return;
+    layer.clearLayers();
+    waypointMarkersRef.current.clear();
+    for (const waypoint of waypoints) {
+      const label = waypoint.name ?? t("map.waypoint");
+      const popup = `<b>${label}</b>${waypoint.description ? `<br>${waypoint.description}` : ""}`;
+      const marker = L.marker([waypoint.lat, waypoint.lon], { icon: waypointDivIcon(), zIndexOffset: 500 })
+        .bindPopup(popup)
+        .addTo(layer);
+      waypointMarkersRef.current.set(waypoint.id, marker);
+    }
+  }, [waypoints, i18n.language, t]);
+
   // Mirrors the hovered list card and the clicked-and-selected one on the
   // map, each with its own look: a hover follows the mouse, a selection stays
   // picked out until another point is chosen.
@@ -268,9 +310,9 @@ export function MapView({
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !focusRequest) return;
-    map.setView([focusRequest.poi.lat, focusRequest.poi.lon], Math.max(map.getZoom(), FOCUS_ZOOM));
+    map.setView([focusRequest.lat, focusRequest.lon], Math.max(map.getZoom(), FOCUS_ZOOM));
 
-    const el = markersRef.current.get(focusRequest.poi.id)?.getElement();
+    const el = (markersRef.current.get(focusRequest.id) ?? waypointMarkersRef.current.get(focusRequest.id))?.getElement();
     if (!el) return;
     // Restart the animation even if it's already mid-pulse from a rapid
     // second click on the same card - a class that's already present

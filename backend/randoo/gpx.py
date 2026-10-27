@@ -16,6 +16,26 @@ class Point:
     lon: float
 
 
+# Written into the <src> of every waypoint Randoo generates, so a file that was
+# exported by Randoo and is loaded again doesn't bring those back as if they
+# were the rider's own waypoints.
+RANDOO_SOURCE = "Randoo"
+
+
+def parse_existing_waypoints(gpx_bytes: bytes) -> tuple[list[gpxpy.gpx.GPXWaypoint], dict[str, str]]:
+    """The waypoints a file already carries (a brevet's controls, say), as they
+    were written, plus the namespace prefixes the file declares so their
+    extensions can be written back out. Waypoints Randoo itself generated in an
+    earlier export are left out. A file that can't be read yields nothing: the
+    track parse reports that on its own."""
+    try:
+        parsed = gpxpy.parse(gpx_bytes.decode("utf-8"))
+    except Exception:
+        return [], {}
+    waypoints = [wp for wp in parsed.waypoints if wp.source != RANDOO_SOURCE]
+    return waypoints, dict(parsed.nsmap)
+
+
 def parse_track(gpx_bytes: bytes) -> list[list[Point]]:
     """Extract the recorded track as a list of segments, each a sequence of points.
 

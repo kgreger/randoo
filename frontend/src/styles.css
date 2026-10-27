@@ -1086,6 +1086,37 @@ button {
   font-family: "JetBrains Mono", monospace;
 }
 
+/* A waypoint the loaded file came with: a reference mark among the found
+   points, without a checkbox, in the light ink colour instead of the accent. */
+.poi-card-check-spacer {
+  flex: none;
+  width: 16px;
+}
+
+.poi-card.waypoint-card .badge {
+  background: rgba(247, 241, 239, 0.14);
+  color: var(--ink);
+}
+
+.waypoint-card:hover {
+  background: rgba(247, 241, 239, 0.07);
+  border-color: rgba(247, 241, 239, 0.2);
+}
+
+.waypoint-marker-dot {
+  box-sizing: border-box;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ink);
+  border: 2px solid #241a30;
+  color: #241a30;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
 .poi-card-check-wrap {
   flex: none;
   display: flex;

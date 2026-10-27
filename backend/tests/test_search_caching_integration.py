@@ -213,3 +213,74 @@ def test_export_without_points_or_categories_is_rejected(client):
         files={"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")},
     )
     assert response.status_code == 400
+
+
+GPX_WITH_WAYPOINTS = b"""<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="test" xmlns="http://www.topografix.com/GPX/1/1"
+     xmlns:ext="http://example.com/ext">
+  <wpt lat="48.003" lon="8.003">
+    <ele>312.5</ele>
+    <name>CP1 Start</name>
+    <desc>Brevet control</desc>
+    <sym>Flag, Red</sym>
+    <extensions><ext:opens>08:00</ext:opens></extensions>
+  </wpt>
+  <wpt lat="48.007" lon="8.007"><name>Old Randoo POI</name><src>Randoo</src></wpt>
+  <trk><trkseg>
+    <trkpt lat="48.0" lon="8.0"></trkpt>
+    <trkpt lat="48.01" lon="8.01"></trkpt>
+  </trkseg></trk>
+</gpx>
+"""
+
+
+def test_export_keeps_the_waypoints_the_file_already_had(client):
+    point = {
+        "id": "node:7",
+        "osm_id": 7,
+        "osm_type": "node",
+        "lat": 48.004,
+        "lon": 8.003,
+        "category_id": "water",
+        "name": "Saved Spring",
+        "distance_to_route_m": 42.0,
+        "meeting_point": [48.003, 8.003],
+    }
+    response = client.post(
+        "/api/export",
+        files={"file": ("route.gpx", GPX_WITH_WAYPOINTS, "application/gpx+xml")},
+        data={"pois": json.dumps([point])},
+    )
+
+    assert response.status_code == 200
+    body = response.content.decode()
+    assert "CP1 Start" in body
+    assert "Brevet control" in body
+    assert "Flag, Red" in body
+    assert "312.5" in body
+    assert "08:00" in body  # the extension survives
+    assert "Saved Spring" in body
+    # a waypoint an earlier Randoo export wrote is not carried over as the rider's own
+    assert "Old Randoo POI" not in body
+    # existing waypoints come first, then Randoo's
+    assert body.index("CP1 Start") < body.index("Saved Spring")
+
+
+def test_export_marks_its_own_waypoints_as_generated_by_randoo(client):
+    point = {
+        "id": "node:7",
+        "osm_id": 7,
+        "osm_type": "node",
+        "lat": 48.004,
+        "lon": 8.003,
+        "category_id": "water",
+        "name": "Saved Spring",
+        "distance_to_route_m": 42.0,
+        "meeting_point": [48.003, 8.003],
+    }
+    response = client.post(
+        "/api/export",
+        files={"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")},
+        data={"pois": json.dumps([point])},
+    )
+    assert response.content.decode().count("<src>Randoo</src>") == 2  # the POI and its turnoff marker
