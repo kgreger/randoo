@@ -89,7 +89,7 @@ WAYPOINT_TYPES: dict[str, str] = {"control": "Control"}
 # devices are known to show.
 GARMIN_POINT_TYPES: dict[str, str] = {
     "water": "water",
-    "fuel": "service",
+    "fuel": "store",
     "bike_shop": "service",
     "lodging": "shelter",
     "hut": "shelter",

@@ -420,7 +420,7 @@ def _poi_payload(category_id, osm_id):
 def test_export_for_garmin_writes_the_course_point_type_of_each_category(client):
     expected = {
         "water": "water",
-        "fuel": "service",
+        "fuel": "store",
         "bike_shop": "service",
         "lodging": "shelter",
         "hut": "shelter",
