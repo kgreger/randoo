@@ -46,7 +46,7 @@ function poiDivIcon(poi: Poi, excluded: boolean, typeId: string): L.DivIcon {
   const Icon = (pointTypeById(typeId) ?? categoryById(poi.category_id))?.icon;
   const iconSvg = Icon ? renderToStaticMarkup(<Icon size={11} strokeWidth={2.4} aria-hidden="true" />) : "";
   return L.divIcon({
-    className: `poi-marker ${excluded ? "excluded" : ""}`,
+    className: `poi-marker ${excluded ? "excluded" : ""} type-${typeId}`,
     html: `<div class="poi-marker-dot">${iconSvg}</div>`,
     iconSize: [20, 20],
     iconAnchor: [10, 10],
@@ -57,7 +57,7 @@ function poiDivIcon(poi: Poi, excluded: boolean, typeId: string): L.DivIcon {
 function waypointDivIcon(typeId: string, excluded: boolean): L.DivIcon {
   const Icon = (pointTypeById(typeId) ?? WAYPOINT_TYPE).icon;
   return L.divIcon({
-    className: `waypoint-marker ${excluded ? "excluded" : ""}`,
+    className: `waypoint-marker ${excluded ? "excluded" : ""} type-${typeId}`,
     html: `<div class="waypoint-marker-dot">${renderToStaticMarkup(<Icon size={12} strokeWidth={2.4} aria-hidden="true" />)}</div>`,
     iconSize: [22, 22],
     iconAnchor: [11, 11],

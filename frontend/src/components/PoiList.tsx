@@ -183,7 +183,6 @@ export function PoiList({
                   </label>
                   <TypeBadge
                     typeId={typeId}
-                    overridden={waypoint.id in typeOverrides}
                     label={typeLabel}
                     onOpen={(rect) =>
                       setTypeMenu({
@@ -239,7 +238,6 @@ export function PoiList({
                 </label>
                 <TypeBadge
                   typeId={typeId}
-                  overridden={poi.id in typeOverrides}
                   label={typeLabel}
                   onOpen={(rect) =>
                     setTypeMenu({
@@ -256,6 +254,7 @@ export function PoiList({
                   <div className="meta">
                     {t("poiList.metaKm", { km: (poi.distance_along_route_m / 1000).toFixed(1) })},{" "}
                     {t("poiList.metaDistance", { distance: Math.round(poi.distance_to_route_m) })}
+                    {poi.id in typeOverrides && ` · ${typeLabel}`}
                   </div>
                   <div
                     className="distance-bar"
@@ -299,12 +298,10 @@ interface TypeMenuTarget {
 // shows on hover (and always on touch screens, see styles.css).
 function TypeBadge({
   typeId,
-  overridden,
   label,
   onOpen,
 }: {
   typeId: string;
-  overridden: boolean;
   label: string;
   onOpen: (rect: DOMRect) => void;
 }) {
@@ -313,7 +310,7 @@ function TypeBadge({
   return (
     <button
       type="button"
-      className={`badge badge-editable ${overridden ? "badge-overridden" : ""}`}
+      className={`badge badge-editable badge-type-${typeId}`}
       title={`${label} · ${t("poiList.changeType")}`}
       aria-label={`${label}, ${t("poiList.changeType")}`}
       aria-haspopup="menu"
