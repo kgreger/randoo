@@ -74,6 +74,10 @@ GARMIN_SYMBOLS: dict[str, str] = {
     "control": "Flag, Red",
 }
 
+# Garmin Connect keeps only the first 15 characters of a course point's name.
+GARMIN_NAME_LIMIT = 15
+GARMIN_TURNOFF_PREFIX = "> "
+
 # Types a rider can give to a point by hand, as the frontend sends them:
 # id -> the <type> written into the file. Anything else is ignored.
 WAYPOINT_TYPES: dict[str, str] = {"control": "Control"}
@@ -85,8 +89,8 @@ WAYPOINT_TYPES: dict[str, str] = {"control": "Control"}
 # devices are known to show.
 GARMIN_POINT_TYPES: dict[str, str] = {
     "water": "water",
-    "fuel": "service",
-    "bike_shop": "gear",
+    "fuel": "store",
+    "bike_shop": "service",
     "lodging": "shelter",
     "hut": "shelter",
     "food": "food",
@@ -111,13 +115,25 @@ class DeviceProfile:
     merge_segments: bool = False
     # Randoo type id -> the <type> written for it. Ids missing here get none.
     point_types: dict[str, str] = field(default_factory=lambda: dict(WAYPOINT_TYPES))
+    # Longest waypoint name the device shows; longer names are cut at a word
+    # boundary and the full name moves into the comment. Garmin Connect keeps
+    # the first 15 characters of a course point's name and drops the rest.
+    name_limit: int | None = None
+    # When set, a turnoff marker is named "<prefix><name>" instead of
+    # "<name> (turnoff)", so the mark survives a short name limit.
+    turnoff_prefix: str | None = None
 
 
 def device_profile(make: str | None, model: str | None) -> DeviceProfile:
     """The profile for a make and model as the frontend sends them. The model
     is accepted for models that will need their own adjustments later."""
     if make == "garmin":
-        return DeviceProfile(merge_segments=True, point_types=dict(GARMIN_POINT_TYPES))
+        return DeviceProfile(
+            merge_segments=True,
+            point_types=dict(GARMIN_POINT_TYPES),
+            name_limit=GARMIN_NAME_LIMIT,
+            turnoff_prefix=GARMIN_TURNOFF_PREFIX,
+        )
     return DeviceProfile()
 
 
@@ -132,6 +148,21 @@ def segments_for_device(segments: list[list[Point]], profile: DeviceProfile) -> 
             if not joined or joined[-1] != point:
                 joined.append(point)
     return [joined]
+
+
+def shorten_name(name: str, limit: int) -> str:
+    """The name cut to at most `limit` characters, at a word boundary where
+    there is a sensible one (a first word of 4+ characters is kept whole
+    rather than cut to nothing)."""
+    name = name.strip()
+    if len(name) <= limit:
+        return name
+    cut = name[:limit]
+    if name[limit] != " ":
+        boundary = cut.rfind(" ")
+        if boundary >= 4:
+            cut = cut[:boundary]
+    return cut.rstrip(" ,;:-(/") or name[:limit]
 
 
 def apply_waypoint_types(
@@ -181,11 +212,16 @@ def build_gpx(
 
 def _poi_waypoint(ranked: RankedPoi, profile: DeviceProfile) -> gpxpy.gpx.GPXWaypoint:
     poi = ranked.poi
+    name, comment = _name_and_comment(
+        poi.name or poi.category_id,
+        f"{poi.category_id}, {round(ranked.distance_to_route_m)} m from route",
+        profile.name_limit,
+    )
     wpt = gpxpy.gpx.GPXWaypoint(
         latitude=poi.lat,
         longitude=poi.lon,
-        name=poi.name or poi.category_id,
-        comment=f"{poi.category_id}, {round(ranked.distance_to_route_m)} m from route",
+        name=name,
+        comment=comment,
         symbol=GARMIN_SYMBOLS.get(poi.category_id),
         type=profile.point_types.get(poi.category_id),
     )
@@ -200,17 +236,34 @@ def _turnoff_waypoint(ranked: RankedPoi, profile: DeviceProfile) -> gpxpy.gpx.GP
     POI. See the module docstring for why this exists."""
     poi = ranked.poi
     on_route = ranked.connector.meeting_point
+    label = poi.name or poi.category_id
+    comment = f"{poi.category_id}, actual spot {round(ranked.distance_to_route_m)} m off-route here"
+    if profile.turnoff_prefix is not None:
+        prefix = profile.turnoff_prefix
+        limit = profile.name_limit - len(prefix) if profile.name_limit is not None else None
+        name, comment = _name_and_comment(label, comment, limit)
+        name = prefix + name
+    else:
+        name, comment = _name_and_comment(f"{label} (turnoff)", comment, profile.name_limit)
     wpt = gpxpy.gpx.GPXWaypoint(
         latitude=on_route.lat,
         longitude=on_route.lon,
-        name=f"{poi.name or poi.category_id} (turnoff)",
-        comment=f"{poi.category_id}, actual spot {round(ranked.distance_to_route_m)} m off-route here",
+        name=name,
+        comment=comment,
         symbol=GARMIN_SYMBOLS.get(poi.category_id),
         type=profile.point_types.get(poi.category_id),
     )
     wpt.source = RANDOO_SOURCE
     wpt.extensions.append(_garmin_proximity_extension(GARMIN_PROXIMITY_M))
     return wpt
+
+
+def _name_and_comment(label: str, comment: str, limit: int | None) -> tuple[str, str]:
+    """The name within the device's limit; when it had to be cut, the full
+    name leads the comment so nothing is lost."""
+    if limit is None or len(label) <= limit:
+        return label, comment
+    return shorten_name(label, limit), f"{label}: {comment}"
 
 
 def _garmin_proximity_extension(proximity_m: float) -> ET.Element:

@@ -420,8 +420,8 @@ def _poi_payload(category_id, osm_id):
 def test_export_for_garmin_writes_the_course_point_type_of_each_category(client):
     expected = {
         "water": "water",
-        "fuel": "service",
-        "bike_shop": "gear",
+        "fuel": "store",
+        "bike_shop": "service",
         "lodging": "shelter",
         "hut": "shelter",
         "food": "food",
@@ -441,6 +441,57 @@ def test_export_for_garmin_writes_the_course_point_type_of_each_category(client)
         assert f"<type>{garmin_type}</type>" in point, category
     # the turnoff markers carry it too
     assert body.count("<type>checkpoint</type>") == 2
+
+
+def test_shorten_name_cuts_at_a_word_boundary():
+    from randoo.export import shorten_name
+
+    assert shorten_name("Bike Shop", 15) == "Bike Shop"
+    assert shorten_name("Albert Heijn Rotterdam", 15) == "Albert Heijn"
+    assert shorten_name("Stadscafé De Pannekoek", 15) == "Stadscafé De"
+    assert shorten_name("Albert Heijn (extra)", 13) == "Albert Heijn"
+    # a first word that is too long to keep whole, or has no space, is cut hard
+    assert shorten_name("Supercalifragilistic", 15) == "Supercalifragil"
+    assert shorten_name("A Supercalifragilistic", 10) == "A Supercal"
+
+
+def test_export_for_garmin_shortens_the_names_and_marks_the_turnoff_markers(client):
+    point = {**_poi_payload("food", 1), "name": "Albert Heijn Rotterdam"}
+    response = client.post(
+        "/api/export",
+        files={"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")},
+        data={"pois": json.dumps([point]), "device_make": "garmin"},
+    )
+    body = response.content.decode()
+    assert "<name>Albert Heijn</name>" in body
+    assert "<name>&gt; Albert Heijn</name>" in body
+    # the full name is not lost, it leads the comment
+    assert body.count("<cmt>Albert Heijn Rotterdam: food, ") == 2
+
+
+def test_export_for_garmin_keeps_short_names_whole(client):
+    point = {**_poi_payload("food", 1), "name": "Friterie"}
+    response = client.post(
+        "/api/export",
+        files={"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")},
+        data={"pois": json.dumps([point]), "device_make": "garmin"},
+    )
+    body = response.content.decode()
+    assert "<name>Friterie</name>" in body
+    assert "<name>&gt; Friterie</name>" in body
+    assert "<cmt>food, " in body
+
+
+def test_export_for_other_devices_keeps_the_full_names_and_the_turnoff_suffix(client):
+    point = {**_poi_payload("food", 1), "name": "Albert Heijn Rotterdam"}
+    response = client.post(
+        "/api/export",
+        files={"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")},
+        data={"pois": json.dumps([point])},
+    )
+    body = response.content.decode()
+    assert "<name>Albert Heijn Rotterdam</name>" in body
+    assert "<name>Albert Heijn Rotterdam (turnoff)</name>" in body
 
 
 def test_export_for_garmin_retypes_a_file_waypoint_with_the_garmin_control_type(client):
