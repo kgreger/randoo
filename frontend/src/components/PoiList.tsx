@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, Eye, EyeOff, ListFilter, Pencil } from "lucide-react";
+import { Check, Eye, EyeOff, Funnel, Pencil } from "lucide-react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import type { Poi } from "../lib/api";
@@ -115,7 +115,8 @@ export function PoiList({
   for (const row of rows) {
     const id = row.kind === "poi" ? row.poi.id : row.waypoint.id;
     const typeId = row.kind === "poi" ? poiTypeId(row.poi, typeOverrides) : waypointTypeId(row.waypoint, typeOverrides);
-    if ((hideExcluded && excludedIds.has(id)) || hiddenTypes.has(typeId)) {
+    const alwaysShown = row.kind === "waypoint" && row.waypoint.fixedType !== undefined;
+    if ((hideExcluded && excludedIds.has(id)) || (hiddenTypes.has(typeId) && !alwaysShown)) {
       hiddenSince++;
       continue;
     }
@@ -144,7 +145,7 @@ export function PoiList({
           <div className="side-panel-head-right">
             {typeCounts.length > 1 && (
               <button
-                className="poi-hide-toggle"
+                className={`poi-hide-toggle ${hiddenTypes.size > 0 ? "filtering" : ""}`}
                 onClick={(e) => {
                   const rect = e.currentTarget.getBoundingClientRect();
                   setFilterRect((current) => (current ? null : rect));
@@ -152,10 +153,16 @@ export function PoiList({
                 aria-pressed={hiddenTypes.size > 0}
                 aria-haspopup="menu"
                 aria-expanded={filterRect !== null}
-                title={t("poiList.filter")}
-                aria-label={t("poiList.filter")}
+                title={t(hiddenTypes.size > 0 ? "poiList.filterActive" : "poiList.filter")}
+                aria-label={t(hiddenTypes.size > 0 ? "poiList.filterActive" : "poiList.filter")}
               >
-                <ListFilter size={15} strokeWidth={2} aria-hidden="true" />
+                <Funnel
+                  size={15}
+                  strokeWidth={2}
+                  // Filled while something is hidden, an outline otherwise.
+                  fill={hiddenTypes.size > 0 ? "currentColor" : "none"}
+                  aria-hidden="true"
+                />
               </button>
             )}
             <button

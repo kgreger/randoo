@@ -64,6 +64,7 @@
   "poiList": {
     "filterAll": "Alle",
     "filter": "Typen filtern",
+    "filterActive": "Filter aktiv, Typen sind ausgeblendet",
     "title": "Punkte in der Nähe",
     "empty": "Punkte entlang deiner Route erscheinen hier.",
     "count": "{{included}}/{{total}}",

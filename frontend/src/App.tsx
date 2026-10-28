@@ -593,10 +593,13 @@ export default function App() {
   });
 
   // The types present among the points, and which of them are hidden (a type
-  // can disappear when points are re-typed, so only those present count).
+  // can disappear when points are re-typed, so only those present count). The
+  // route's own start and end are not part of it: they always stay.
   const typeCounts = countTypes([
     ...pois.map((poi) => poiTypeId(poi, typeOverrides)),
-    ...waypointsOnRoute.map((waypoint) => waypointTypeId(waypoint, typeOverrides)),
+    ...waypointsOnRoute
+      .filter((waypoint) => waypoint.fixedType === undefined)
+      .map((waypoint) => waypointTypeId(waypoint, typeOverrides)),
   ]);
   const hiddenNow = new Set(typeCounts.map((entry) => entry.typeId).filter((typeId) => hiddenTypes.has(typeId)));
   const isShown = (typeId: string) => !hiddenNow.has(typeId);
@@ -910,7 +913,9 @@ export default function App() {
             excludedIds={excludedPoiIds}
             hideExcluded={hideExcluded}
             onToggleHideExcluded={() => setHideExcluded((hidden) => !hidden)}
-            waypoints={shownWaypoints.filter((waypoint) => isShown(waypointTypeId(waypoint, typeOverrides)))}
+            waypoints={shownWaypoints.filter(
+              (waypoint) => waypoint.fixedType !== undefined || isShown(waypointTypeId(waypoint, typeOverrides)),
+            )}
             typeOverrides={typeOverrides}
             focusRequest={focusRequest}
             hoveredId={hoveredPoiId}
