@@ -173,7 +173,7 @@
     "confirm": "Export as one file anyway",
     "cancel": "Cancel",
     "nameLabel": "Route name",
-    "nameHint": "Each file gets its number in front, so you find them in the right order on your device. The route is cut at control points where one fits, otherwise evenly by number of points.",
+    "nameHint": "Each file gets its number in front, so you find them in the right order on your device. The route is cut at control points if there are any and no part gets too big, otherwise evenly by number of points.",
     "splitConfirm": "Split",
     "splitting": "Splitting …",
     "errorSplit": "Splitting did not work. Try again.",

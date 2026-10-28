@@ -48,7 +48,7 @@ def test_the_points_are_shared_out_evenly_and_none_gets_lost():
     pois = _pois(100)
     parts = split_route(pois, TRACK, [], PROFILE, 40)
 
-    assert [len(p[1]) for p in parts] == [33, 34, 33]
+    assert [len(p[1]) for p in parts] == [33, 33, 34]
     assert sorted(r.poi.osm_id for _, chunk, _ in parts for r in chunk) == list(range(100))
 
 
@@ -79,13 +79,22 @@ def test_the_cut_goes_to_a_control_point_near_an_even_split():
     assert parts[0][0][-1].lat == pytest.approx(48.0525)
 
 
-def test_a_control_point_that_is_not_near_an_even_split_is_left_alone():
+def test_a_control_point_far_from_an_even_split_is_still_the_cut():
+    pois = _pois(100)
+    control = _poi(500, 48.035, "control")
+    parts = split_route([*pois, control], TRACK, [], PROFILE, 70)
+
+    assert parts[0][1][-1] is control
+    assert len(parts[0][1]) < 40
+
+
+def test_a_control_point_that_would_leave_a_part_over_the_limit_is_left_alone():
     pois = _pois(100)
     control = _poi(500, 48.0125, "control")
     parts = split_route([*pois, control], TRACK, [], PROFILE, 60)
 
     assert control not in parts[0][1][-1:]
-    assert abs(len(parts[0][1]) - len(parts[1][1])) <= 1
+    assert all(len(p[1]) <= 60 for p in parts)
 
 
 def test_only_the_controls_that_are_needed_become_cuts():
@@ -127,6 +136,8 @@ def test_a_point_far_from_the_route_counts_with_its_turnoff_marker():
 
 def test_the_parts_are_named_with_their_place_in_the_series():
     assert part_name("Brevet 300", 2, 3) == "2.3 Brevet 300"
+    assert part_name("Brevet 300", 2, 11) == "02.11 Brevet 300"
+    assert part_name("Brevet 300", 11, 11) == "11.11 Brevet 300"
     assert file_name("2.3 Brevet 300") == "2.3 Brevet 300.gpx"
     assert file_name('Tour: A/B?') == "Tour- A-B-.gpx"
     assert file_name("  ") == "randoo-pois.gpx"
@@ -139,7 +150,7 @@ def test_split_gpx_names_the_files_and_tracks_of_the_parts():
     root = ET.fromstring(parts[1].gpx)
     assert root.find(f"{{{GPX_NS}}}trk/{{{GPX_NS}}}name").text == "2.3 Brevet 300"
     assert root.find(f"{{{GPX_NS}}}metadata/{{{GPX_NS}}}name").text == "2.3 Brevet 300"
-    assert len(root.findall(f"{{{GPX_NS}}}wpt")) == 34
+    assert len(root.findall(f"{{{GPX_NS}}}wpt")) == 33
 
 
 def test_split_gpx_gives_a_route_within_the_limit_its_plain_name():

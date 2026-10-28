@@ -1,9 +1,9 @@
 """Split a route that has more course points than a device takes into parts.
 
 Every part is a file of its own: a stretch of the track with the points that
-lie along it. The cuts go where a rider-marked control point sits close to an
-even split, otherwise between two points so that the parts carry about the
-same number of course points.
+lie along it. The cuts go to rider-marked control points where one fits,
+otherwise between two points so that the parts carry about the same number of
+course points.
 """
 
 import math
@@ -18,10 +18,6 @@ from .export import DeviceProfile, build_gpx, poi_course_points
 from .geometry import local_crs_transformer
 from .gpx import Point
 from .poi_filter import RankedPoi
-
-# How far from an even split, as a share of the course point limit, a control
-# point may lie and still be taken as the cut.
-CONTROL_TOLERANCE = 0.15
 
 FALLBACK_NAME = "randoo-pois"
 
@@ -48,8 +44,9 @@ def part_count(course_points: int, limit: int) -> int:
 
 def part_name(name: str, index: int, total: int) -> str:
     """The course name with its place in the series in front, "2.3 Name": a
-    slash would not do in a file name."""
-    return f"{index}.{total} {name}"
+    slash would not do in a file name. The number is padded with zeros to the
+    width of the total ("02.11 Name") so the files sort in order."""
+    return f"{index:0{len(str(total))}d}.{total} {name}"
 
 
 def file_name(name: str) -> str:
@@ -152,8 +149,8 @@ def split_route(
 def _choose_cuts(items: list[_Item], count: int, limit: int) -> list[int]:
     """The index in `items` where each part but the last ends (exclusive). A
     cut keeps every part within the limit where the points allow it; among
-    those it takes the control point closest to an even split if one lies
-    near enough, otherwise the cut closest to an even split."""
+    those it takes the control point closest to an even split of what is left,
+    however far from it, and without any control point the cut closest to it."""
     before = [0]
     for item in items:
         before.append(before[-1] + item.course_points)
@@ -162,7 +159,7 @@ def _choose_cuts(items: list[_Item], count: int, limit: int) -> list[int]:
     cuts: list[int] = []
     previous = 0
     for k in range(1, count):
-        ideal = total * k / count
+        ideal = before[previous] + (total - before[previous]) / (count - k + 1)
         upper = len(items) - (count - k)
         candidates = range(previous + 1, upper + 1)
         feasible = [
@@ -171,11 +168,7 @@ def _choose_cuts(items: list[_Item], count: int, limit: int) -> list[int]:
             if before[c] - before[previous] <= limit and total - before[c] <= (count - k) * limit
         ] or list(candidates)
 
-        controls = [
-            c
-            for c in feasible
-            if items[c - 1].is_control and abs(before[c] - ideal) <= CONTROL_TOLERANCE * limit
-        ]
+        controls = [c for c in feasible if items[c - 1].is_control]
         chosen = min(controls or feasible, key=lambda c: abs(before[c] - ideal))
         cuts.append(chosen)
         previous = chosen

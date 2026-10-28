@@ -18,9 +18,9 @@ interface Props {
 
 // The name each part gets, as the backend writes it (see split.part_name): the
 // number of the part and of all parts in front, with a dot because a slash
-// cannot be part of a file name.
+// cannot be part of a file name, padded with zeros so the files sort in order.
 function partLabel(name: string, index: number, total: number): string {
-  return `${index}.${total} ${name.trim() || "randoo-pois"}`;
+  return `${String(index).padStart(String(total).length, "0")}.${total} ${name.trim() || "randoo-pois"}`;
 }
 
 function archiveName(name: string): string {

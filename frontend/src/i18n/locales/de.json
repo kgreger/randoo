@@ -173,7 +173,7 @@
     "confirm": "Trotzdem als eine Datei exportieren",
     "cancel": "Abbrechen",
     "nameLabel": "Name der Strecke",
-    "nameHint": "Jede Datei bekommt ihre Nummer davor, damit du sie auf dem Gerät in der richtigen Reihenfolge findest. Geteilt wird an Kontrollpunkten, wo es passt, sonst gleichmäßig nach Punkten.",
+    "nameHint": "Jede Datei bekommt ihre Nummer davor, damit du sie auf dem Gerät in der richtigen Reihenfolge findest. Geteilt wird an Kontrollpunkten, wenn es welche gibt und kein Teil zu groß wird, sonst gleichmäßig nach Punkten.",
     "splitConfirm": "Aufteilen",
     "splitting": "Teile auf …",
     "errorSplit": "Das Aufteilen hat nicht geklappt. Versuche es nochmal.",
