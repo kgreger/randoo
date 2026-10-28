@@ -62,6 +62,8 @@
     "waypoint": "Waypoint"
   },
   "poiList": {
+    "filterAll": "All",
+    "filter": "Filter types",
     "title": "Nearby points",
     "empty": "Points along your route will show up here.",
     "count": "{{included}}/{{total}}",

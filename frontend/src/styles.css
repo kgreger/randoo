@@ -1194,6 +1194,13 @@ button {
   flex: 1;
 }
 
+.type-menu-item .type-menu-count {
+  flex: none;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+
 .type-menu-item:hover {
   background: var(--surface-strong);
 }

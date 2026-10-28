@@ -19,6 +19,7 @@ import { positionOnRoute, routeLengthM } from "./lib/geo";
 import { isStackedLayout } from "./lib/layout";
 import { parseGpxCourseName, parseGpxPreview, parseGpxWaypoints, type LatLon, type RouteWaypoint } from "./lib/gpxPreview";
 import { deviceFromUser } from "./lib/devices";
+import { countTypes, poiTypeId, waypointTypeId } from "./lib/pointTypes";
 import { createPlan, updatePlan, type LoadedPlan, type PlanSummary } from "./lib/plans";
 import { supabase } from "./lib/supabase";
 import { useAuth } from "./lib/useAuth";
@@ -126,6 +127,9 @@ export default function App() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [hideExcluded, setHideExcluded] = useState(false);
+  // The types hidden from list and map. A view only: it changes neither the
+  // selection nor the export.
+  const [hiddenTypes, setHiddenTypes] = useState(new Set<string>());
   // Set while the rider is asked to confirm a search that drops points
   // already found, with how many of each category would go.
   const [searchWarning, setSearchWarning] = useState<{ categoryId: string; count: number }[] | null>(null);
@@ -253,6 +257,7 @@ export default function App() {
     setExcludedPoiIds(new Set());
     setTypeOverrides({});
     setHideExcluded(false);
+    setHiddenTypes(new Set());
     setSelectedPoiId(null);
     setFiltersOpen(true);
     setSavedRouteId(null);
@@ -372,6 +377,7 @@ export default function App() {
       // now would silently undo whatever the rider is already looking at.
       if (requestId !== searchRequestId.current) return;
       setPois(results);
+      setHiddenTypes(new Set());
       // The unticked points stay remembered (see excludedPoiIds), so a point
       // found again comes back unticked; only the highlighted one is reset.
       setSelectedPoiId(null);
@@ -585,6 +591,28 @@ export default function App() {
     if (waypoint.id === "route:end") return { ...waypoint, ...position, alongM: routeLengthM(route) };
     return { ...waypoint, ...position };
   });
+
+  // The types present among the points, and which of them are hidden (a type
+  // can disappear when points are re-typed, so only those present count).
+  const typeCounts = countTypes([
+    ...pois.map((poi) => poiTypeId(poi, typeOverrides)),
+    ...waypointsOnRoute.map((waypoint) => waypointTypeId(waypoint, typeOverrides)),
+  ]);
+  const hiddenNow = new Set(typeCounts.map((entry) => entry.typeId).filter((typeId) => hiddenTypes.has(typeId)));
+  const isShown = (typeId: string) => !hiddenNow.has(typeId);
+
+  // One type, or null for all at once: all shown becomes all hidden, anything
+  // else all shown.
+  function toggleType(typeId: string | null) {
+    setHiddenTypes((current) => {
+      const hidden = new Set([...current].filter((id) => typeCounts.some((entry) => entry.typeId === id)));
+      if (typeId === null) {
+        return hidden.size === 0 ? new Set(typeCounts.map((entry) => entry.typeId)) : new Set();
+      }
+      if (!hidden.delete(typeId)) hidden.add(typeId);
+      return hidden;
+    });
+  }
 
   const hasRoute = route.some((segment) => segment.length > 1);
   const distanceKm = hasRoute ? routeLengthM(route) / 1000 : null;
@@ -878,11 +906,11 @@ export default function App() {
 
           <MapView
             route={route}
-            pois={pois}
+            pois={pois.filter((poi) => isShown(poiTypeId(poi, typeOverrides)))}
             excludedIds={excludedPoiIds}
             hideExcluded={hideExcluded}
             onToggleHideExcluded={() => setHideExcluded((hidden) => !hidden)}
-            waypoints={shownWaypoints}
+            waypoints={shownWaypoints.filter((waypoint) => isShown(waypointTypeId(waypoint, typeOverrides)))}
             typeOverrides={typeOverrides}
             focusRequest={focusRequest}
             hoveredId={hoveredPoiId}
@@ -906,6 +934,9 @@ export default function App() {
           typeOverrides={typeOverrides}
           onChangeType={changePointType}
           onHoverPoi={setHoveredPoiId}
+          typeCounts={typeCounts}
+          hiddenTypes={hiddenNow}
+          onToggleType={toggleType}
         />
       </div>
 
