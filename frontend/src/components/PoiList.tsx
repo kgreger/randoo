@@ -1,11 +1,12 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, Eye, EyeOff, Pencil } from "lucide-react";
+import { Check, Eye, EyeOff, Funnel, Pencil } from "lucide-react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import type { Poi } from "../lib/api";
 import type { RouteWaypoint } from "../lib/gpxPreview";
 import { ASSIGNABLE_TYPES, WAYPOINT_TYPE, pointTypeById } from "../lib/categories";
+import { poiTypeId, waypointTypeId } from "../lib/pointTypes";
 import { isStackedLayout } from "../lib/layout";
 
 export type WaypointOnRoute = RouteWaypoint & { alongM: number; offM: number };
@@ -32,6 +33,11 @@ interface Props {
   onToggleExcluded: (id: string) => void;
   onFocusPoi: (poi: Poi) => void;
   onHoverPoi: (id: string | null) => void;
+  // The types present with their number of points, those hidden from the list,
+  // and the way to hide or show one (null: all at once).
+  typeCounts: { typeId: string; count: number }[];
+  hiddenTypes: Set<string>;
+  onToggleType: (typeId: string | null) => void;
 }
 
 // Below this, two POIs read as "basically together" - not worth a gap marker
@@ -77,6 +83,9 @@ export function PoiList({
   onToggleExcluded,
   onFocusPoi,
   onHoverPoi,
+  typeCounts,
+  hiddenTypes,
+  onToggleType,
 }: Props) {
   const { t } = useTranslation();
   // excludedIds also remembers points that are not in the current results.
@@ -88,6 +97,8 @@ export function PoiList({
     pois.filter((poi) => !excludedIds.has(poi.id)).length +
     selectableWaypoints.filter((waypoint) => !excludedIds.has(waypoint.id)).length;
   const [typeMenu, setTypeMenu] = useState<TypeMenuTarget | null>(null);
+  const [filterRect, setFilterRect] = useState<DOMRect | null>(null);
+  const closeFilterMenu = useCallback(() => setFilterRect(null), []);
   const closeTypeMenu = useCallback(() => setTypeMenu(null), []);
   // Found points and file waypoints in route order (the sort is stable, so
   // the found points keep their own order).
@@ -96,14 +107,16 @@ export function PoiList({
     ...waypoints.map((waypoint): Row => ({ kind: "waypoint", waypoint, along: waypoint.alongM })),
   ].sort((a, b) => a.along - b.along);
 
-  // Hidden points drop out of the list, and the gaps between the remaining
-  // stops are measured across them, counting what was left out.
+  // Hidden points and those of hidden types drop out of the list, and the gaps between the remaining stops are measured across
+  // them, counting what was left out.
   const view: { row: Row; gapM: number; hiddenBetween: number }[] = [];
   let previousAlong: number | null = null;
   let hiddenSince = 0;
   for (const row of rows) {
     const id = row.kind === "poi" ? row.poi.id : row.waypoint.id;
-    if (hideExcluded && excludedIds.has(id)) {
+    const typeId = row.kind === "poi" ? poiTypeId(row.poi, typeOverrides) : waypointTypeId(row.waypoint, typeOverrides);
+    const alwaysShown = row.kind === "waypoint" && row.waypoint.fixedType !== undefined;
+    if ((hideExcluded && excludedIds.has(id)) || (hiddenTypes.has(typeId) && !alwaysShown)) {
       hiddenSince++;
       continue;
     }
@@ -130,6 +143,28 @@ export function PoiList({
         <h2>{t("poiList.title")}</h2>
         {totalCount > 0 && (
           <div className="side-panel-head-right">
+            {typeCounts.length > 1 && (
+              <button
+                className={`poi-hide-toggle ${hiddenTypes.size > 0 ? "filtering" : ""}`}
+                onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setFilterRect((current) => (current ? null : rect));
+                }}
+                aria-pressed={hiddenTypes.size > 0}
+                aria-haspopup="menu"
+                aria-expanded={filterRect !== null}
+                title={t(hiddenTypes.size > 0 ? "poiList.filterActive" : "poiList.filter")}
+                aria-label={t(hiddenTypes.size > 0 ? "poiList.filterActive" : "poiList.filter")}
+              >
+                <Funnel
+                  size={15}
+                  strokeWidth={2}
+                  // Filled while something is hidden, an outline otherwise.
+                  fill={hiddenTypes.size > 0 ? "currentColor" : "none"}
+                  aria-hidden="true"
+                />
+              </button>
+            )}
             <button
               className="poi-hide-toggle"
               onClick={onToggleHideExcluded}
@@ -286,6 +321,15 @@ export function PoiList({
         })}
         {pois.length === 0 && waypoints.length > 0 && <div className="empty-state">{t("poiList.empty")}</div>}
       </div>
+      {filterRect && (
+        <TypeFilterMenu
+          rect={filterRect}
+          typeCounts={typeCounts}
+          hiddenTypes={hiddenTypes}
+          onToggle={onToggleType}
+          onClose={closeFilterMenu}
+        />
+      )}
       {typeMenu && (
         <TypeMenu
           target={typeMenu}
@@ -297,6 +341,72 @@ export function PoiList({
         />
       )}
     </div>
+  );
+}
+
+// The types present among the points, each to show or hide in the list and on
+// the map, and one entry for all of them. Stays open while types are ticked.
+function TypeFilterMenu({
+  rect,
+  typeCounts,
+  hiddenTypes,
+  onToggle,
+  onClose,
+}: {
+  rect: DOMRect;
+  typeCounts: { typeId: string; count: number }[];
+  hiddenTypes: Set<string>;
+  onToggle: (typeId: string | null) => void;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handlePointerDown(e: MouseEvent) {
+      if (!menuRef.current?.contains(e.target as Node)) onClose();
+    }
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [onClose]);
+
+  const width = 230;
+  const left = Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8));
+  const allShown = hiddenTypes.size === 0;
+
+  return createPortal(
+    <div className="type-menu" ref={menuRef} role="menu" style={{ left, top: rect.bottom + 6, width }}>
+      <button className="type-menu-item" role="menuitemcheckbox" aria-checked={allShown} onClick={() => onToggle(null)}>
+        <span className="type-menu-all">{t("poiList.filterAll")}</span>
+        {allShown && <Check size={14} strokeWidth={2.4} aria-hidden="true" />}
+      </button>
+      {typeCounts.map(({ typeId, count }) => {
+        const Icon = pointTypeById(typeId)?.icon;
+        const shown = !hiddenTypes.has(typeId);
+        return (
+          <button
+            key={typeId}
+            className="type-menu-item"
+            role="menuitemcheckbox"
+            aria-checked={shown}
+            onClick={() => onToggle(typeId)}
+          >
+            {Icon && <Icon size={15} strokeWidth={2} aria-hidden="true" />}
+            <span>{t(`categories.${typeId}`)}</span>
+            <span className="type-menu-count">{count}</span>
+            {shown && <Check size={14} strokeWidth={2.4} aria-hidden="true" />}
+          </button>
+        );
+      })}
+    </div>,
+    document.body,
   );
 }
 

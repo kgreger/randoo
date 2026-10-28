@@ -1007,6 +1007,25 @@ button {
   background: var(--surface-strong);
 }
 
+.poi-hide-toggle.filtering {
+  position: relative;
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(255, 143, 107, 0.14);
+}
+
+.poi-hide-toggle.filtering::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 1.5px solid var(--bg);
+}
+
 .btn-link {
   justify-content: center;
   text-decoration: none;
@@ -1192,6 +1211,13 @@ button {
 
 .type-menu-item span {
   flex: 1;
+}
+
+.type-menu-item .type-menu-count {
+  flex: none;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: var(--ink-faint);
 }
 
 .type-menu-item:hover {
