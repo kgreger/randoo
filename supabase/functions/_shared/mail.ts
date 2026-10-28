@@ -98,7 +98,38 @@ export function normalizeLang(value: unknown): Lang {
 export type Built = { subject: string; html: string; text: string };
 
 function build(subject: string, mail: Mail): Built {
-  return { subject, ...renderMail(mail) };
+  return { subject: encodeSubject(subject), ...renderMail(mail) };
+}
+
+// The subject as it goes into the Subject header (RFC 2047, Base64, split into
+// encoded words of at most 60 characters, which the header folds between).
+//
+// denomailer encodes a subject with non-ASCII characters on its own, but wraps
+// the result after 74 characters with a quoted-printable soft line break. That
+// is only a valid header fold when the next character happens to be a space;
+// otherwise the following line is no header line, the mail's headers end there
+// and the rest of them (From, To, MIME-Version, Content-Type) show up in the
+// body. A subject that is plain ASCII and does not start with "=?" is passed
+// through unchanged, so the encoded value is handed over like that: the space
+// in front of it is the one denomailer's own "Subject: " would have anyway.
+export function encodeSubject(subject: string): string {
+  if (!/[^\x00-\x7f]/.test(subject)) return subject;
+
+  const encoder = new TextEncoder();
+  const words: string[] = [];
+  let chunk: number[] = [];
+  const flush = () => {
+    if (chunk.length) words.push(`=?UTF-8?B?${btoa(String.fromCharCode(...chunk))}?=`);
+    chunk = [];
+  };
+  // Cut between characters, never inside one.
+  for (const char of subject) {
+    const bytes = Array.from(encoder.encode(char));
+    if (chunk.length + bytes.length > 36) flush();
+    chunk.push(...bytes);
+  }
+  flush();
+  return ` ${words.join("\r\n ")}`;
 }
 
 export function ideaReceived(lang: Lang, kind: Kind, title: string): Built {
