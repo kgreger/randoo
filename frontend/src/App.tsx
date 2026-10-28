@@ -6,6 +6,7 @@ import { AccountDialog } from "./components/AccountDialog";
 import { DeleteAccountDialog } from "./components/DeleteAccountDialog";
 import { CategoryFilter } from "./components/CategoryFilter";
 import { ConfirmDialog } from "./components/ConfirmDialog";
+import { SplitExportDialog } from "./components/SplitExportDialog";
 import { LegalLinks } from "./components/LegalLinks";
 import { MapView } from "./components/MapView";
 import { PlansDialog } from "./components/PlansDialog";
@@ -13,10 +14,10 @@ import { PoiList } from "./components/PoiList";
 import { SavePlanDialog } from "./components/SavePlanDialog";
 import { SignInDialog } from "./components/SignInDialog";
 import { SUPPORTED_LANGUAGES, type SupportedLanguage } from "./i18n";
-import { analyzeRoute, ApiError, exportGpx, PointLimitError, type Poi } from "./lib/api";
+import { analyzeRoute, ApiError, exportGpx, exportGpxParts, PointLimitError, type Poi } from "./lib/api";
 import { positionOnRoute, routeLengthM } from "./lib/geo";
 import { isStackedLayout } from "./lib/layout";
-import { parseGpxPreview, parseGpxWaypoints, type LatLon, type RouteWaypoint } from "./lib/gpxPreview";
+import { parseGpxCourseName, parseGpxPreview, parseGpxWaypoints, type LatLon, type RouteWaypoint } from "./lib/gpxPreview";
 import { deviceFromUser } from "./lib/devices";
 import { createPlan, updatePlan, type LoadedPlan, type PlanSummary } from "./lib/plans";
 import { supabase } from "./lib/supabase";
@@ -113,7 +114,12 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [searchElapsedS, setSearchElapsedS] = useState(0);
   const [exporting, setExporting] = useState(false);
-  const [pointLimit, setPointLimit] = useState<{ coursePoints: number; limit: number } | null>(null);
+  const [pointLimit, setPointLimit] = useState<{
+    coursePoints: number;
+    limit: number;
+    parts: number;
+    courseName: string;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [signInOpen, setSignInOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -484,15 +490,18 @@ export default function App() {
     if (routeRemoved && savedRouteId === plan.route.id) setSavedRouteId(null);
   }
 
+  async function currentAccessToken(): Promise<string | null> {
+    const { data } = supabase ? await supabase.auth.getSession() : { data: { session: null } };
+    const accessToken = data.session?.access_token;
+    if (!accessToken) setSignInOpen(true);
+    return accessToken ?? null;
+  }
+
   async function handleExport(ignorePointLimit = false) {
     if (!file) return;
 
-    const { data } = supabase ? await supabase.auth.getSession() : { data: { session: null } };
-    const accessToken = data.session?.access_token;
-    if (!accessToken) {
-      setSignInOpen(true);
-      return;
-    }
+    const accessToken = await currentAccessToken();
+    if (!accessToken) return;
 
     setExporting(true);
     try {
@@ -513,13 +522,32 @@ export default function App() {
       URL.revokeObjectURL(url);
     } catch (err) {
       if (err instanceof PointLimitError) {
-        setPointLimit({ coursePoints: err.coursePoints, limit: err.limit });
+        setPointLimit({
+          coursePoints: err.coursePoints,
+          limit: err.limit,
+          parts: err.parts,
+          courseName: (await parseGpxCourseName(file)) ?? routeName ?? file.name,
+        });
       } else {
         setError(requestErrorMessage(err, t("app.errorExportFailed")));
       }
     } finally {
       setExporting(false);
     }
+  }
+
+  async function handleSplitExport(courseName: string) {
+    const accessToken = await currentAccessToken();
+    if (!file || !accessToken) throw new Error("not signed in");
+    return exportGpxParts(
+      file,
+      pois,
+      accessToken,
+      courseName,
+      Array.from(excludedPoiIds),
+      typeOverrides,
+      deviceFromUser(user?.user_metadata),
+    );
   }
 
   async function handleIdeas() {
@@ -729,16 +757,17 @@ export default function App() {
           )}
 
           {pointLimit && (
-            <ConfirmDialog
-              text={t("pointLimit.text", { count: pointLimit.coursePoints, limit: pointLimit.limit })}
-              hint={t("pointLimit.hint")}
-              confirmLabel={t("pointLimit.confirm")}
-              cancelLabel={t("pointLimit.cancel")}
-              onConfirm={() => {
+            <SplitExportDialog
+              coursePoints={pointLimit.coursePoints}
+              limit={pointLimit.limit}
+              parts={pointLimit.parts}
+              defaultName={pointLimit.courseName}
+              onExportOne={() => {
                 setPointLimit(null);
                 handleExport(true);
               }}
-              onCancel={() => setPointLimit(null)}
+              onSplit={handleSplitExport}
+              onClose={() => setPointLimit(null)}
             />
           )}
 

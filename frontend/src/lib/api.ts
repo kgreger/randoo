@@ -37,6 +37,8 @@ export class PointLimitError extends Error {
   constructor(
     readonly coursePoints: number,
     readonly limit: number,
+    // How many files it takes to stay within the limit.
+    readonly parts: number,
   ) {
     super(`export would have ${coursePoints} course points, the device takes ${limit}`);
   }
@@ -82,18 +84,30 @@ export async function analyzeRoute(
   return data.pois;
 }
 
+// One file of a route that was split to stay within the device's limit.
+export interface ExportPart {
+  name: string;
+  filename: string;
+  gpx: string;
+}
+
+interface ExportOptions {
+  ignorePointLimit?: boolean;
+  split?: { courseName: string };
+}
+
 // Sends the points the rider is looking at along with the route, so the file
 // holds exactly those (a saved plan included) and the server doesn't search
 // again.
-export async function exportGpx(
+async function postExport(
   file: File,
   pois: Poi[],
   accessToken: string,
-  excludedPoiIds: string[] = [],
-  typeOverrides: Record<string, string> = {},
-  device: { make: string; model: string } | null = null,
-  ignorePointLimit = false,
-): Promise<Blob> {
+  excludedPoiIds: string[],
+  typeOverrides: Record<string, string>,
+  device: { make: string; model: string } | null,
+  options: ExportOptions,
+): Promise<Response> {
   const form = new FormData();
   form.append("file", file);
   form.append(
@@ -120,7 +134,11 @@ export async function exportGpx(
     form.append("device_make", device.make);
     if (device.model) form.append("device_model", device.model);
   }
-  if (ignorePointLimit) form.append("ignore_point_limit", "true");
+  if (options.ignorePointLimit) form.append("ignore_point_limit", "true");
+  if (options.split) {
+    form.append("split", "true");
+    form.append("course_name", options.split.courseName);
+  }
 
   const response = await fetch(`${API_URL}/api/export`, {
     method: "POST",
@@ -133,9 +151,44 @@ export async function exportGpx(
   }
   if (response.status === 409) {
     const body = await response.json().catch(() => null);
-    if (body?.code === "too_many_course_points") throw new PointLimitError(body.course_points, body.limit);
+    if (body?.code === "too_many_course_points") {
+      throw new PointLimitError(body.course_points, body.limit, body.parts);
+    }
   }
   if (!response.ok) throw await failure(response, "export");
 
+  return response;
+}
+
+export async function exportGpx(
+  file: File,
+  pois: Poi[],
+  accessToken: string,
+  excludedPoiIds: string[] = [],
+  typeOverrides: Record<string, string> = {},
+  device: { make: string; model: string } | null = null,
+  ignorePointLimit = false,
+): Promise<Blob> {
+  const response = await postExport(file, pois, accessToken, excludedPoiIds, typeOverrides, device, {
+    ignorePointLimit,
+  });
   return response.blob();
+}
+
+// The route cut into files that each stay within the device's limit, named
+// after the course.
+export async function exportGpxParts(
+  file: File,
+  pois: Poi[],
+  accessToken: string,
+  courseName: string,
+  excludedPoiIds: string[] = [],
+  typeOverrides: Record<string, string> = {},
+  device: { make: string; model: string } | null = null,
+): Promise<ExportPart[]> {
+  const response = await postExport(file, pois, accessToken, excludedPoiIds, typeOverrides, device, {
+    split: { courseName },
+  });
+  const body: { parts: ExportPart[] } = await response.json();
+  return body.parts;
 }

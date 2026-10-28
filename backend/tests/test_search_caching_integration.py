@@ -565,7 +565,7 @@ def test_export_for_garmin_accepts_exactly_the_most_course_points(client):
 def test_export_for_garmin_asks_before_going_over_the_most_course_points(client):
     response = _export_many_points(client, 701, 20.0)
     assert response.status_code == 409
-    assert response.json() == {"code": "too_many_course_points", "course_points": 701, "limit": 700}
+    assert response.json() == {"code": "too_many_course_points", "course_points": 701, "limit": 700, "parts": 2}
 
 
 def test_export_for_garmin_counts_a_turnoff_marker_as_a_course_point(client):
@@ -590,3 +590,30 @@ def test_export_for_other_devices_has_no_course_point_limit(client):
         data={"pois": json.dumps(points), "device_make": "wahoo"},
     )
     assert response.status_code == 200
+
+
+def test_export_for_garmin_splits_into_files_named_after_the_course_when_asked(client):
+    response = _export_many_points(client, 1000, 20.0, split="true", course_name="Brevet 300")
+
+    assert response.status_code == 200
+    parts = response.json()["parts"]
+    assert [p["filename"] for p in parts] == ["1.2 Brevet 300.gpx", "2.2 Brevet 300.gpx"]
+    assert [p["name"] for p in parts] == ["1.2 Brevet 300", "2.2 Brevet 300"]
+    assert [p["gpx"].count("<wpt ") for p in parts] == [500, 500]
+
+
+def test_export_for_garmin_with_split_and_a_route_within_the_limit_gives_one_file(client):
+    response = _export_many_points(client, 10, 20.0, split="true", course_name="Brevet 300")
+
+    assert [p["filename"] for p in response.json()["parts"]] == ["Brevet 300.gpx"]
+
+
+def test_export_without_a_course_point_limit_ignores_split(client):
+    points = [{**_poi_payload("rest", i), "distance_to_route_m": 20.0} for i in range(701)]
+    response = client.post(
+        "/api/export",
+        files={"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")},
+        data={"pois": json.dumps(points), "device_make": "wahoo", "split": "true"},
+    )
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/gpx+xml")
