@@ -166,6 +166,12 @@
     "textFree": "Alles, was gerade angezeigt wird, geht verloren, auch deine Auswahl der Punkte. Trotzdem eine andere Route wählen?",
     "hintFree": "Mit einem Premium-Konto kannst du Ergebnisse als Pläne speichern, mehrere pro Strecke anlegen und später wieder öffnen. Wählst du dieselbe Datei noch einmal, bleibt alles, wie es ist."
   },
+  "pointLimit": {
+    "text": "Diese Strecke hat {{count}} Streckenpunkte. Garmin Connect nimmt zuverlässig etwa {{limit}} auf, bei mehr bricht der Import manchmal ab.",
+    "hint": "Wähle weniger Punkte (Kategorien, Radius, einzelne Punkte abwählen) oder exportiere trotzdem als eine Datei.",
+    "confirm": "Trotzdem als eine Datei exportieren",
+    "cancel": "Abbrechen"
+  },
   "typeChange": {
     "text": "Der gefundene Punkt „{{name}}“ ({{from}}) wird zum Typ {{to}}.",
     "hint": "Das gilt in Liste, Karte, Export und gespeicherten Plänen. Du kannst ihn jederzeit auf den ursprünglichen Typ zurücksetzen.",

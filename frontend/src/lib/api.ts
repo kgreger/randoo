@@ -31,6 +31,17 @@ export class ApiError extends Error {
   }
 }
 
+// The export would give the rider's device more course points than it takes
+// reliably; nothing was exported.
+export class PointLimitError extends Error {
+  constructor(
+    readonly coursePoints: number,
+    readonly limit: number,
+  ) {
+    super(`export would have ${coursePoints} course points, the device takes ${limit}`);
+  }
+}
+
 async function failure(response: Response, what: string): Promise<ApiError> {
   const detail = (await response.text()).trim();
   const readable = detail.startsWith("<") ? `${response.status} ${response.statusText}`.trim() : detail;
@@ -81,6 +92,7 @@ export async function exportGpx(
   excludedPoiIds: string[] = [],
   typeOverrides: Record<string, string> = {},
   device: { make: string; model: string } | null = null,
+  ignorePointLimit = false,
 ): Promise<Blob> {
   const form = new FormData();
   form.append("file", file);
@@ -108,6 +120,7 @@ export async function exportGpx(
     form.append("device_make", device.make);
     if (device.model) form.append("device_model", device.model);
   }
+  if (ignorePointLimit) form.append("ignore_point_limit", "true");
 
   const response = await fetch(`${API_URL}/api/export`, {
     method: "POST",
@@ -117,6 +130,10 @@ export async function exportGpx(
 
   if (response.status === 401) {
     throw new Error("Your session expired, sign in again to export.");
+  }
+  if (response.status === 409) {
+    const body = await response.json().catch(() => null);
+    if (body?.code === "too_many_course_points") throw new PointLimitError(body.course_points, body.limit);
   }
   if (!response.ok) throw await failure(response, "export");
 

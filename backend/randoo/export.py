@@ -84,6 +84,12 @@ GARMIN_TURNOFF_PREFIX = "> "
 # it lies within about this distance of the track, so a turnoff marker beside
 # such a point adds nothing but a second course point.
 GARMIN_SNAP_DISTANCE_M = 35.0
+# Garmin Connect drops a waypoint that lies further than this from the course
+# instead of making a course point of it; its turnoff marker on the route stays.
+GARMIN_DROP_DISTANCE_M = 40.0
+# Garmin Connect imports of much more than 850 course points sometimes never
+# finish; this keeps a margin below that.
+GARMIN_MAX_COURSE_POINTS = 700
 
 # Types a rider can give to a point by hand, as the frontend sends them:
 # id -> the <type> written into the file. Anything else is ignored.
@@ -132,6 +138,12 @@ class DeviceProfile:
     # A point at most this far from the route gets no turnoff marker, the
     # device places it on the route itself.
     skip_turnoff_within_m: float | None = None
+    # A point further than this from the route does not arrive on the device as
+    # a course point of its own.
+    drops_beyond_m: float | None = None
+    # Most course points the device takes in one course; more are warned about
+    # at export.
+    max_course_points: int | None = None
 
 
 def device_profile(make: str | None, model: str | None) -> DeviceProfile:
@@ -144,6 +156,8 @@ def device_profile(make: str | None, model: str | None) -> DeviceProfile:
             name_limit=GARMIN_NAME_LIMIT,
             turnoff_prefix=GARMIN_TURNOFF_PREFIX,
             skip_turnoff_within_m=GARMIN_SNAP_DISTANCE_M,
+            drops_beyond_m=GARMIN_DROP_DISTANCE_M,
+            max_course_points=GARMIN_MAX_COURSE_POINTS,
         )
     return DeviceProfile()
 
@@ -220,6 +234,24 @@ def build_gpx(
             gpx.waypoints.append(_turnoff_waypoint(ranked, profile))
 
     return gpx.to_xml()
+
+
+def course_point_count(
+    ranked_pois: list[RankedPoi],
+    existing_waypoints: list[gpxpy.gpx.GPXWaypoint],
+    profile: DeviceProfile,
+) -> int:
+    """How many course points the file gives the device: the file's own
+    waypoints, each point found (unless the device drops it for lying too far
+    from the route) and each turnoff marker."""
+    count = len(existing_waypoints)
+    for ranked in ranked_pois:
+        limit = profile.drops_beyond_m
+        if limit is None or ranked.distance_to_route_m <= limit:
+            count += 1
+        if not _needs_no_turnoff(ranked, profile):
+            count += 1
+    return count
 
 
 def _poi_waypoint(ranked: RankedPoi, profile: DeviceProfile) -> gpxpy.gpx.GPXWaypoint:

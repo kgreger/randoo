@@ -13,7 +13,7 @@ import { PoiList } from "./components/PoiList";
 import { SavePlanDialog } from "./components/SavePlanDialog";
 import { SignInDialog } from "./components/SignInDialog";
 import { SUPPORTED_LANGUAGES, type SupportedLanguage } from "./i18n";
-import { analyzeRoute, ApiError, exportGpx, type Poi } from "./lib/api";
+import { analyzeRoute, ApiError, exportGpx, PointLimitError, type Poi } from "./lib/api";
 import { positionOnRoute, routeLengthM } from "./lib/geo";
 import { isStackedLayout } from "./lib/layout";
 import { parseGpxPreview, parseGpxWaypoints, type LatLon, type RouteWaypoint } from "./lib/gpxPreview";
@@ -113,6 +113,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [searchElapsedS, setSearchElapsedS] = useState(0);
   const [exporting, setExporting] = useState(false);
+  const [pointLimit, setPointLimit] = useState<{ coursePoints: number; limit: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [signInOpen, setSignInOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -483,7 +484,7 @@ export default function App() {
     if (routeRemoved && savedRouteId === plan.route.id) setSavedRouteId(null);
   }
 
-  async function handleExport() {
+  async function handleExport(ignorePointLimit = false) {
     if (!file) return;
 
     const { data } = supabase ? await supabase.auth.getSession() : { data: { session: null } };
@@ -502,6 +503,7 @@ export default function App() {
         Array.from(excludedPoiIds),
         typeOverrides,
         deviceFromUser(user?.user_metadata),
+        ignorePointLimit,
       );
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -510,7 +512,11 @@ export default function App() {
       link.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      setError(requestErrorMessage(err, t("app.errorExportFailed")));
+      if (err instanceof PointLimitError) {
+        setPointLimit({ coursePoints: err.coursePoints, limit: err.limit });
+      } else {
+        setError(requestErrorMessage(err, t("app.errorExportFailed")));
+      }
     } finally {
       setExporting(false);
     }
@@ -719,6 +725,20 @@ export default function App() {
                 runSearch();
               }}
               onCancel={() => setSearchWarning(null)}
+            />
+          )}
+
+          {pointLimit && (
+            <ConfirmDialog
+              text={t("pointLimit.text", { count: pointLimit.coursePoints, limit: pointLimit.limit })}
+              hint={t("pointLimit.hint")}
+              confirmLabel={t("pointLimit.confirm")}
+              cancelLabel={t("pointLimit.cancel")}
+              onConfirm={() => {
+                setPointLimit(null);
+                handleExport(true);
+              }}
+              onCancel={() => setPointLimit(null)}
             />
           )}
 
