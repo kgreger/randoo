@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from "react";
 import { createPortal } from "react-dom";
 import { Check, Eye, EyeOff, Funnel, Pencil } from "lucide-react";
 import type { TFunction } from "i18next";
@@ -31,6 +31,11 @@ interface Props {
   onToggleHideExcluded: () => void;
   selectedId: string | null;
   onToggleExcluded: (id: string) => void;
+  // Ticks (false) or unticks (true) several points at once.
+  onSetExcluded: (ids: string[], excluded: boolean) => void;
+  // Picks the point the list is positioned on without moving the map; null
+  // clears it.
+  onSelectCursor: (id: string | null) => void;
   onFocusPoi: (poi: Poi) => void;
   onHoverPoi: (id: string | null) => void;
   // The types present with their number of points, those hidden from the list,
@@ -69,6 +74,15 @@ function gapHeightPx(gapM: number): number {
   return GAP_MIN_PX + (GAP_MAX_PX - GAP_MIN_PX) * Math.min(1, Math.max(0, t));
 }
 
+// The rows picked in the list (a click, then a click with shift for everything
+// in between, or the arrow keys), and the row a range starts from. The row the
+// list is positioned on, shown on the map, is the app's selectedId.
+interface Selection {
+  ids: Set<string>;
+  anchor: string | null;
+}
+const NO_SELECTION: Selection = { ids: new Set(), anchor: null };
+
 export function PoiList({
   pois,
   waypoints,
@@ -81,6 +95,8 @@ export function PoiList({
   onToggleHideExcluded,
   selectedId,
   onToggleExcluded,
+  onSetExcluded,
+  onSelectCursor,
   onFocusPoi,
   onHoverPoi,
   typeCounts,
@@ -96,6 +112,10 @@ export function PoiList({
   const includedCount =
     pois.filter((poi) => !excludedIds.has(poi.id)).length +
     selectableWaypoints.filter((waypoint) => !excludedIds.has(waypoint.id)).length;
+  const [selection, setSelection] = useState<Selection>(NO_SELECTION);
+  // Whether shift was held for the click on a checkbox: the change event that
+  // follows does not say.
+  const shiftOnCheckbox = useRef(false);
   const [typeMenu, setTypeMenu] = useState<TypeMenuTarget | null>(null);
   const [filterRect, setFilterRect] = useState<DOMRect | null>(null);
   const closeFilterMenu = useCallback(() => setFilterRect(null), []);
@@ -125,7 +145,122 @@ export function PoiList({
     hiddenSince = 0;
   }
   const nothingShown = rows.length > 0 && view.length === 0;
+
+  const picked = (id: string) => selection.ids.has(id) || id === selectedId;
+  // Shift-clicking a row would otherwise select the text between the two.
+  const keepTextUnselected = (e: ReactMouseEvent) => {
+    if (e.shiftKey) e.preventDefault();
+  };
+
+  const rowId = (row: Row) => (row.kind === "poi" ? row.poi.id : row.waypoint.id);
+  const visibleRows = view.map((entry) => entry.row);
+  const visibleIds = visibleRows.map(rowId);
+  // The route's start and end have no checkbox.
+  const tickable = new Set(
+    visibleRows.filter((row) => row.kind === "poi" || row.waypoint.fixedType === undefined).map(rowId),
+  );
+
+  // The visible rows from one to the other, in list order, whichever comes first.
+  function idsBetween(fromId: string, toId: string): string[] {
+    const from = visibleIds.indexOf(fromId);
+    const to = visibleIds.indexOf(toId);
+    if (from === -1 || to === -1) return [toId];
+    return visibleIds.slice(Math.min(from, to), Math.max(from, to) + 1);
+  }
+
+  function focusRow(row: Row) {
+    if (row.kind === "poi") onFocusPoi(row.poi);
+    else onFocusWaypoint(row.waypoint);
+  }
+
+  function handleRowClick(e: ReactMouseEvent, row: Row) {
+    const id = rowId(row);
+    const anchor = selection.anchor !== null && visibleIds.includes(selection.anchor) ? selection.anchor : null;
+    if (e.shiftKey && anchor !== null) {
+      setSelection({ ids: new Set(idsBetween(anchor, id)), anchor });
+      onSelectCursor(id);
+    } else if (e.metaKey || e.ctrlKey) {
+      const ids = new Set(selection.ids);
+      if (ids.delete(id)) {
+        setSelection({ ids, anchor: id });
+        const remaining = [...ids];
+        onSelectCursor(remaining[remaining.length - 1] ?? null);
+      } else {
+        ids.add(id);
+        setSelection({ ids, anchor: id });
+        onSelectCursor(id);
+      }
+    } else if (id === selectedId && selection.ids.size > 1) {
+      // One of several picked rows: only this one stays.
+      setSelection({ ids: new Set([id]), anchor: id });
+    } else {
+      // Clicking the picked row again clears it, see App's focusPoi.
+      setSelection(id === selectedId ? NO_SELECTION : { ids: new Set([id]), anchor: id });
+      focusRow(row);
+    }
+  }
+
+  // With shift, a checkbox sets every row from the last one touched to this one
+  // to the state it just got.
+  function handleCheckboxChange(id: string, checked: boolean) {
+    const anchor = selection.anchor !== null && visibleIds.includes(selection.anchor) ? selection.anchor : null;
+    if (shiftOnCheckbox.current && anchor !== null) {
+      onSetExcluded(idsBetween(anchor, id).filter((candidate) => tickable.has(candidate)), !checked);
+    } else {
+      onToggleExcluded(id);
+    }
+    setSelection((current) => ({ ...current, anchor: id }));
+  }
+
+  // Arrow keys move the pick up and down the visible rows (with shift they
+  // extend it), the space bar ticks or unticks the picked rows, escape drops
+  // the pick. A focused checkbox or button keeps the space bar for itself.
+  function handleKeyDown(e: ReactKeyboardEvent) {
+    if (e.key === "Escape") {
+      setSelection(NO_SELECTION);
+      onSelectCursor(null);
+      return;
+    }
+
+    if (e.key === " ") {
+      if ((e.target as HTMLElement).closest("input, button")) return;
+      const picked = selection.ids.size > 0 ? [...selection.ids] : selectedId ? [selectedId] : [];
+      const ids = picked.filter((id) => tickable.has(id));
+      if (ids.length === 0) return;
+      e.preventDefault();
+      // Everything ticked becomes unticked, anything else ticked.
+      onSetExcluded(ids, ids.every((id) => !excludedIds.has(id)));
+      return;
+    }
+
+    if ((e.key !== "ArrowDown" && e.key !== "ArrowUp") || visibleRows.length === 0) return;
+    e.preventDefault();
+    const current = selectedId === null ? -1 : visibleIds.indexOf(selectedId);
+    const step = e.key === "ArrowDown" ? 1 : -1;
+    const index = current === -1 ? (step === 1 ? 0 : visibleRows.length - 1) : current + step;
+    if (index < 0 || index >= visibleRows.length) return;
+    const row = visibleRows[index];
+    const id = rowId(row);
+
+    if (e.shiftKey) {
+      const anchor =
+        selection.anchor !== null && visibleIds.includes(selection.anchor) ? selection.anchor : (selectedId ?? id);
+      setSelection({ ids: new Set(idsBetween(anchor, id)), anchor });
+      onSelectCursor(id);
+    } else {
+      setSelection({ ids: new Set([id]), anchor: id });
+      focusRow(row);
+    }
+  }
   const listRef = useRef<HTMLDivElement>(null);
+
+  // A row picked on the map (or cleared) becomes the whole pick.
+  useEffect(() => {
+    setSelection((current) => {
+      if (selectedId === null) return current.ids.size === 0 && current.anchor === null ? current : NO_SELECTION;
+      return current.ids.has(selectedId) ? current : { ids: new Set([selectedId]), anchor: selectedId };
+    });
+  }, [selectedId]);
 
   // Clicking a marker on the map selects it here too (see MapView's
   // onSelectPoi) - scrolling it into view is what makes that selection
@@ -182,7 +317,7 @@ export function PoiList({
           </div>
         )}
       </div>
-      <div className="poi-list" ref={listRef}>
+      <div className="poi-list" ref={listRef} tabIndex={0} onKeyDown={handleKeyDown}>
         {pois.length === 0 && waypoints.length === 0 && <div className="empty-state">{t("poiList.empty")}</div>}
         {nothingShown && <div className="empty-state">{t("poiList.allHidden")}</div>}
         {view.map(({ row, gapM, hiddenBetween }) => {
@@ -210,10 +345,11 @@ export function PoiList({
               <Fragment key={waypoint.id}>
                 {gap}
                 <div
-                  className={`poi-card waypoint-card ${waypointExcluded ? "excluded" : ""} ${waypoint.id === selectedId ? "selected" : ""}`}
+                  className={`poi-card waypoint-card ${waypointExcluded ? "excluded" : ""} ${picked(waypoint.id) ? "selected" : ""}`}
                   data-waypoint-id={waypoint.id}
                   data-poi-id={waypoint.id}
-                  onClick={() => onFocusWaypoint(waypoint)}
+                  onMouseDown={keepTextUnselected}
+                  onClick={(e) => handleRowClick(e, row)}
                   onMouseEnter={() => onHoverPoi(waypoint.id)}
                   onMouseLeave={() => onHoverPoi(null)}
                 >
@@ -225,7 +361,8 @@ export function PoiList({
                         type="checkbox"
                         className="poi-card-check"
                         checked={!waypointExcluded}
-                        onChange={() => onToggleExcluded(waypoint.id)}
+                        onClick={(e) => (shiftOnCheckbox.current = e.shiftKey)}
+                        onChange={(e) => handleCheckboxChange(waypoint.id, e.target.checked)}
                       />
                     </label>
                   )}
@@ -268,12 +405,13 @@ export function PoiList({
             <Fragment key={poi.id}>
               {gap}
               <div
-                className={`poi-card ${excluded ? "excluded" : ""} ${poi.id === selectedId ? "selected" : ""}`}
+                className={`poi-card ${excluded ? "excluded" : ""} ${picked(poi.id) ? "selected" : ""}`}
                 data-poi-id={poi.id}
                 // Clicking the card focuses it on the map - the checkbox
                 // below stops this from firing so ticking it doesn't also
-                // recenter.
-                onClick={() => onFocusPoi(poi)}
+                // recenter. With shift or ctrl it picks several rows instead.
+                onMouseDown={keepTextUnselected}
+                onClick={(e) => handleRowClick(e, row)}
                 onMouseEnter={() => onHoverPoi(poi.id)}
                 onMouseLeave={() => onHoverPoi(null)}
               >
@@ -282,7 +420,8 @@ export function PoiList({
                     type="checkbox"
                     className="poi-card-check"
                     checked={!excluded}
-                    onChange={() => onToggleExcluded(poi.id)}
+                    onClick={(e) => (shiftOnCheckbox.current = e.shiftKey)}
+                    onChange={(e) => handleCheckboxChange(poi.id, e.target.checked)}
                   />
                 </label>
                 <TypeBadge

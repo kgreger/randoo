@@ -310,6 +310,19 @@ export default function App() {
     });
   }
 
+  // Ticks or unticks several points at once, as the list's range selection and
+  // space bar do.
+  function setExcluded(ids: string[], excluded: boolean) {
+    setExcludedPoiIds((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) {
+        if (excluded) next.add(id);
+        else next.delete(id);
+      }
+      return next;
+    });
+  }
+
   // Giving a found point another type is a bigger step than re-typing a point
   // from the file, so it asks first; going back to the original does not.
   function changePointType(id: string, typeId: string | null) {
@@ -933,6 +946,8 @@ export default function App() {
           onToggleHideExcluded={() => setHideExcluded((hidden) => !hidden)}
           selectedId={selectedPoiId}
           onToggleExcluded={toggleExcluded}
+          onSetExcluded={setExcluded}
+          onSelectCursor={setSelectedPoiId}
           onFocusPoi={focusPoi}
           waypoints={waypointsOnRoute}
           onFocusWaypoint={focusWaypoint}
