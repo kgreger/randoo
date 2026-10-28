@@ -213,12 +213,20 @@ export function PoiList({
   }
 
   // Arrow keys move the pick up and down the visible rows (with shift they
-  // extend it), the space bar ticks or unticks the picked rows, escape drops
-  // the pick. A focused checkbox or button keeps the space bar for itself.
+  // extend it), ctrl or cmd and A pick all of them, the space bar ticks or
+  // unticks the picked rows, escape drops the pick. A focused checkbox or button keeps the space bar for itself.
   function handleKeyDown(e: ReactKeyboardEvent) {
     if (e.key === "Escape") {
       setSelection(NO_SELECTION);
       onSelectCursor(null);
+      return;
+    }
+
+    // Everything shown, except the route's start and end.
+    if (e.key.toLowerCase() === "a" && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      const ids = visibleIds.filter((id) => tickable.has(id));
+      setSelection({ ids: new Set(ids), anchor: ids[0] ?? null });
       return;
     }
 
