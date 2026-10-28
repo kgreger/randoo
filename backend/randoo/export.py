@@ -210,12 +210,15 @@ def build_gpx(
     existing_waypoints: list[gpxpy.gpx.GPXWaypoint] | None = None,
     existing_nsmap: dict[str, str] | None = None,
     profile: DeviceProfile = DeviceProfile(),
+    name: str | None = None,
 ) -> str:
     """The route as a track, the waypoints the uploaded file already had
-    (unchanged, first), then Randoo's own POI waypoints."""
+    (unchanged, first), then Randoo's own POI waypoints. A name, when given,
+    names the file and its track, which is what a device lists the course by."""
     gpx = gpxpy.gpx.GPX()
     gpx.nsmap.update(existing_nsmap or {})
     gpx.nsmap["gpxx"] = GARMIN_GPXX_NS
+    gpx.name = name
 
     for segment in segments:
         if not segment:
@@ -223,7 +226,7 @@ def build_gpx(
         track_segment = gpxpy.gpx.GPXTrackSegment()
         track_segment.points = [gpxpy.gpx.GPXTrackPoint(p.lat, p.lon) for p in segment]
         if not gpx.tracks:
-            gpx.tracks.append(gpxpy.gpx.GPXTrack())
+            gpx.tracks.append(gpxpy.gpx.GPXTrack(name=name))
         gpx.tracks[0].segments.append(track_segment)
 
     gpx.waypoints.extend(existing_waypoints or [])
@@ -244,13 +247,19 @@ def course_point_count(
     """How many course points the file gives the device: the file's own
     waypoints, each point found (unless the device drops it for lying too far
     from the route) and each turnoff marker."""
-    count = len(existing_waypoints)
-    for ranked in ranked_pois:
-        limit = profile.drops_beyond_m
-        if limit is None or ranked.distance_to_route_m <= limit:
-            count += 1
-        if not _needs_no_turnoff(ranked, profile):
-            count += 1
+    return len(existing_waypoints) + sum(poi_course_points(ranked, profile) for ranked in ranked_pois)
+
+
+def poi_course_points(ranked: RankedPoi, profile: DeviceProfile) -> int:
+    """How many course points one found point gives the device: itself, unless
+    the device drops it for lying too far from the route, and its turnoff
+    marker."""
+    count = 0
+    limit = profile.drops_beyond_m
+    if limit is None or ranked.distance_to_route_m <= limit:
+        count += 1
+    if not _needs_no_turnoff(ranked, profile):
+        count += 1
     return count
 
 

@@ -1007,6 +1007,28 @@ button {
   background: var(--surface-strong);
 }
 
+.btn-link {
+  justify-content: center;
+  text-decoration: none;
+}
+
+.split-preview {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.split-preview li,
+.split-file-name {
+  overflow-wrap: anywhere;
+}
+
 .confirm-text {
   margin: 0 !important;
   font-size: 13.5px !important;

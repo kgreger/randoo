@@ -26,6 +26,7 @@ from .overpass import Poi
 from .poi_filter import Connector, RankedPoi
 from .poi_source import OverpassPoiSource, get_poi_source
 from .schemas import AnalyzeResponse, ExportPoi, PoiOut
+from .split import part_count, split_gpx
 from .turnoff import get_turnoff_locator
 
 @asynccontextmanager
@@ -214,6 +215,8 @@ async def export(
     device_model: str | None = Form(default=None),
     excluded_poi_ids: list[str] = Form(default=[]),
     ignore_point_limit: bool = Form(default=False),
+    split: bool = Form(default=False),
+    course_name: str = Form(default=""),
     _user: dict = Depends(require_user),
     token: str | None = Depends(bearer_token),
 ) -> Response:
@@ -246,16 +249,29 @@ async def export(
     # gets applied, using the same "osm_type:osm_id" ids /api/analyze returns.
     ranked = [r for r in ranked if _poi_id(r.poi) not in excluded]
 
+    device_segments = segments_for_device(segments, profile)
     limit = profile.max_course_points
+    if limit is not None and split:
+        parts = split_gpx(
+            ranked, device_segments[0], existing_waypoints, existing_nsmap, profile, course_name, limit
+        )
+        return JSONResponse(
+            {"parts": [{"name": p.name, "filename": p.filename, "gpx": p.gpx} for p in parts]}
+        )
     if limit is not None and not ignore_point_limit:
         course_points = course_point_count(ranked, existing_waypoints, profile)
         if course_points > limit:
             return JSONResponse(
                 status_code=409,
-                content={"code": "too_many_course_points", "course_points": course_points, "limit": limit},
+                content={
+                    "code": "too_many_course_points",
+                    "course_points": course_points,
+                    "limit": limit,
+                    "parts": part_count(course_points, limit),
+                },
             )
 
-    xml = build_gpx(ranked, segments_for_device(segments, profile), existing_waypoints, existing_nsmap, profile)
+    xml = build_gpx(ranked, device_segments, existing_waypoints, existing_nsmap, profile)
     return Response(
         content=xml,
         media_type="application/gpx+xml",

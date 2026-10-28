@@ -28,6 +28,18 @@ export async function parseGpxPreview(file: File): Promise<LatLon[][]> {
   return segments;
 }
 
+/** The name the file gives its course: the first track's name, else the file's own. */
+export async function parseGpxCourseName(file: File): Promise<string | null> {
+  const doc = new DOMParser().parseFromString(await file.text(), "application/xml");
+  const nameOf = (element: Element | undefined) =>
+    Array.from(element?.children ?? [])
+      .find((child) => child.localName === "name")
+      ?.textContent?.trim() || null;
+  const tracks = Array.from(doc.getElementsByTagName("trk"));
+  const metadata = Array.from(doc.getElementsByTagName("metadata"));
+  return nameOf(tracks[0]) ?? nameOf(metadata[0]);
+}
+
 /** A waypoint the file already carries, such as a brevet's control point. */
 export interface RouteWaypoint {
   id: string;

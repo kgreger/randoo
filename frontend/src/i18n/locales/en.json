@@ -168,9 +168,19 @@
   },
   "pointLimit": {
     "text": "This route has {{count}} course points. Garmin Connect takes about {{limit}} reliably, with more the import sometimes never finishes.",
-    "hint": "Choose fewer points (categories, radius, untick single points) or export as one file anyway.",
+    "hint": "Split the route into several files, choose fewer points (categories, radius, untick single points) or export as one file anyway.",
+    "split": "Split into {{count}} files",
     "confirm": "Export as one file anyway",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "nameLabel": "Route name",
+    "nameHint": "Each file gets its number in front, so you find them in the right order on your device. The route is cut at control points if there are any and no part gets too big, otherwise evenly by number of points.",
+    "splitConfirm": "Split",
+    "splitting": "Splitting …",
+    "errorSplit": "Splitting did not work. Try again.",
+    "done": "The route is split into {{count}} files. Load all of them onto your device.",
+    "zip": "Download all as ZIP",
+    "zipHint": "Handy on a laptop. On a phone, download the files one by one.",
+    "close": "Done"
   },
   "typeChange": {
     "text": "The found point “{{name}}” ({{from}}) becomes a {{to}}.",

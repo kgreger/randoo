@@ -168,9 +168,19 @@
   },
   "pointLimit": {
     "text": "Diese Strecke hat {{count}} Streckenpunkte. Garmin Connect nimmt zuverlässig etwa {{limit}} auf, bei mehr bricht der Import manchmal ab.",
-    "hint": "Wähle weniger Punkte (Kategorien, Radius, einzelne Punkte abwählen) oder exportiere trotzdem als eine Datei.",
+    "hint": "Teile die Strecke auf mehrere Dateien auf, wähle weniger Punkte (Kategorien, Radius, einzelne Punkte abwählen) oder exportiere trotzdem als eine Datei.",
+    "split": "In {{count}} Dateien aufteilen",
     "confirm": "Trotzdem als eine Datei exportieren",
-    "cancel": "Abbrechen"
+    "cancel": "Abbrechen",
+    "nameLabel": "Name der Strecke",
+    "nameHint": "Jede Datei bekommt ihre Nummer davor, damit du sie auf dem Gerät in der richtigen Reihenfolge findest. Geteilt wird an Kontrollpunkten, wenn es welche gibt und kein Teil zu groß wird, sonst gleichmäßig nach Punkten.",
+    "splitConfirm": "Aufteilen",
+    "splitting": "Teile auf …",
+    "errorSplit": "Das Aufteilen hat nicht geklappt. Versuche es nochmal.",
+    "done": "Die Strecke ist in {{count}} Dateien aufgeteilt. Lade alle auf dein Gerät.",
+    "zip": "Alle als ZIP laden",
+    "zipHint": "Praktisch am Laptop. Auf dem Handy lädst du die Dateien am besten einzeln.",
+    "close": "Fertig"
   },
   "typeChange": {
     "text": "Der gefundene Punkt „{{name}}“ ({{from}}) wird zum Typ {{to}}.",
