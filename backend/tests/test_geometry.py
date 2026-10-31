@@ -1,3 +1,4 @@
+import pytest
 from pyproj import Geod
 from shapely.geometry import LineString, Point as ShapelyPoint
 
@@ -7,6 +8,8 @@ from randoo.geometry import (
     chunk_by_distance,
     poly_filter,
     route_buffer,
+    route_length_m,
+    trim_route,
     utm_epsg,
 )
 from randoo.gpx import Point
@@ -179,3 +182,35 @@ def test_segment_gap_is_not_bridged_into_the_buffer():
     # Sanity check: the buffer still covers the segments themselves.
     assert polygon.contains(ShapelyPoint(8.0, 48.0))
     assert polygon.contains(ShapelyPoint(9.0, 49.0))
+
+
+# Two segments of about 1112 m each, due north.
+TWO_SEGMENTS = [
+    [Point(48.0, 8.0), Point(48.005, 8.0), Point(48.01, 8.0)],
+    [Point(48.01, 8.0), Point(48.02, 8.0)],
+]
+
+
+def test_trim_route_keeps_the_part_between_the_skipped_start_and_end():
+    total = route_length_m(TWO_SEGMENTS)
+    trimmed = trim_route(TWO_SEGMENTS, skip_start_m=0.1 * total, skip_end_m=0.05 * total)
+
+    assert route_length_m(trimmed) == pytest.approx(0.85 * total, rel=1e-3)
+    assert trimmed[0][0].lat == pytest.approx(48.002, abs=1e-5)
+    assert trimmed[-1][-1].lat == pytest.approx(48.019, abs=1e-5)
+
+
+def test_trim_route_drops_a_segment_that_lies_wholly_in_the_skipped_start():
+    total = route_length_m(TWO_SEGMENTS)
+    trimmed = trim_route(TWO_SEGMENTS, skip_start_m=0.6 * total, skip_end_m=0)
+
+    assert len(trimmed) == 1
+    assert trimmed[0][-1] == Point(48.02, 8.0)
+
+
+def test_trim_route_without_skipping_keeps_the_route():
+    assert trim_route(TWO_SEGMENTS, 0, 0) == TWO_SEGMENTS
+
+
+def test_trim_route_skipping_everything_leaves_nothing():
+    assert trim_route(TWO_SEGMENTS, 2000, 1000) == []

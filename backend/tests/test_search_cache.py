@@ -38,6 +38,8 @@ def test_make_key_differs_on_radius_categories_and_tier():
     assert base != search_cache.make_key(b"gpx", ["food"], 500, "free")
     assert base != search_cache.make_key(b"gpx", ["water"], 300, "free")
     assert base != search_cache.make_key(b"gpx", ["water"], 500, "premium")
+    assert base != search_cache.make_key(b"gpx", ["water"], 500, "free", skip_start_pct=10)
+    assert base != search_cache.make_key(b"gpx", ["water"], 500, "free", skip_end_pct=5)
 
 
 def test_entry_expires_after_its_ttl(monkeypatch):

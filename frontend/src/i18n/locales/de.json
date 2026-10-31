@@ -206,5 +206,13 @@
     "saved": "Gerät gespeichert.",
     "error": "Das Gerät konnte nicht gespeichert werden.",
     "hint": "Damit passen wir die exportierte Datei an dein Gerät an."
+  },
+  "routeEnds": {
+    "label": "Start und Ziel auslassen",
+    "start": "Start",
+    "end": "Ziel",
+    "saved": "Gespeichert.",
+    "error": "Bitte Werte zwischen 0 und {{max}} % eingeben.",
+    "hint": "Anteil der Strecke am Anfang und am Ende, auf dem keine Punkte gesucht werden."
   }
 }

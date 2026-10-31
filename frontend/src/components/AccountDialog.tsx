@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { DevicePicker } from "./DevicePicker";
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { RouteEndsPicker } from "./RouteEndsPicker";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/useAuth";
 
@@ -137,6 +138,12 @@ export function AccountDialog({ onClose, onRequestDelete }: Props) {
           <label className="account-field-label">{t("device.label")}</label>
           <DevicePicker />
           <p className="account-hint">{t("device.hint")}</p>
+        </div>
+
+        <div className="account-field-group">
+          <label className="account-field-label">{t("routeEnds.label")}</label>
+          <RouteEndsPicker />
+          <p className="account-hint">{t("routeEnds.hint")}</p>
         </div>
 
         <div className="account-danger-zone">
