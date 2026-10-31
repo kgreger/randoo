@@ -1,11 +1,9 @@
-"""Filter raw Overpass results down to what's actually inside the route buffer,
-and rank them by where they fall along the route."""
+"""Filter raw POI source results down to what's actually within the search
+radius of the route, and rank them by where they fall along the route."""
 
 from dataclasses import dataclass
 
 from shapely.geometry import LineString, Point as ShapelyPoint
-from shapely.geometry.base import BaseGeometry
-from shapely.ops import transform
 
 from .geometry import local_crs_transformer
 from .gpx import Point
@@ -43,11 +41,9 @@ class RankedPoi:
     is_routed: bool = False
 
 
-def filter_and_rank(
-    pois: list[Poi], segments: list[list[Point]], buffer_geometry: BaseGeometry
-) -> list[RankedPoi]:
-    """Keep only POIs inside the buffer, sorted by where they fall along the
-    route rather than by distance to it - the order a rider actually
+def filter_and_rank(pois: list[Poi], segments: list[list[Point]], radius_m: float) -> list[RankedPoi]:
+    """Keep only POIs within radius_m of the route, sorted by where they fall
+    along the route rather than by distance to it - the order a rider actually
     encounters them, not a jumble of whoever's nearest from anywhere on a
     long route. distance_to_route_m stays available on each result; it just
     isn't what orders the list anymore.
@@ -55,6 +51,11 @@ def filter_and_rank(
     Distance (both to and along the route) is measured against the route as
     recorded: each segment on its own, never bridged to the next one by a
     straight line across whatever gap separates them.
+
+    Decided by each POI's own distance to the track, not by the buffer
+    polygon the source was queried with: that one is simplified to a vertex
+    budget Overpass accepts, which can cut hundreds of metres into the
+    corridor in one place and bulge out past the radius in another.
     """
     all_points = [p for segment in segments for p in segment]
     to_local, to_wgs84 = local_crs_transformer(all_points)
@@ -73,17 +74,14 @@ def filter_and_rank(
         offsets.append(cumulative)
         cumulative += line.length
 
-    local_geometry = transform(lambda x, y: to_local.transform(x, y), buffer_geometry)
-
     ranked = []
     for poi in pois:
         x, y = to_local.transform(poi.lon, poi.lat)
         point = ShapelyPoint(x, y)
-        if not local_geometry.contains(point):
-            continue
-
         distances = [line.distance(point) for line in lines]
         nearest_idx = min(range(len(lines)), key=distances.__getitem__)
+        if distances[nearest_idx] > radius_m:
+            continue
         nearest_line = lines[nearest_idx]
         progress = nearest_line.project(point)
         on_route = nearest_line.interpolate(progress)
