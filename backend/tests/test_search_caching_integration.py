@@ -729,3 +729,56 @@ def test_route_connectors_takes_a_limited_batch(monkeypatch, client):
     poi_ids = [f"node:{i}" for i in range(main.MAX_ROUTE_BATCH + 1)]
     response = client.post("/api/route-connectors", json={"search_id": "any", "poi_ids": poi_ids})
     assert response.status_code == 400
+
+
+# About 4.4 km due north, in four equal stretches.
+LONG_GPX = b"""<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="test" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk><trkseg>
+    <trkpt lat="48.00" lon="8.0"></trkpt>
+    <trkpt lat="48.01" lon="8.0"></trkpt>
+    <trkpt lat="48.02" lon="8.0"></trkpt>
+    <trkpt lat="48.03" lon="8.0"></trkpt>
+    <trkpt lat="48.04" lon="8.0"></trkpt>
+  </trkseg></trk>
+</gpx>
+"""
+
+ALONG_LONG_ROUTE = [
+    Poi(osm_id=i, osm_type="node", lat=lat, lon=8.001, category_id="water", name=f"P{i}", tags={})
+    for i, lat in enumerate([48.001, 48.015, 48.025, 48.039])
+]
+
+
+def test_analyze_leaves_out_the_skipped_start_and_end_of_the_route(monkeypatch, client):
+    searched: list = []
+
+    class RecordingSource:
+        async def query(self, segments, radius_m, categories):
+            searched.append(segments)
+            return ALONG_LONG_ROUTE
+
+    monkeypatch.setattr(main, "get_poi_source", lambda tier: RecordingSource())
+
+    response = client.post(
+        "/api/analyze",
+        files={"file": ("route.gpx", LONG_GPX, "application/gpx+xml")},
+        data={"categories": "water", "radius_m": "200", "skip_start_pct": "10", "skip_end_pct": "5"},
+    )
+
+    pois = response.json()["pois"]
+    assert [p["name"] for p in pois] == ["P1", "P2"]
+    # the route km still counts from the real start
+    assert pois[0]["distance_along_route_m"] == pytest.approx(1668, abs=5)
+    # the source was only asked about the kept part
+    assert searched[0][0][0].lat == pytest.approx(48.004, abs=1e-5)
+    assert searched[0][-1][-1].lat == pytest.approx(48.038, abs=1e-5)
+
+
+def test_analyze_rejects_skipping_too_much_of_the_route(client):
+    response = client.post(
+        "/api/analyze",
+        files={"file": ("route.gpx", LONG_GPX, "application/gpx+xml")},
+        data={"categories": "water", "radius_m": "200", "skip_start_pct": "50"},
+    )
+    assert response.status_code == 400
