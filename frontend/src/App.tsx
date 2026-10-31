@@ -23,6 +23,7 @@ import {
   routeConnectors,
   type Poi,
 } from "./lib/api";
+import { routeEndsFromUser } from "./lib/routeEnds";
 import { positionOnRoute, routeLengthM } from "./lib/geo";
 import { isStackedLayout } from "./lib/layout";
 import { parseGpxCourseName, parseGpxPreview, parseGpxWaypoints, type LatLon, type RouteWaypoint } from "./lib/gpxPreview";
@@ -100,6 +101,7 @@ const IDEAS_URL = import.meta.env.VITE_IDEAS_URL as string | undefined;
 export default function App() {
   const { t, i18n } = useTranslation();
   const { user, recoveryMode, clearRecoveryMode } = useAuth();
+  const skippedEnds = routeEndsFromUser(user?.user_metadata);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [routeName, setRouteName] = useState<string | null>(null);
@@ -403,7 +405,7 @@ export default function App() {
       const { data } = supabase ? await supabase.auth.getSession() : { data: { session: null } };
       const accessToken = data.session?.access_token;
 
-      const results = await analyzeRoute(file, Array.from(selectedCategories), radiusM, accessToken);
+      const results = await analyzeRoute(file, Array.from(selectedCategories), radiusM, skippedEnds, accessToken);
       // A newer search already started (and maybe already finished) while
       // this one was still in flight - its results are stale, showing them
       // now would silently undo whatever the rider is already looking at.

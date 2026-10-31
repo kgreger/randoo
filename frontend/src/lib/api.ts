@@ -1,3 +1,5 @@
+import type { RouteEnds } from "./routeEnds";
+
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
 export interface Poi {
@@ -67,11 +69,13 @@ export interface SearchResult {
 
 export type RoutedConnector = Pick<Poi, "id" | "meeting_point" | "connector_path" | "is_routed">;
 
-function buildFormData(file: File, categoryIds: string[], radiusM: number): FormData {
+function buildFormData(file: File, categoryIds: string[], radiusM: number, routeEnds: RouteEnds): FormData {
   const form = new FormData();
   form.append("file", file);
   categoryIds.forEach((id) => form.append("categories", id));
   form.append("radius_m", String(radiusM));
+  form.append("skip_start_pct", String(routeEnds.startPct));
+  form.append("skip_end_pct", String(routeEnds.endPct));
   return form;
 }
 
@@ -79,6 +83,7 @@ export async function analyzeRoute(
   file: File,
   categoryIds: string[],
   radiusM: number,
+  routeEnds: RouteEnds,
   accessToken?: string,
 ): Promise<SearchResult> {
   // Search stays fully anonymous-friendly - the token is only sent along
@@ -87,7 +92,7 @@ export async function analyzeRoute(
   const response = await fetch(`${API_URL}/api/analyze`, {
     method: "POST",
     headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
-    body: buildFormData(file, categoryIds, radiusM),
+    body: buildFormData(file, categoryIds, radiusM, routeEnds),
   });
 
   if (!response.ok) throw await failure(response, "analyze");

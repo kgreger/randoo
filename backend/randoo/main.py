@@ -73,11 +73,23 @@ async def _query_pois(
         return await OverpassPoiSource().query(segments, radius_m, selected)
 
 
+# Neither end may take more than this share of the route, so there is
+# always a stretch left to search along.
+MAX_SKIP_PCT = 40
+
+
 async def _find_pois(
-    file: UploadFile, category_ids: list[str], radius_m: float, tier: str
+    file: UploadFile,
+    category_ids: list[str],
+    radius_m: float,
+    tier: str,
+    skip_start_pct: float = 0,
+    skip_end_pct: float = 0,
 ) -> tuple[list[poi_filter.RankedPoi], list[list[gpx.Point]], str]:
     if radius_m <= 0 or radius_m > 5000:
         raise HTTPException(400, "radius_m must be between 0 and 5000")
+    if not (0 <= skip_start_pct <= MAX_SKIP_PCT and 0 <= skip_end_pct <= MAX_SKIP_PCT):
+        raise HTTPException(400, f"skip_start_pct and skip_end_pct must be between 0 and {MAX_SKIP_PCT}")
 
     try:
         selected = categories.resolve(category_ids)
@@ -90,7 +102,7 @@ async def _find_pois(
     # lands on the same key here automatically - this is what skips redoing
     # the whole search a second time. The key doubles as the search id
     # /api/route-connectors refines the connectors under.
-    cache_key = search_cache.make_key(raw, category_ids, radius_m, tier)
+    cache_key = search_cache.make_key(raw, category_ids, radius_m, tier, skip_start_pct, skip_end_pct)
     cached = search_cache.get(cache_key)
     if cached is not None:
         return *cached, cache_key
@@ -100,9 +112,21 @@ async def _find_pois(
     except gpx.InvalidGpxError as exc:
         raise HTTPException(400, str(exc)) from exc
 
-    buffer_geometry = geometry.route_buffer(segments, radius_m)
-    pois = await _query_pois(tier, segments, radius_m, selected)
-    ranked = poi_filter.filter_and_rank(pois, segments, buffer_geometry)
+    # Only the part between the skipped start and end is asked for, but
+    # ranking still goes against the whole route, so a point's route km
+    # stays the one the rider sees on their device. The search radius
+    # reaches past either cut, so a point found there is dropped by its
+    # route km.
+    search_segments = segments
+    if skip_start_pct or skip_end_pct:
+        length_m = geometry.route_length_m(segments)
+        keep_from_m = length_m * skip_start_pct / 100
+        keep_to_m = length_m * (1 - skip_end_pct / 100)
+        search_segments = geometry.trim_route(segments, keep_from_m, length_m - keep_to_m)
+    pois = await _query_pois(tier, search_segments, radius_m, selected)
+    ranked = poi_filter.filter_and_rank(pois, segments, radius_m)
+    if skip_start_pct or skip_end_pct:
+        ranked = [r for r in ranked if keep_from_m <= r.distance_along_route_m <= keep_to_m]
 
     search_cache.set(cache_key, ranked, segments)
     return ranked, segments, cache_key
@@ -113,12 +137,16 @@ async def analyze(
     file: UploadFile = File(...),
     categories_param: list[str] = Form(..., alias="categories"),
     radius_m: float = Form(500),
+    skip_start_pct: float = Form(0),
+    skip_end_pct: float = Form(0),
     token: str | None = Depends(bearer_token),
 ) -> AnalyzeResponse:
     # Search stays fully anonymous-friendly - a signed-in premium caller just
     # gets the faster local path too, on top of what free already gets.
     tier = await get_tier(token)
-    ranked, _, search_id = await _find_pois(file, categories_param, radius_m, tier)
+    ranked, _, search_id = await _find_pois(
+        file, categories_param, radius_m, tier, skip_start_pct, skip_end_pct
+    )
     return AnalyzeResponse(
         search_id=search_id,
         routing=routing_available(tier),
@@ -237,6 +265,8 @@ async def export(
     file: UploadFile = File(...),
     categories_param: list[str] = Form(default=[], alias="categories"),
     radius_m: float = Form(500),
+    skip_start_pct: float = Form(0),
+    skip_end_pct: float = Form(0),
     pois: str | None = Form(default=None),
     type_overrides: str | None = Form(default=None),
     device_make: str | None = Form(default=None),
@@ -270,7 +300,9 @@ async def export(
         if not categories_param:
             raise HTTPException(400, "categories or pois is required")
         tier = await get_tier(token)
-        ranked, segments, _ = await _find_pois(file, categories_param, radius_m, tier)
+        ranked, segments, _ = await _find_pois(
+            file, categories_param, radius_m, tier, skip_start_pct, skip_end_pct
+        )
 
     # A POI passing the search doesn't mean the rider actually wants it in
     # the file - excluded_poi_ids is how the frontend's per-POI selection

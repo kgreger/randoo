@@ -26,11 +26,18 @@ _TTL_S = 300
 _cache: dict[str, tuple[float, list["RankedPoi"], list[list["Point"]]]] = {}
 
 
-def make_key(file_bytes: bytes, category_ids: list[str], radius_m: float, tier: str) -> str:
+def make_key(
+    file_bytes: bytes,
+    category_ids: list[str],
+    radius_m: float,
+    tier: str,
+    skip_start_pct: float = 0,
+    skip_end_pct: float = 0,
+) -> str:
     digest = hashlib.sha256()
     digest.update(file_bytes)
     digest.update("|".join(sorted(category_ids)).encode())
-    digest.update(f"|{radius_m}|{tier}".encode())
+    digest.update(f"|{radius_m}|{tier}|{skip_start_pct}|{skip_end_pct}".encode())
     return digest.hexdigest()
 
 

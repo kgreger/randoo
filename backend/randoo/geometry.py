@@ -156,6 +156,48 @@ def chunk_by_distance(points: list[Point], max_chunk_m: float) -> list[list[Poin
     return chunks
 
 
+def route_length_m(segments: list[list[Point]]) -> float:
+    return sum(
+        _GEOD.inv(a.lon, a.lat, b.lon, b.lat)[2] for segment in segments for a, b in zip(segment, segment[1:])
+    )
+
+
+def trim_route(segments: list[list[Point]], skip_start_m: float, skip_end_m: float) -> list[list[Point]]:
+    """The part of the route between skip_start_m from its start and
+    skip_end_m before its end, measured along the route across all segments
+    in recording order. A cut inside a stretch between two recorded points
+    gets a point of its own there, so the kept part starts and ends exactly
+    at the requested distances. Segments wholly outside are dropped.
+    """
+    keep_from = skip_start_m
+    keep_to = route_length_m(segments) - skip_end_m
+    if keep_to <= keep_from:
+        return []
+
+    trimmed = []
+    travelled = 0.0
+    for segment in segments:
+        kept: list[Point] = []
+        for a, b in zip(segment, segment[1:]):
+            _, _, step = _GEOD.inv(a.lon, a.lat, b.lon, b.lat)
+            start, end = travelled, travelled + step
+            travelled = end
+            if end < keep_from or start > keep_to or step == 0:
+                continue
+            if not kept:
+                kept.append(_along(a, b, (keep_from - start) / step) if start < keep_from else a)
+            kept.append(_along(a, b, (keep_to - start) / step) if end > keep_to else b)
+        if len(kept) > 1:
+            trimmed.append(kept)
+    return trimmed
+
+
+def _along(a: Point, b: Point, fraction: float) -> Point:
+    """A point the given fraction of the way from a to b. Linear in degrees,
+    which is plenty accurate between two neighbouring track points."""
+    return Point(a.lat + (b.lat - a.lat) * fraction, a.lon + (b.lon - a.lon) * fraction)
+
+
 def bounding_box(geometry: BaseGeometry) -> tuple[float, float, float, float]:
     """Return (south, west, north, east), the format Overpass expects.
 

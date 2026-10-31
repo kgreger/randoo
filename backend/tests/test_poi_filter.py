@@ -1,4 +1,8 @@
+import math
+import random
+
 import pytest
+from shapely.geometry import Point as ShapelyPoint
 
 from randoo.geometry import route_buffer
 from randoo.gpx import Point
@@ -17,19 +21,19 @@ def test_poi_near_a_segment_gap_is_excluded():
     first_segment = [Point(48.0, 8.0), Point(48.01, 8.01)]
     second_segment = [Point(49.0, 9.0), Point(49.01, 9.01)]
     segments = [first_segment, second_segment]
-    buffer_geometry = route_buffer(segments, radius_m=100)
+    radius_m = 100
 
     midpoint_poi = _poi(48.505, 8.505)
-    ranked = filter_and_rank([midpoint_poi], segments, buffer_geometry)
+    ranked = filter_and_rank([midpoint_poi], segments, radius_m)
     assert ranked == []
 
 
 def test_poi_near_the_actual_route_is_kept_and_ranked():
     segments = [[Point(48.0, 8.0), Point(48.01, 8.01)]]
-    buffer_geometry = route_buffer(segments, radius_m=200)
+    radius_m = 200
 
     near_start = _poi(48.0, 8.0005)
-    ranked = filter_and_rank([near_start], segments, buffer_geometry)
+    ranked = filter_and_rank([near_start], segments, radius_m)
     assert len(ranked) == 1
     assert ranked[0].distance_to_route_m < 200
 
@@ -40,12 +44,12 @@ def test_ranked_pois_are_sorted_by_progress_along_the_route_not_distance_to_it()
     # would put the late, close one first. Sorted by where it falls along
     # the route, the early, far one should still come first.
     segments = [[Point(48.0, 8.0), Point(48.0, 8.10)]]
-    buffer_geometry = route_buffer(segments, radius_m=2000)
+    radius_m = 2000
 
     early_but_far = _poi(48.005, 8.001)  # near the start, ~550m off-route
     late_but_close = _poi(48.0002, 8.09)  # near the end, ~20m off-route
 
-    ranked = filter_and_rank([late_but_close, early_but_far], segments, buffer_geometry)
+    ranked = filter_and_rank([late_but_close, early_but_far], segments, radius_m)
 
     assert [r.poi is early_but_far for r in ranked] == [True, False]
     assert ranked[0].distance_along_route_m < ranked[1].distance_along_route_m
@@ -60,10 +64,10 @@ def test_distance_along_route_accumulates_across_segments():
     first_segment = [Point(48.0, 8.0), Point(48.0, 8.01)]
     second_segment = [Point(49.0, 9.0), Point(49.0, 9.01)]
     segments = [first_segment, second_segment]
-    buffer_geometry = route_buffer(segments, radius_m=500)
+    radius_m = 500
 
     near_second_segment_start = _poi(49.0001, 9.0001)
-    ranked = filter_and_rank([near_second_segment_start], segments, buffer_geometry)
+    ranked = filter_and_rank([near_second_segment_start], segments, radius_m)
 
     assert len(ranked) == 1
     # 0.01 degrees of longitude at latitude 48 is roughly 745m; a safely
@@ -77,10 +81,10 @@ def test_ranked_poi_carries_a_geometric_connector_to_the_route():
     # A straight north-south segment - the nearest point to something east
     # of its midpoint should be that midpoint itself, not either endpoint.
     segments = [[Point(48.0, 8.0), Point(48.02, 8.0)]]
-    buffer_geometry = route_buffer(segments, radius_m=500)
+    radius_m = 500
 
     east_of_midpoint = _poi(48.01, 8.003)
-    ranked = filter_and_rank([east_of_midpoint], segments, buffer_geometry)
+    ranked = filter_and_rank([east_of_midpoint], segments, radius_m)
 
     assert len(ranked) == 1
     meeting_point = ranked[0].connector.meeting_point
@@ -89,3 +93,42 @@ def test_ranked_poi_carries_a_geometric_connector_to_the_route():
 
     # geometric mode: a straight line, meeting point to the POI itself
     assert ranked[0].connector.path == [meeting_point, Point(east_of_midpoint.lat, east_of_midpoint.lon)]
+
+
+def _meandering_route() -> list[Point]:
+    """About 200 km of smoothly wandering track, the same every run."""
+    rng = random.Random(1)
+    points = [Point(48.0, 8.0)]
+    heading = 0.0
+    for _ in range(4000):
+        heading += rng.uniform(-0.6, 0.6)
+        last = points[-1]
+        points.append(Point(last.lat + 0.0005 * math.cos(heading), last.lon + 0.00075 * math.sin(heading)))
+    return points
+
+
+def test_points_are_kept_or_dropped_by_their_distance_not_by_the_query_polygon():
+    # route_buffer simplifies a long route's corridor to a vertex budget for
+    # the Overpass query, cutting into it in places and bulging out in
+    # others. Both points below are chosen so that polygon gets them wrong.
+    segments = [_meandering_route()]
+    polygon = route_buffer(segments, radius_m=500)
+    near_but_cut_off = _poi(47.890641, 7.768723)  # about 107 m off the track
+    far_but_inside = _poi(47.677015, 8.026859)  # about 814 m off the track
+    assert not polygon.contains(ShapelyPoint(near_but_cut_off.lon, near_but_cut_off.lat))
+    assert polygon.contains(ShapelyPoint(far_but_inside.lon, far_but_inside.lat))
+
+    ranked = filter_and_rank([near_but_cut_off, far_but_inside], segments, radius_m=500)
+
+    assert [r.poi for r in ranked] == [near_but_cut_off]
+    assert ranked[0].distance_to_route_m == pytest.approx(107, abs=2)
+
+
+def test_poi_just_beyond_the_radius_is_dropped():
+    segments = [[Point(48.0, 8.0), Point(48.0, 8.1)]]
+    just_inside = _poi(48.0044, 8.05)  # about 489 m north
+    just_outside = _poi(48.0046, 8.05)  # about 511 m north
+
+    ranked = filter_and_rank([just_inside, just_outside], segments, radius_m=500)
+
+    assert [r.poi for r in ranked] == [just_inside]
