@@ -28,7 +28,28 @@ class PoiOut(BaseModel):
 
 class AnalyzeResponse(BaseModel):
     pois: list[PoiOut]
+    # What /api/route-connectors takes to refine this search's connectors,
+    # and whether the caller may: every connector here is still a straight
+    # line, routing comes afterwards in batches.
+    search_id: str
+    routing: bool
     attribution: str = "© OpenStreetMap contributors"
+
+
+class RouteRequest(BaseModel):
+    search_id: str = Field(max_length=64)
+    poi_ids: list[str]
+
+
+class RoutedConnector(BaseModel):
+    id: str
+    meeting_point: tuple[float, float]
+    connector_path: list[tuple[float, float]]
+    is_routed: bool
+
+
+class RouteResponse(BaseModel):
+    pois: list[RoutedConnector]
 
 
 class ExportPoi(BaseModel):

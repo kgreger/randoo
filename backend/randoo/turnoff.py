@@ -12,10 +12,10 @@ a routing call didn't come back.
 BRouter has no matrix/table endpoint for "one point against many" the way
 Overpass or OSRM do, so this is genuinely N point-to-point requests per POI,
 one per candidate - see _candidate_points for how that N is kept small. All
-of them, across every POI in a search, run concurrently rather than one at
-a time - main.py's own POI loop does the same - capped by _request_semaphore
-so a POI-heavy search doesn't burst thousands of requests at once against
-the self-hosted instance in one go.
+of them, across every POI in a batch, run concurrently rather than one at
+a time - main.py's route_connectors does the same - capped by
+_request_semaphore so a POI-heavy batch doesn't burst hundreds of requests
+at once against the self-hosted instance in one go.
 """
 
 import asyncio
@@ -246,7 +246,11 @@ def _candidate_points(
     return candidates
 
 
+def routing_available(tier: str) -> bool:
+    return tier == PREMIUM and bool(config.BROUTER_URL)
+
+
 def get_turnoff_locator(tier: str) -> TurnoffLocator:
-    if tier == PREMIUM and config.BROUTER_URL:
+    if routing_available(tier):
         return BRouterTurnoffLocator(config.BROUTER_URL, config.BROUTER_PROFILE)
     return GeometricTurnoffLocator()

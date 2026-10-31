@@ -617,3 +617,115 @@ def test_export_without_a_course_point_limit_ignores_split(client):
     )
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("application/gpx+xml")
+
+
+def _premium(monkeypatch, refined: list):
+    """A premium caller with a stand-in BRouter that routes every POI it is
+    asked for, recording which ones."""
+    from randoo.gpx import Point
+    from randoo.poi_filter import Connector
+
+    class FakeLocator:
+        async def refine(self, poi, segments, fallback):
+            refined.append(poi.osm_id)
+            path = [fallback.meeting_point, Point(48.0, 8.0), Point(poi.lat, poi.lon)]
+            return Connector(meeting_point=fallback.meeting_point, path=path)
+
+    async def premium(token):
+        return "premium"
+
+    monkeypatch.setattr(main, "get_tier", premium)
+    monkeypatch.setattr(main, "routing_available", lambda tier: tier == "premium")
+    monkeypatch.setattr(main, "get_turnoff_locator", lambda tier: FakeLocator())
+
+
+TWO_POIS = [
+    Poi(osm_id=1, osm_type="node", lat=48.005, lon=8.005, category_id="water", name="Spring", tags={}),
+    Poi(osm_id=2, osm_type="way", lat=48.006, lon=8.006, category_id="food", name="Cafe", tags={}),
+]
+
+
+def test_analyze_answers_with_straight_connectors_and_leaves_routing_for_later(monkeypatch, client):
+    refined: list = []
+    _premium(monkeypatch, refined)
+    monkeypatch.setattr(main, "get_poi_source", lambda tier: _fake_source([], TWO_POIS))
+
+    response = client.post(
+        "/api/analyze",
+        files={"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")},
+        data={"categories": ["water", "food"], "radius_m": "300"},
+    )
+
+    body = response.json()
+    assert body["routing"] is True
+    assert body["search_id"]
+    assert all(not p["is_routed"] for p in body["pois"])
+    assert refined == []
+
+
+def test_route_connectors_routes_only_the_asked_for_points(monkeypatch, client):
+    refined: list = []
+    _premium(monkeypatch, refined)
+    monkeypatch.setattr(main, "get_poi_source", lambda tier: _fake_source([], TWO_POIS))
+    analyze = client.post(
+        "/api/analyze",
+        files={"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")},
+        data={"categories": ["water", "food"], "radius_m": "300"},
+    ).json()
+
+    response = client.post(
+        "/api/route-connectors", json={"search_id": analyze["search_id"], "poi_ids": ["way:2"]}
+    )
+
+    assert response.status_code == 200
+    (poi,) = response.json()["pois"]
+    assert poi["id"] == "way:2"
+    assert poi["is_routed"] is True
+    assert len(poi["connector_path"]) == 3
+    assert refined == [2]
+
+
+def test_route_connectors_does_not_route_a_point_twice(monkeypatch, client):
+    refined: list = []
+    _premium(monkeypatch, refined)
+    monkeypatch.setattr(main, "get_poi_source", lambda tier: _fake_source([], TWO_POIS))
+    files = {"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")}
+    data = {"categories": ["water", "food"], "radius_m": "300"}
+    search_id = client.post("/api/analyze", files=files, data=data).json()["search_id"]
+
+    client.post("/api/route-connectors", json={"search_id": search_id, "poi_ids": ["node:1"]})
+    again = client.post("/api/route-connectors", json={"search_id": search_id, "poi_ids": ["node:1"]})
+
+    assert again.json()["pois"][0]["is_routed"] is True
+    assert refined == [1]
+    # the cached search keeps the routed connector for a later analyze or export
+    cached = client.post("/api/analyze", files=files, data=data).json()["pois"]
+    assert [p["is_routed"] for p in cached] == [True, False]
+
+
+def test_route_connectors_reports_an_expired_search(monkeypatch, client):
+    _premium(monkeypatch, [])
+    response = client.post("/api/route-connectors", json={"search_id": "gone", "poi_ids": ["node:1"]})
+    assert response.status_code == 404
+
+
+def test_route_connectors_is_refused_without_routing(monkeypatch, client):
+    monkeypatch.setattr(main, "get_poi_source", lambda tier: _fake_source([], TWO_POIS))
+    analyze = client.post(
+        "/api/analyze",
+        files={"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")},
+        data={"categories": "water", "radius_m": "300"},
+    ).json()
+    assert analyze["routing"] is False
+
+    response = client.post(
+        "/api/route-connectors", json={"search_id": analyze["search_id"], "poi_ids": ["node:1"]}
+    )
+    assert response.status_code == 403
+
+
+def test_route_connectors_takes_a_limited_batch(monkeypatch, client):
+    _premium(monkeypatch, [])
+    poi_ids = [f"node:{i}" for i in range(main.MAX_ROUTE_BATCH + 1)]
+    response = client.post("/api/route-connectors", json={"search_id": "any", "poi_ids": poi_ids})
+    assert response.status_code == 400

@@ -25,9 +25,9 @@ from .export import (
 from .overpass import Poi
 from .poi_filter import Connector, RankedPoi
 from .poi_source import OverpassPoiSource, get_poi_source
-from .schemas import AnalyzeResponse, ExportPoi, PoiOut
+from .schemas import AnalyzeResponse, ExportPoi, PoiOut, RoutedConnector, RouteRequest, RouteResponse
 from .split import part_count, split_gpx
-from .turnoff import get_turnoff_locator
+from .turnoff import get_turnoff_locator, routing_available
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
@@ -75,7 +75,7 @@ async def _query_pois(
 
 async def _find_pois(
     file: UploadFile, category_ids: list[str], radius_m: float, tier: str
-) -> tuple[list[poi_filter.RankedPoi], list[list[gpx.Point]]]:
+) -> tuple[list[poi_filter.RankedPoi], list[list[gpx.Point]], str]:
     if radius_m <= 0 or radius_m > 5000:
         raise HTTPException(400, "radius_m must be between 0 and 5000")
 
@@ -88,11 +88,12 @@ async def _find_pois(
 
     # Export re-sends the same file and parameters analyze just used, so it
     # lands on the same key here automatically - this is what skips redoing
-    # the whole search (POI source query, any per-POI routing) a second time.
+    # the whole search a second time. The key doubles as the search id
+    # /api/route-connectors refines the connectors under.
     cache_key = search_cache.make_key(raw, category_ids, radius_m, tier)
     cached = search_cache.get(cache_key)
     if cached is not None:
-        return cached
+        return *cached, cache_key
 
     try:
         segments = gpx.parse_track(raw)
@@ -102,31 +103,9 @@ async def _find_pois(
     buffer_geometry = geometry.route_buffer(segments, radius_m)
     pois = await _query_pois(tier, segments, radius_m, selected)
     ranked = poi_filter.filter_and_rank(pois, segments, buffer_geometry)
-    ranked = await _refine_connectors(ranked, segments, tier)
 
     search_cache.set(cache_key, ranked, segments)
-    return ranked, segments
-
-
-async def _refine_connectors(
-    ranked: list[poi_filter.RankedPoi], segments: list[list[gpx.Point]], tier: str
-) -> list[poi_filter.RankedPoi]:
-    """Replaces each POI's straight-line connector with a routed one where
-    the caller's tier allows it - done here, before the result is cached,
-    so a routing call (BRouter has no bulk endpoint, this is one request per
-    POI) only ever happens once per search, not again on every export of it.
-
-    Every POI's own refine() call runs concurrently (gather preserves the
-    input order, so zipping back against `ranked` still lines up) - run one
-    at a time, a POI-heavy search could take minutes even with a fast
-    self-hosted BRouter behind it, purely from waiting on each in turn.
-    """
-    locator = get_turnoff_locator(tier)
-    connectors = await asyncio.gather(*(locator.refine(r.poi, segments, r.connector) for r in ranked))
-    return [
-        dataclasses.replace(r, connector=connector, is_routed=connector is not r.connector)
-        for r, connector in zip(ranked, connectors)
-    ]
+    return ranked, segments, cache_key
 
 
 @app.post("/api/analyze", response_model=AnalyzeResponse)
@@ -139,8 +118,10 @@ async def analyze(
     # Search stays fully anonymous-friendly - a signed-in premium caller just
     # gets the faster local path too, on top of what free already gets.
     tier = await get_tier(token)
-    ranked, _ = await _find_pois(file, categories_param, radius_m, tier)
+    ranked, _, search_id = await _find_pois(file, categories_param, radius_m, tier)
     return AnalyzeResponse(
+        search_id=search_id,
+        routing=routing_available(tier),
         pois=[
             PoiOut(
                 id=_poi_id(r.poi),
@@ -157,6 +138,53 @@ async def analyze(
                 is_routed=r.is_routed,
             )
             for r in ranked
+        ]
+    )
+
+
+# Routing every POI of a long route in one request could outlast the
+# reverse proxy's timeout, so /api/analyze answers with straight connectors
+# and the frontend asks for the routed ones in batches of at most this many.
+MAX_ROUTE_BATCH = 50
+
+
+@app.post("/api/route-connectors", response_model=RouteResponse)
+async def route_connectors(request: RouteRequest, token: str | None = Depends(bearer_token)) -> RouteResponse:
+    if len(request.poi_ids) > MAX_ROUTE_BATCH:
+        raise HTTPException(400, f"at most {MAX_ROUTE_BATCH} points can be routed at once")
+    tier = await get_tier(token)
+    if not routing_available(tier):
+        raise HTTPException(403, "routing is not available")
+    cached = search_cache.get(request.search_id)
+    if cached is None:
+        raise HTTPException(404, "search expired")
+    ranked, segments = cached
+
+    wanted = set(request.poi_ids)
+    indices = [i for i, r in enumerate(ranked) if _poi_id(r.poi) in wanted and not r.is_routed]
+    locator = get_turnoff_locator(tier)
+    connectors = await asyncio.gather(
+        *(locator.refine(ranked[i].poi, segments, ranked[i].connector) for i in indices)
+    )
+    # Written back into the cached search, so a batch asked for twice (or an
+    # export served from the cache) gets the routed connector without
+    # routing it again. Storing it again also restarts the entry's TTL,
+    # which keeps a long route's search alive while its batches come in.
+    for i, connector in zip(indices, connectors):
+        is_routed = connector is not ranked[i].connector
+        ranked[i] = dataclasses.replace(ranked[i], connector=connector, is_routed=is_routed)
+    search_cache.set(request.search_id, ranked, segments)
+
+    return RouteResponse(
+        pois=[
+            RoutedConnector(
+                id=_poi_id(r.poi),
+                meeting_point=(r.connector.meeting_point.lat, r.connector.meeting_point.lon),
+                connector_path=[(p.lat, p.lon) for p in r.connector.path],
+                is_routed=r.is_routed,
+            )
+            for r in ranked
+            if _poi_id(r.poi) in wanted
         ]
     )
 
@@ -242,7 +270,7 @@ async def export(
         if not categories_param:
             raise HTTPException(400, "categories or pois is required")
         tier = await get_tier(token)
-        ranked, segments = await _find_pois(file, categories_param, radius_m, tier)
+        ranked, segments, _ = await _find_pois(file, categories_param, radius_m, tier)
 
     # A POI passing the search doesn't mean the rider actually wants it in
     # the file - excluded_poi_ids is how the frontend's per-POI selection

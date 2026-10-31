@@ -1,6 +1,7 @@
 """Short-lived cache tying an /api/analyze result to a later /api/export call
-for the same search, so export doesn't repeat the whole pipeline - including
-any per-POI routing calls - that analyze just did.
+for the same search, so export doesn't repeat the whole pipeline that analyze
+just did. /api/route-connectors refines the connectors of the cached search
+in place, batch by batch, and each batch restarts the entry's TTL.
 
 Keyed purely from the request's own inputs (file content, categories,
 radius, tier), not an explicit id the frontend has to pass along: export
