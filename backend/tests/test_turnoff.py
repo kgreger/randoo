@@ -44,7 +44,7 @@ def _brouter_response(track_length_m: float, coords: list[tuple[float, float]]) 
 
 FALLBACK = Connector(meeting_point=Point(48.0, 8.005), path=[Point(48.0, 8.005), Point(48.0, 8.006)])
 # Points ~150m apart, spanning the fallback's candidate window (300m) around
-# its meeting point (8.005) - close enough together that thinning (75m
+# its meeting point (8.005) - close enough together that thinning (125m
 # spacing) keeps several of them as distinct candidates, unlike two lone
 # endpoints far outside the window, which would leave only the fallback
 # point itself as a candidate.
@@ -209,3 +209,20 @@ def test_get_turnoff_locator_uses_brouter_for_premium_when_configured(monkeypatc
 def test_get_turnoff_locator_falls_back_when_brouter_is_not_configured(monkeypatch):
     monkeypatch.setattr(config, "BROUTER_URL", None)
     assert isinstance(get_turnoff_locator("premium"), GeometricTurnoffLocator)
+
+
+async def test_brouter_locator_does_not_route_a_poi_right_by_the_track(monkeypatch):
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return _brouter_response(10, [(8.005, 48.0), (8.0053, 48.0)])
+
+    monkeypatch.setattr("randoo.turnoff.httpx.AsyncClient", _mock_async_client(handler))
+    near = Connector(meeting_point=Point(48.0, 8.005), path=[Point(48.0, 8.005), Point(48.0, 8.0053)])
+
+    locator = BRouterTurnoffLocator(base_url="https://example.test/brouter", profile="trekking")
+    result = await locator.refine(_poi(48.0, 8.0053), SEGMENTS, near)  # about 22m off the track
+
+    assert result is near
+    assert calls == []
