@@ -963,16 +963,6 @@ export default function App() {
                   radiusM={radiusM}
                   onRadiusChange={setRadiusM}
                 />
-                {(skippedEnds.startPct > 0 || skippedEnds.endPct > 0) && distanceKm !== null && (
-                  <p className="route-ends-hint">
-                    {t("routeEnds.searchHint", {
-                      start: skippedEnds.startPct,
-                      end: skippedEnds.endPct,
-                      fromKm: ((distanceKm * skippedEnds.startPct) / 100).toFixed(1),
-                      toKm: (distanceKm * (1 - skippedEnds.endPct / 100)).toFixed(1),
-                    })}
-                  </p>
-                )}
                 <button
                   className="btn btn-primary"
                   onClick={requestSearch}

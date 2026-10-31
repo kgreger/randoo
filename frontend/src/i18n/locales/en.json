@@ -213,7 +213,6 @@
     "end": "Finish",
     "saved": "Saved.",
     "error": "Please enter values between 0 and {{max}} %.",
-    "hint": "Share of the route at its start and end where no points are searched.",
-    "searchHint": "Leaving out the first {{start}} % (up to km {{fromKm}}) and the last {{end}} % (from km {{toKm}}). Can be changed in your account."
+    "hint": "Share of the route at its start and end where no points are searched."
   }
 }
