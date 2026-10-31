@@ -903,13 +903,6 @@ button {
   color: var(--ink-faint);
 }
 
-.route-ends-hint {
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.45;
-  color: var(--ink-faint);
-}
-
 .account-field-label {
   font-size: 11.5px;
   font-weight: 600;

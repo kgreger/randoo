@@ -213,7 +213,6 @@
     "end": "Ziel",
     "saved": "Gespeichert.",
     "error": "Bitte Werte zwischen 0 und {{max}} % eingeben.",
-    "hint": "Anteil der Strecke am Anfang und am Ende, auf dem keine Punkte gesucht werden.",
-    "searchHint": "Ohne die ersten {{start}} % (bis km {{fromKm}}) und die letzten {{end}} % (ab km {{toKm}}). Einstellbar im Konto."
+    "hint": "Anteil der Strecke am Anfang und am Ende, auf dem keine Punkte gesucht werden."
   }
 }
