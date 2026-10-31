@@ -66,7 +66,15 @@ _ON_ROUTE_TOLERANCE_M = 20.0
 # good enough for a plausible, real turnoff instead of one drawn through
 # whatever terrain lies between the route and the POI.
 _CANDIDATE_WINDOW_M = 300.0
-_CANDIDATE_SPACING_M = 75.0
+# Was 75m: up to 9 BRouter calls per POI, which on a long route with
+# thousands of POIs kept BRouter busy for half an hour. 125m keeps a
+# candidate every block or so and cuts that to about 5.
+_CANDIDATE_SPACING_M = 125.0
+
+# A POI this close to the track is reached by stopping, not by turning off -
+# the straight connector is as good as any route and costs no BRouter call.
+# Same distance the Garmin profile uses to leave out the turnoff marker.
+_ROUTE_BEYOND_M = 35.0
 
 # Raised from 10s (2026-09-24): BRouter serializes its own route
 # computation internally (see the "contention! ms waited" lines in its own
@@ -105,7 +113,11 @@ class BRouterTurnoffLocator:
     async def refine(
         self, poi: Poi, segments: list[list[Point]], fallback: Connector
     ) -> Connector:
-        candidates = _candidate_points(segments, fallback.meeting_point)
+        meeting_point = fallback.meeting_point
+        _, _, to_poi_m = _GEOD.inv(meeting_point.lon, meeting_point.lat, poi.lon, poi.lat)
+        if to_poi_m <= _ROUTE_BEYOND_M:
+            return fallback
+        candidates = _candidate_points(segments, meeting_point)
 
         async with httpx.AsyncClient(timeout=_REQUEST_TIMEOUT_S) as client:
             results = await asyncio.gather(
