@@ -113,20 +113,18 @@ async def _find_pois(
         raise HTTPException(400, str(exc)) from exc
 
     # Only the part between the skipped start and end is asked for, but
-    # filtering and ranking still go against the whole route: a point's
-    # route km stays the one the rider sees on their device, and a point
-    # counts as along the route exactly when it would without skipping.
-    # The search radius reaches past either cut, so a point found there is
-    # dropped by its route km.
+    # ranking still goes against the whole route, so a point's route km
+    # stays the one the rider sees on their device. The search radius
+    # reaches past either cut, so a point found there is dropped by its
+    # route km.
     search_segments = segments
     if skip_start_pct or skip_end_pct:
         length_m = geometry.route_length_m(segments)
         keep_from_m = length_m * skip_start_pct / 100
         keep_to_m = length_m * (1 - skip_end_pct / 100)
         search_segments = geometry.trim_route(segments, keep_from_m, length_m - keep_to_m)
-    buffer_geometry = geometry.route_buffer(segments, radius_m)
     pois = await _query_pois(tier, search_segments, radius_m, selected)
-    ranked = poi_filter.filter_and_rank(pois, segments, buffer_geometry)
+    ranked = poi_filter.filter_and_rank(pois, segments, radius_m)
     if skip_start_pct or skip_end_pct:
         ranked = [r for r in ranked if keep_from_m <= r.distance_along_route_m <= keep_to_m]
 
