@@ -14,7 +14,15 @@ import { PoiList } from "./components/PoiList";
 import { SavePlanDialog } from "./components/SavePlanDialog";
 import { SignInDialog } from "./components/SignInDialog";
 import { SUPPORTED_LANGUAGES, type SupportedLanguage } from "./i18n";
-import { analyzeRoute, ApiError, exportGpx, exportGpxParts, PointLimitError, type Poi } from "./lib/api";
+import {
+  analyzeRoute,
+  ApiError,
+  exportGpx,
+  exportGpxParts,
+  PointLimitError,
+  routeConnectors,
+  type Poi,
+} from "./lib/api";
 import { positionOnRoute, routeLengthM } from "./lib/geo";
 import { isStackedLayout } from "./lib/layout";
 import { parseGpxCourseName, parseGpxPreview, parseGpxWaypoints, type LatLon, type RouteWaypoint } from "./lib/gpxPreview";
@@ -84,6 +92,9 @@ function routeEndPoints(
 }
 
 const DEFAULT_CATEGORIES = ["water", "food"];
+// Points per routing request. Each point takes several BRouter calls, so
+// this keeps one request well within the reverse proxy's timeout.
+const ROUTE_BATCH = 20;
 const IDEAS_URL = import.meta.env.VITE_IDEAS_URL as string | undefined;
 
 export default function App() {
@@ -161,6 +172,11 @@ export default function App() {
   // results. Bumped at the start of every search; a response only gets
   // applied if it's still the most recent one requested.
   const searchRequestId = useRef(0);
+  // Bumped whenever the points on screen are replaced (a new search, another
+  // route or plan), so batches of an earlier search stop and never land on
+  // points they weren't asked for.
+  const routingRunId = useRef(0);
+  const [routingProgress, setRoutingProgress] = useState<{ done: number; total: number } | null>(null);
 
   useEffect(() => {
     if (user && !recoveryMode) setSignInOpen(false);
@@ -210,10 +226,11 @@ export default function App() {
     }
   }, [user]);
 
-  // A search can genuinely take anywhere from a couple seconds to over a
-  // minute (a dense route routes every POI's connector through BRouter) -
-  // with no way to report real progress from a single request/response,
-  // showing elapsed time at least confirms it's still working, not stuck.
+  // A search over Overpass can take from a couple of seconds to over a
+  // minute - with no way to report real progress from a single
+  // request/response, showing elapsed time at least confirms it's still
+  // working, not stuck. Routing the connectors comes afterwards, with its
+  // own count (see routeAll).
   useEffect(() => {
     if (!loading) return;
     setSearchElapsedS(0);
@@ -250,6 +267,7 @@ export default function App() {
   }
 
   async function handleFile(selected: File) {
+    stopRouting();
     setNotice(null);
     setFile(selected);
     setRouteName(selected.name.replace(/\.gpx$/i, ""));
@@ -373,6 +391,7 @@ export default function App() {
   async function runSearch() {
     if (!file || selectedCategories.size === 0) return;
     const requestId = ++searchRequestId.current;
+    stopRouting();
     setLoading(true);
     setError(null);
     setHideExcluded(false);
@@ -389,7 +408,8 @@ export default function App() {
       // this one was still in flight - its results are stale, showing them
       // now would silently undo whatever the rider is already looking at.
       if (requestId !== searchRequestId.current) return;
-      setPois(results);
+      setPois(results.pois);
+      if (results.routing) routeAll(results.searchId, results.pois.map((poi) => poi.id));
       setHiddenTypes(new Set());
       // The unticked points stay remembered (see excludedPoiIds), so a point
       // found again comes back unticked; only the highlighted one is reset.
@@ -401,6 +421,43 @@ export default function App() {
     } finally {
       if (requestId === searchRequestId.current) setLoading(false);
     }
+  }
+
+  function stopRouting() {
+    routingRunId.current++;
+    setRoutingProgress(null);
+  }
+
+  // Swaps the straight connectors for routed ones, a batch at a time in
+  // route order, so no single request runs into the proxy's timeout and the
+  // map fills in from the start of the route. A point BRouter finds no route
+  // for keeps its straight line.
+  async function routeAll(searchId: string, poiIds: string[]) {
+    const runId = ++routingRunId.current;
+    setRoutingProgress({ done: 0, total: poiIds.length });
+    for (let start = 0; start < poiIds.length; start += ROUTE_BATCH) {
+      const batch = poiIds.slice(start, start + ROUTE_BATCH);
+      let routed;
+      try {
+        // Fetched per batch: a long route can outlast the access token.
+        const { data } = supabase ? await supabase.auth.getSession() : { data: { session: null } };
+        routed = await routeConnectors(searchId, batch, data.session?.access_token);
+      } catch {
+        if (runId !== routingRunId.current) return;
+        setNotice(t("app.routingIncomplete"));
+        break;
+      }
+      if (runId !== routingRunId.current) return;
+      const byId = new Map(routed.map((connector) => [connector.id, connector]));
+      setPois((current) =>
+        current.map((poi) => {
+          const connector = byId.get(poi.id);
+          return connector ? { ...poi, ...connector } : poi;
+        }),
+      );
+      setRoutingProgress({ done: start + batch.length, total: poiIds.length });
+    }
+    if (runId === routingRunId.current) setRoutingProgress(null);
   }
 
   function requestErrorMessage(err: unknown, fallback: string): string {
@@ -936,6 +993,17 @@ export default function App() {
             onSelectPoi={(poi) => setSelectedPoiId((current) => (current === poi.id ? null : poi.id))}
             onSelectWaypoint={(waypoint) => setSelectedPoiId((current) => (current === waypoint.id ? null : waypoint.id))}
           />
+          {routingProgress && (
+            <div className="routing-progress" role="status">
+              <span>{t("app.routingProgress", routingProgress)}</span>
+              <div className="routing-progress-track">
+                <div
+                  className="routing-progress-bar"
+                  style={{ width: `${(100 * routingProgress.done) / routingProgress.total}%` }}
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         <PoiList

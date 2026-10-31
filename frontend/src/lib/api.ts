@@ -52,8 +52,20 @@ async function failure(response: Response, what: string): Promise<ApiError> {
 
 interface AnalyzeResponse {
   pois: Poi[];
+  search_id: string;
+  routing: boolean;
   attribution: string;
 }
+
+// The points come back with straight connectors. When routing is true, the
+// routed ones are asked for afterwards with routeConnectors, under searchId.
+export interface SearchResult {
+  pois: Poi[];
+  searchId: string;
+  routing: boolean;
+}
+
+export type RoutedConnector = Pick<Poi, "id" | "meeting_point" | "connector_path" | "is_routed">;
 
 function buildFormData(file: File, categoryIds: string[], radiusM: number): FormData {
   const form = new FormData();
@@ -68,7 +80,7 @@ export async function analyzeRoute(
   categoryIds: string[],
   radiusM: number,
   accessToken?: string,
-): Promise<Poi[]> {
+): Promise<SearchResult> {
   // Search stays fully anonymous-friendly - the token is only sent along
   // when there is one, purely so a signed-in premium caller gets identified.
   // No token at all is a normal, expected case here, unlike export.
@@ -81,6 +93,26 @@ export async function analyzeRoute(
   if (!response.ok) throw await failure(response, "analyze");
 
   const data: AnalyzeResponse = await response.json();
+  return { pois: data.pois, searchId: data.search_id, routing: data.routing };
+}
+
+export async function routeConnectors(
+  searchId: string,
+  poiIds: string[],
+  accessToken?: string,
+): Promise<RoutedConnector[]> {
+  const response = await fetch(`${API_URL}/api/route-connectors`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+    body: JSON.stringify({ search_id: searchId, poi_ids: poiIds }),
+  });
+
+  if (!response.ok) throw await failure(response, "routing");
+
+  const data: { pois: RoutedConnector[] } = await response.json();
   return data.pois;
 }
 

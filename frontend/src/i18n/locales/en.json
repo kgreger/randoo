@@ -15,6 +15,8 @@
     "chooseFile": "Choose a GPX file",
     "searching": "Searching…",
     "searchingElapsed": "Searching… ({{s}}s)",
+    "routingProgress": "Routes {{done}}/{{total}}",
+    "routingIncomplete": "Not every route to the points could be worked out. Dashed lines show the straight line.",
     "findPoints": "Find points",
     "errorGpxParse": "Could not read that GPX file.",
     "errorSearchFailed": "Search failed.",
