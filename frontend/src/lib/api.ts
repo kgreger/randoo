@@ -10,6 +10,11 @@ export interface Poi {
   lon: number;
   category_id: string;
   name: string | null;
+  // The opening hours as mapped in OpenStreetMap (its own syntax, not
+  // evaluated) and the few other tags shown as badges. Points saved in a plan
+  // before these existed have neither.
+  opening_hours?: string | null;
+  attributes?: Record<string, string>;
   distance_to_route_m: number;
   // How far along the route (cumulative across all recorded segments) this
   // POI's nearest point falls - the route-km it shows up at for the rider.
@@ -150,18 +155,22 @@ async function postExport(
   form.append(
     "pois",
     JSON.stringify(
-      pois.map(({ id, osm_id, osm_type, lat, lon, category_id, name, distance_to_route_m, meeting_point }) => ({
-        id,
-        osm_id,
-        osm_type,
-        lat,
-        lon,
-        // A type the rider gave the point by hand replaces its category.
-        category_id: typeOverrides[id] ?? category_id,
-        name,
-        distance_to_route_m,
-        meeting_point,
-      })),
+      pois.map(
+        ({ id, osm_id, osm_type, lat, lon, category_id, name, opening_hours, attributes, distance_to_route_m, meeting_point }) => ({
+          id,
+          osm_id,
+          osm_type,
+          lat,
+          lon,
+          // A type the rider gave the point by hand replaces its category.
+          category_id: typeOverrides[id] ?? category_id,
+          name,
+          opening_hours,
+          attributes,
+          distance_to_route_m,
+          meeting_point,
+        }),
+      ),
     ),
   );
   excludedPoiIds.forEach((id) => form.append("excluded_poi_ids", id));

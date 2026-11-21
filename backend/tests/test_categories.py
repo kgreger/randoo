@@ -154,3 +154,19 @@ def test_the_frontends_taxonomy_json_is_the_one_generated_from_this_file():
     assert json.loads(path.read_text()) == categories.taxonomy_dict(), (
         "taxonomy.json is out of date: run `python -m randoo.categories > ../frontend/src/lib/taxonomy.json` in backend/"
     )
+
+
+def test_every_category_and_group_has_a_german_and_an_english_label():
+    import json
+    from pathlib import Path
+
+    locales = Path(__file__).resolve().parents[2] / "frontend" / "src" / "i18n" / "locales"
+    for language in ("de", "en"):
+        texts = json.loads((locales / f"{language}.json").read_text())
+        for category in CATEGORIES:
+            assert texts["categories"].get(category.id), f"{language}: categories.{category.id}"
+        for group in GROUPS:
+            assert texts["categoryGroups"].get(group.id), f"{language}: categoryGroups.{group.id}"
+        # the ids of the old flat categories must not linger as labels of something else
+        for old in ("water", "fuel", "hut", "food", "rest", "lodging"):
+            assert old not in texts["categories"], f"{language}: categories.{old} is left over"
