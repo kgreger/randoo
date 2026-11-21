@@ -17,6 +17,8 @@ Beta. Running at [demo.konstantingreger.net/randoo](https://demo.konstantingrege
 5. Results come back as a map layer and a list in route order. Untick points you don't want, then export the rest as GPX waypoints next to the track.
 6. Premium and beta accounts can save a result as a plan. A route can have several plans, each keeping its categories, radius, points and selection.
 
+The categories (7 groups, 31 kinds of place) and the OSM rules behind them are described in [docs/poi-categories.md](docs/poi-categories.md).
+
 ## Stack
 
 - **Backend:** Python, FastAPI, gpxpy, Shapely, pyproj, httpx, DuckDB
