@@ -5,6 +5,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { LatLon, RouteWaypoint } from "../lib/gpxPreview";
 import type { Poi } from "../lib/api";
+import { popupContent } from "../lib/popupContent";
 import { WAYPOINT_TYPE, categoryById, pointTypeById } from "../lib/categories";
 
 // Close enough to make out individual streets, without zooming in so far
@@ -278,7 +279,7 @@ export function MapView({
 
       const marker = L.marker([poi.lat, poi.lon], { icon: poiDivIcon(poi, excluded, typeOverrides[poi.id] ?? poi.category_id) })
         .bindPopup(
-          `<b>${poi.name ?? poi.category_id}</b><br>${t("map.popupDistance", { distance: Math.round(poi.distance_to_route_m) })}`,
+          popupContent(poi.name ?? poi.category_id, t("map.popupDistance", { distance: Math.round(poi.distance_to_route_m) })),
         )
         .on("click", () => onSelectPoiRef.current?.(poi))
         .addTo(layer);
@@ -298,9 +299,8 @@ export function MapView({
       if (excluded && hideExcluded) continue;
       const typeId = typeOverrides[waypoint.id] ?? waypoint.fixedType ?? WAYPOINT_TYPE.id;
       const label = waypoint.name ?? t(`categories.${typeId}`);
-      const popup = `<b>${label}</b>${waypoint.description ? `<br>${waypoint.description}` : ""}`;
       const marker = L.marker([waypoint.lat, waypoint.lon], { icon: waypointDivIcon(typeId, excluded), zIndexOffset: 500 })
-        .bindPopup(popup)
+        .bindPopup(popupContent(label, waypoint.description))
         .on("click", () => onSelectWaypointRef.current?.(waypoint))
         .addTo(layer);
       waypointMarkersRef.current.set(waypoint.id, marker);
