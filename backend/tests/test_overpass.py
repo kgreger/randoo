@@ -8,7 +8,7 @@ from randoo import overpass
 from randoo.categories import CATEGORIES_BY_ID
 from randoo.gpx import Point
 
-WATER = [CATEGORIES_BY_ID["water"]]
+WATER = [CATEGORIES_BY_ID["water_tap"]]
 
 NODE_ELEMENT = {
     "type": "node",
@@ -39,7 +39,7 @@ async def test_query_pois_parses_matching_elements():
         pois = await overpass.query_pois((47, 7, 49, 9), "47 7 49 9", WATER, client=client)
 
     assert len(pois) == 1
-    assert pois[0].category_id == "water"
+    assert pois[0].category_id == "water_tap"
     assert pois[0].lat == 48.0
 
 
@@ -183,3 +183,35 @@ async def test_query_pois_for_route_queries_each_chunk_sequentially_and_dedupes(
     assert len(request_times) > 1
     # ... but the same POI coming back from overlapping chunks was deduped
     assert len(pois) == 1
+
+
+def test_build_query_asks_for_every_distinct_filter_once_and_narrows_with_where():
+    categories = [CATEGORIES_BY_ID["snack_bar"], CATEGORIES_BY_ID["fast_food"], CATEGORIES_BY_ID["bus_stop"]]
+    query = overpass._build_query((47, 7, 49, 9), "47 7 49 9", categories)
+
+    # snack bar and fast food share amenity=fast_food: one clause per element type
+    assert query.count('node["amenity"="fast_food"](poly') == 1
+    # a bus stop is only asked for with a shelter or a roof
+    assert 'node["highway"="bus_stop"]["shelter"="yes"](poly:"47 7 49 9");' in query
+    assert 'way["highway"="bus_stop"]["covered"="yes"](poly:"47 7 49 9");' in query
+    assert 'node["highway"="bus_stop"](poly' not in query
+
+
+async def test_query_pois_drops_an_element_that_belongs_to_a_category_not_asked_for():
+    hotel_with_restaurant = {
+        "type": "node",
+        "id": 7,
+        "lat": 48.0,
+        "lon": 8.0,
+        "tags": {"amenity": "restaurant", "tourism": "hotel"},
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"elements": [hotel_with_restaurant, NODE_ELEMENT]})
+
+    async with _client_for(handler) as client:
+        pois = await overpass.query_pois(
+            (47, 7, 49, 9), "47 7 49 9", [CATEGORIES_BY_ID["restaurant"]], client=client
+        )
+
+    assert pois == []

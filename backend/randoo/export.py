@@ -47,6 +47,7 @@ from dataclasses import dataclass, field
 import gpxpy
 import gpxpy.gpx
 
+from . import categories
 from .gpx import RANDOO_SOURCE, Point
 from .poi_filter import RankedPoi
 
@@ -64,14 +65,35 @@ GARMIN_PROXIMITY_M = 150.0
 # recognised by Edge/handheld devices) closest to each Randoo category. Where
 # there's no good specific match, a plain coloured flag at least tells
 # categories apart on the map rather than mislabelling one.
-GARMIN_SYMBOLS: dict[str, str] = {
+_GARMIN_GROUP_SYMBOLS: dict[str, str] = {
     "water": "Drinking Water",
-    "fuel": "Gas Station",
-    "bike_shop": "Flag, Blue",
-    "lodging": "Lodging",
-    "hut": "Campground",
     "food": "Restaurant",
+    "shops": "Shopping Center",
+    "fuel": "Gas Station",
+    "bike": "Flag, Blue",
+    "lodging": "Lodging",
     "rest": "Picnic Area",
+}
+# Categories whose own symbol differs from their group's.
+_GARMIN_CATEGORY_SYMBOLS: dict[str, str] = {
+    "fast_food": "Fast Food",
+    "snack_bar": "Fast Food",
+    "kiosk": "Convenience Store",
+    "camp_site": "Campground",
+    "shelter": "Campground",
+    "hut_open": "Campground",
+    "bus_stop": "Ground Transportation",
+    "train_station": "Ground Transportation",
+    "toilet": "Restroom",
+    "shower": "Shower",
+    "pharmacy": "Pharmacy",
+    "atm": "Bank",
+}
+GARMIN_SYMBOLS: dict[str, str] = {
+    **{
+        category.id: _GARMIN_CATEGORY_SYMBOLS.get(category.id, _GARMIN_GROUP_SYMBOLS[category.group])
+        for category in categories.CATEGORIES
+    },
     # A point the rider classed as a control point by hand (see
     # WAYPOINT_TYPES), not a search category.
     "control": "Flag, Red",
@@ -100,14 +122,32 @@ WAYPOINT_TYPES: dict[str, str] = {"control": "Control"}
 # <sym>; anything else stays a general point. Randoo category (or hand-assigned
 # type) id -> that name. Only types Ride with GPS also writes, which Garmin
 # devices are known to show.
-GARMIN_POINT_TYPES: dict[str, str] = {
+_GARMIN_GROUP_TYPES: dict[str, str] = {
     "water": "water",
-    "fuel": "store",
-    "bike_shop": "service",
-    "lodging": "shelter",
-    "hut": "shelter",
     "food": "food",
+    "shops": "store",
+    "fuel": "store",
+    "bike": "service",
+    "lodging": "shelter",
     "rest": "rest_area",
+}
+# Categories whose course point type differs from their group's.
+_GARMIN_CATEGORY_TYPES: dict[str, str] = {
+    "camp_site": "campsite",
+    "shelter": "shelter",
+    "hut_open": "shelter",
+    "bus_stop": "transport",
+    "train_station": "transport",
+    "toilet": "toilet",
+    "shower": "shower",
+    "pharmacy": "first_aid",
+    "atm": "service",
+}
+GARMIN_POINT_TYPES: dict[str, str] = {
+    **{
+        category.id: _GARMIN_CATEGORY_TYPES.get(category.id, _GARMIN_GROUP_TYPES[category.group])
+        for category in categories.CATEGORIES
+    },
     "control": "checkpoint",
 }
 
@@ -267,7 +307,7 @@ def _poi_waypoint(ranked: RankedPoi, profile: DeviceProfile) -> gpxpy.gpx.GPXWay
     poi = ranked.poi
     name, comment = _name_and_comment(
         poi.name or poi.category_id,
-        f"{poi.category_id}, {round(ranked.distance_to_route_m)} m from route",
+        _comment(poi, f"{poi.category_id}, {round(ranked.distance_to_route_m)} m from route"),
         profile.name_limit,
     )
     wpt = gpxpy.gpx.GPXWaypoint(
@@ -295,7 +335,7 @@ def _turnoff_waypoint(ranked: RankedPoi, profile: DeviceProfile) -> gpxpy.gpx.GP
     poi = ranked.poi
     on_route = ranked.connector.meeting_point
     label = poi.name or poi.category_id
-    comment = f"{poi.category_id}, actual spot {round(ranked.distance_to_route_m)} m off-route here"
+    comment = _comment(poi, f"{poi.category_id}, actual spot {round(ranked.distance_to_route_m)} m off-route here")
     if profile.turnoff_prefix is not None:
         prefix = profile.turnoff_prefix
         limit = profile.name_limit - len(prefix) if profile.name_limit is not None else None
@@ -314,6 +354,12 @@ def _turnoff_waypoint(ranked: RankedPoi, profile: DeviceProfile) -> gpxpy.gpx.GP
     wpt.source = RANDOO_SOURCE
     wpt.extensions.append(_garmin_proximity_extension(GARMIN_PROXIMITY_M))
     return wpt
+
+
+def _comment(poi, comment: str) -> str:
+    """The comment with the opening hours appended, when the point has them."""
+    hours = poi.tags.get("opening_hours")
+    return f"{comment}, {hours}" if hours else comment
 
 
 def _name_and_comment(label: str, comment: str, limit: int | None) -> tuple[str, str]:

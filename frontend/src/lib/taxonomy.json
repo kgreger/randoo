@@ -1,0 +1,611 @@
+{
+  "groups": [
+    {
+      "id": "water",
+      "categories": [
+        {
+          "id": "water_tap",
+          "default": false,
+          "primary": [
+            {
+              "key": "amenity",
+              "value": "drinking_water"
+            },
+            {
+              "key": "man_made",
+              "value": "water_tap",
+              "where": {
+                "drinking_water": "yes"
+              }
+            },
+            {
+              "key": "amenity",
+              "value": "water_point",
+              "where": {
+                "drinking_water": "yes"
+              }
+            }
+          ],
+          "rule": "(not drinking_water=no|none|legal:no and not access=private|no)",
+          "priority": 50
+        },
+        {
+          "id": "fountain",
+          "default": false,
+          "primary": [
+            {
+              "key": "amenity",
+              "value": "fountain",
+              "where": {
+                "drinking_water": "yes"
+              }
+            },
+            {
+              "key": "man_made",
+              "value": "water_well",
+              "where": {
+                "drinking_water": "yes"
+              }
+            },
+            {
+              "key": "man_made",
+              "value": "drinking_fountain"
+            }
+          ],
+          "rule": "(not drinking_water=no|none|legal:no and not access=private|no)",
+          "priority": 50
+        },
+        {
+          "id": "spring",
+          "default": false,
+          "primary": [
+            {
+              "key": "natural",
+              "value": "spring"
+            }
+          ],
+          "rule": "not drinking_water=no|none|legal:no",
+          "priority": 50
+        },
+        {
+          "id": "cemetery_tap",
+          "default": false,
+          "primary": [
+            {
+              "key": "amenity",
+              "value": "drinking_water"
+            },
+            {
+              "key": "man_made",
+              "value": "water_tap",
+              "where": {
+                "drinking_water": "yes"
+              }
+            },
+            {
+              "key": "amenity",
+              "value": "water_point",
+              "where": {
+                "drinking_water": "yes"
+              }
+            }
+          ],
+          "rule": "((not drinking_water=no|none|legal:no and not access=private|no) and (in_cemetery=yes or name|operator|description|note mentions friedhof|cemetery|kerkhof|begraafplaats))",
+          "priority": 10
+        }
+      ]
+    },
+    {
+      "id": "food",
+      "categories": [
+        {
+          "id": "restaurant",
+          "default": false,
+          "primary": [
+            {
+              "key": "amenity",
+              "value": "restaurant"
+            },
+            {
+              "key": "amenity",
+              "value": "pub"
+            },
+            {
+              "key": "amenity",
+              "value": "biergarten"
+            }
+          ],
+          "rule": "not access=private|no",
+          "priority": 50
+        },
+        {
+          "id": "fast_food",
+          "default": false,
+          "primary": [
+            {
+              "key": "amenity",
+              "value": "fast_food"
+            }
+          ],
+          "rule": "(not cuisine has canteen and not ((not cuisine has canteen and not (has brand|brand:wikidata and not cuisine has kebab|doner|döner|gyros|falafel|turkish|arab|lebanese|syrian|oriental|balkan|sausage|currywurst|german|regional|bavarian)) and (cuisine has kebab|doner|döner|gyros|falafel|turkish|arab|lebanese|syrian|oriental|balkan|sausage|currywurst|german|regional|bavarian|pizza|italian|italian_pizza|greek|asian|chinese|vietnamese|thai|indian|japanese|korean|sushi|noodle|noodles|ramen|fries|friture|fish|fish_and_chips|seafood|chicken|barbecue|grill|wok or (no cuisine and not has brand|brand:wikidata))))",
+          "priority": 50
+        },
+        {
+          "id": "snack_bar",
+          "default": false,
+          "primary": [
+            {
+              "key": "amenity",
+              "value": "fast_food"
+            }
+          ],
+          "rule": "((not cuisine has canteen and not (has brand|brand:wikidata and not cuisine has kebab|doner|döner|gyros|falafel|turkish|arab|lebanese|syrian|oriental|balkan|sausage|currywurst|german|regional|bavarian)) and (cuisine has kebab|doner|döner|gyros|falafel|turkish|arab|lebanese|syrian|oriental|balkan|sausage|currywurst|german|regional|bavarian|pizza|italian|italian_pizza|greek|asian|chinese|vietnamese|thai|indian|japanese|korean|sushi|noodle|noodles|ramen|fries|friture|fish|fish_and_chips|seafood|chicken|barbecue|grill|wok or (no cuisine and not has brand|brand:wikidata)))",
+          "priority": 50
+        },
+        {
+          "id": "cafe",
+          "default": false,
+          "primary": [
+            {
+              "key": "amenity",
+              "value": "cafe"
+            }
+          ],
+          "rule": "always",
+          "priority": 50
+        },
+        {
+          "id": "ice_cream",
+          "default": false,
+          "primary": [
+            {
+              "key": "amenity",
+              "value": "ice_cream"
+            },
+            {
+              "key": "shop",
+              "value": "ice_cream"
+            }
+          ],
+          "rule": "always",
+          "priority": 50
+        },
+        {
+          "id": "bakery",
+          "default": true,
+          "primary": [
+            {
+              "key": "shop",
+              "value": "bakery"
+            }
+          ],
+          "rule": "always",
+          "priority": 45
+        },
+        {
+          "id": "butcher",
+          "default": false,
+          "primary": [
+            {
+              "key": "shop",
+              "value": "butcher"
+            }
+          ],
+          "rule": "always",
+          "priority": 45
+        }
+      ]
+    },
+    {
+      "id": "shops",
+      "categories": [
+        {
+          "id": "supermarket",
+          "default": false,
+          "primary": [
+            {
+              "key": "shop",
+              "value": "supermarket"
+            }
+          ],
+          "rule": "always",
+          "priority": 50
+        },
+        {
+          "id": "kiosk",
+          "default": false,
+          "primary": [
+            {
+              "key": "shop",
+              "value": "kiosk"
+            },
+            {
+              "key": "shop",
+              "value": "convenience"
+            }
+          ],
+          "rule": "always",
+          "priority": 60
+        },
+        {
+          "id": "grocery",
+          "default": false,
+          "primary": [
+            {
+              "key": "shop",
+              "value": "greengrocer"
+            },
+            {
+              "key": "shop",
+              "value": "farm"
+            },
+            {
+              "key": "shop",
+              "value": "general"
+            }
+          ],
+          "rule": "always",
+          "priority": 60
+        }
+      ]
+    },
+    {
+      "id": "fuel",
+      "categories": [
+        {
+          "id": "fuel_station",
+          "default": true,
+          "primary": [
+            {
+              "key": "amenity",
+              "value": "fuel"
+            }
+          ],
+          "rule": "not access=private|no",
+          "priority": 40
+        }
+      ]
+    },
+    {
+      "id": "bike",
+      "categories": [
+        {
+          "id": "bike_shop",
+          "default": true,
+          "primary": [
+            {
+              "key": "shop",
+              "value": "bicycle"
+            }
+          ],
+          "rule": "always",
+          "priority": 50
+        },
+        {
+          "id": "bike_repair",
+          "default": false,
+          "primary": [
+            {
+              "key": "amenity",
+              "value": "bicycle_repair_station"
+            }
+          ],
+          "rule": "not access=private|no",
+          "priority": 50
+        }
+      ]
+    },
+    {
+      "id": "lodging",
+      "categories": [
+        {
+          "id": "hotel",
+          "default": false,
+          "primary": [
+            {
+              "key": "tourism",
+              "value": "hotel"
+            },
+            {
+              "key": "tourism",
+              "value": "motel"
+            }
+          ],
+          "rule": "always",
+          "priority": 30
+        },
+        {
+          "id": "guest_house",
+          "default": false,
+          "primary": [
+            {
+              "key": "tourism",
+              "value": "guest_house"
+            },
+            {
+              "key": "tourism",
+              "value": "apartment"
+            },
+            {
+              "key": "tourism",
+              "value": "chalet"
+            }
+          ],
+          "rule": "always",
+          "priority": 30
+        },
+        {
+          "id": "hostel",
+          "default": false,
+          "primary": [
+            {
+              "key": "tourism",
+              "value": "hostel"
+            }
+          ],
+          "rule": "always",
+          "priority": 30
+        },
+        {
+          "id": "camp_site",
+          "default": false,
+          "primary": [
+            {
+              "key": "tourism",
+              "value": "camp_site"
+            }
+          ],
+          "rule": "always",
+          "priority": 30
+        },
+        {
+          "id": "hut_staffed",
+          "default": false,
+          "primary": [
+            {
+              "key": "tourism",
+              "value": "alpine_hut"
+            }
+          ],
+          "rule": "((not self_service=yes and ((((amenity=restaurant|pub|cafe|biergarten or has opening_hours|website|phone|contact:phone|contact:website) or food=yes) or drink=yes) or reservation=yes|required|recommended)) and not access=private|no)",
+          "priority": 10
+        }
+      ]
+    },
+    {
+      "id": "rest",
+      "categories": [
+        {
+          "id": "shelter",
+          "default": false,
+          "primary": [
+            {
+              "key": "amenity",
+              "value": "shelter"
+            }
+          ],
+          "rule": "(not access=private|no and not shelter_type has basic_hut)",
+          "priority": 50
+        },
+        {
+          "id": "hut_open",
+          "default": false,
+          "primary": [
+            {
+              "key": "tourism",
+              "value": "wilderness_hut"
+            },
+            {
+              "key": "tourism",
+              "value": "alpine_hut"
+            },
+            {
+              "key": "amenity",
+              "value": "shelter",
+              "where": {
+                "shelter_type": "basic_hut"
+              }
+            }
+          ],
+          "rule": "(not access=private|no and ((tourism=wilderness_hut or amenity=shelter) or not (not self_service=yes and ((((amenity=restaurant|pub|cafe|biergarten or has opening_hours|website|phone|contact:phone|contact:website) or food=yes) or drink=yes) or reservation=yes|required|recommended))))",
+          "priority": 20
+        },
+        {
+          "id": "bus_stop",
+          "default": false,
+          "primary": [
+            {
+              "key": "highway",
+              "value": "bus_stop",
+              "where": {
+                "shelter": "yes"
+              }
+            },
+            {
+              "key": "highway",
+              "value": "bus_stop",
+              "where": {
+                "covered": "yes"
+              }
+            },
+            {
+              "key": "amenity",
+              "value": "shelter"
+            }
+          ],
+          "rule": "(highway=bus_stop or ((shelter_type=public_transport or bus=yes) or has public_transport))",
+          "priority": 10
+        },
+        {
+          "id": "train_station",
+          "default": false,
+          "primary": [
+            {
+              "key": "railway",
+              "value": "station"
+            },
+            {
+              "key": "railway",
+              "value": "halt"
+            }
+          ],
+          "rule": "always",
+          "priority": 50
+        },
+        {
+          "id": "picnic",
+          "default": false,
+          "primary": [
+            {
+              "key": "leisure",
+              "value": "picnic_table"
+            },
+            {
+              "key": "tourism",
+              "value": "picnic_site"
+            }
+          ],
+          "rule": "not access=private|no",
+          "priority": 70
+        },
+        {
+          "id": "toilet",
+          "default": false,
+          "primary": [
+            {
+              "key": "amenity",
+              "value": "toilets"
+            }
+          ],
+          "rule": "not access=private|no|customers|permit",
+          "priority": 50
+        },
+        {
+          "id": "shower",
+          "default": false,
+          "primary": [
+            {
+              "key": "amenity",
+              "value": "shower"
+            }
+          ],
+          "rule": "not access=private|no",
+          "priority": 50
+        },
+        {
+          "id": "pharmacy",
+          "default": false,
+          "primary": [
+            {
+              "key": "amenity",
+              "value": "pharmacy"
+            }
+          ],
+          "rule": "always",
+          "priority": 50
+        },
+        {
+          "id": "atm",
+          "default": false,
+          "primary": [
+            {
+              "key": "amenity",
+              "value": "atm"
+            }
+          ],
+          "rule": "always",
+          "priority": 50
+        }
+      ]
+    }
+  ],
+  "primary_pairs": [
+    "amenity=atm",
+    "amenity=bicycle_repair_station",
+    "amenity=biergarten",
+    "amenity=cafe",
+    "amenity=drinking_water",
+    "amenity=fast_food",
+    "amenity=fountain",
+    "amenity=fuel",
+    "amenity=ice_cream",
+    "amenity=pharmacy",
+    "amenity=pub",
+    "amenity=restaurant",
+    "amenity=shelter",
+    "amenity=shower",
+    "amenity=toilets",
+    "amenity=water_point",
+    "highway=bus_stop",
+    "leisure=picnic_table",
+    "man_made=drinking_fountain",
+    "man_made=water_tap",
+    "man_made=water_well",
+    "natural=spring",
+    "railway=halt",
+    "railway=station",
+    "shop=bakery",
+    "shop=bicycle",
+    "shop=butcher",
+    "shop=convenience",
+    "shop=farm",
+    "shop=general",
+    "shop=greengrocer",
+    "shop=ice_cream",
+    "shop=kiosk",
+    "shop=supermarket",
+    "tourism=alpine_hut",
+    "tourism=apartment",
+    "tourism=camp_site",
+    "tourism=chalet",
+    "tourism=guest_house",
+    "tourism=hostel",
+    "tourism=hotel",
+    "tourism=motel",
+    "tourism=picnic_site",
+    "tourism=wilderness_hut"
+  ],
+  "tag_keys": [
+    "access",
+    "amenity",
+    "brand",
+    "brand:wikidata",
+    "bus",
+    "contact:phone",
+    "contact:website",
+    "covered",
+    "cuisine",
+    "description",
+    "drink",
+    "drinking_water",
+    "fee",
+    "food",
+    "highway",
+    "in_cemetery",
+    "leisure",
+    "man_made",
+    "name",
+    "natural",
+    "note",
+    "opening_hours",
+    "operator",
+    "phone",
+    "public_transport",
+    "railway",
+    "reservation",
+    "seasonal",
+    "self_service",
+    "shelter",
+    "shelter_type",
+    "shop",
+    "tourism",
+    "website"
+  ],
+  "attribute_keys": [
+    "drinking_water",
+    "fee",
+    "shop",
+    "access",
+    "seasonal"
+  ]
+}

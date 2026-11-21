@@ -42,7 +42,7 @@ def test_export_embeds_the_route_as_a_track_with_one_segment_per_input_segment()
 
 def test_export_writes_the_real_poi_and_a_snapped_turnoff_marker():
     on_route = Point(48.005, 8.0)
-    ranked = [_ranked("water", 48.005, 8.0004, 42.0, on_route)]
+    ranked = [_ranked("water_tap", 48.005, 8.0004, 42.0, on_route)]
     xml = build_gpx(ranked, [[Point(48.0, 8.0), Point(48.01, 8.01)]])
     root = ET.fromstring(xml)
 
