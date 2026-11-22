@@ -25,6 +25,7 @@ from pathlib import Path
 import httpx
 
 from . import geometry
+from . import categories as taxonomy
 from .categories import Category
 from .gpx import Point
 
@@ -84,25 +85,26 @@ def _build_query(
     categories: list[Category],
 ) -> str:
     south, west, north, east = bbox
-    clauses = []
+    # A pair can be needed by several categories (a snack bar and a fast-food
+    # place both start from amenity=fast_food), and its `where` conditions
+    # narrow the query (a bus stop only counts with a shelter). Each distinct
+    # filter is asked for once.
+    filters: dict[str, None] = {}
     for cat in categories:
-        for key, value in cat.tags:
-            clauses.append(f'node["{key}"="{value}"](poly:"{poly}");')
-            clauses.append(f'way["{key}"="{value}"](poly:"{poly}");')
+        for primary in cat.primary:
+            pairs = ((primary.key, primary.value), *primary.where)
+            conditions = "".join(f'["{k}"="{v}"]' for k, v in pairs)
+            filters[conditions] = None
+    clauses = []
+    for conditions in filters:
+        clauses.append(f'node{conditions}(poly:"{poly}");')
+        clauses.append(f'way{conditions}(poly:"{poly}");')
 
     return (
         f"[out:json][timeout:{QUERY_TIMEOUT_S}][bbox:{south},{west},{north},{east}];\n"
         f"(\n  {chr(10).join(clauses)}\n);\n"
         "out center tags;"
     )
-
-
-def _tag_to_category(tags: dict[str, str], categories: list[Category]) -> str | None:
-    for cat in categories:
-        for key, value in cat.tags:
-            if tags.get(key) == value:
-                return cat.id
-    return None
 
 
 async def query_pois_for_route(
@@ -310,11 +312,16 @@ def _write_cache(query: str, elements: list[dict]) -> None:
 
 
 def _parse_elements(elements: list[dict], categories: list[Category]) -> list[Poi]:
+    # Every element is classified against all categories, not just the ones
+    # asked for (see categories.classify), and only then filtered down to
+    # the selection: a place the rider did not ask for stays out even when it
+    # would have fitted a selected category on a different reading.
+    selected = {c.id for c in categories}
     pois = []
     for el in elements:
         tags = el.get("tags", {})
-        category_id = _tag_to_category(tags, categories)
-        if category_id is None:
+        category = taxonomy.classify(tags)
+        if category is None or category.id not in selected:
             continue
 
         if el["type"] == "node":
@@ -331,7 +338,7 @@ def _parse_elements(elements: list[dict], categories: list[Category]) -> list[Po
                 osm_type=el["type"],
                 lat=lat,
                 lon=lon,
-                category_id=category_id,
+                category_id=category.id,
                 name=tags.get("name"),
                 tags=tags,
             )

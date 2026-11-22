@@ -32,7 +32,7 @@ def client():
 
 def _fake_source(calls: list, pois: list[Poi] | None = None):
     default_pois = [
-        Poi(osm_id=1, osm_type="node", lat=48.005, lon=8.005, category_id="water", name="Spring", tags={})
+        Poi(osm_id=1, osm_type="node", lat=48.005, lon=8.005, category_id="water_tap", name="Spring", tags={})
     ]
 
     class FakeSource:
@@ -48,7 +48,7 @@ def test_export_reuses_the_analyze_result_instead_of_requerying(monkeypatch, cli
     monkeypatch.setattr(main, "get_poi_source", lambda tier: _fake_source(calls))
 
     files = {"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")}
-    data = {"categories": "water", "radius_m": "300"}
+    data = {"categories": "water_tap", "radius_m": "300"}
 
     analyze_response = client.post("/api/analyze", files=files, data=data)
     assert analyze_response.status_code == 200
@@ -68,21 +68,21 @@ def test_a_different_radius_is_not_served_from_the_same_cache_entry(monkeypatch,
 
     files = {"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")}
 
-    client.post("/api/analyze", files=files, data={"categories": "water", "radius_m": "300"})
-    client.post("/api/export", files=files, data={"categories": "water", "radius_m": "500"})
+    client.post("/api/analyze", files=files, data={"categories": "water_tap", "radius_m": "300"})
+    client.post("/api/export", files=files, data={"categories": "water_tap", "radius_m": "500"})
 
     assert len(calls) == 2
 
 
 def test_analyze_returns_a_stable_id_export_can_exclude_by(monkeypatch, client):
     pois = [
-        Poi(osm_id=1, osm_type="node", lat=48.005, lon=8.005, category_id="water", name="Spring", tags={}),
-        Poi(osm_id=2, osm_type="way", lat=48.006, lon=8.006, category_id="food", name="Cafe", tags={}),
+        Poi(osm_id=1, osm_type="node", lat=48.005, lon=8.005, category_id="water_tap", name="Spring", tags={}),
+        Poi(osm_id=2, osm_type="way", lat=48.006, lon=8.006, category_id="restaurant", name="Cafe", tags={}),
     ]
     monkeypatch.setattr(main, "get_poi_source", lambda tier: _fake_source([], pois))
 
     files = {"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")}
-    data = {"categories": ["water", "food"], "radius_m": "300"}
+    data = {"categories": ["water_tap", "restaurant"], "radius_m": "300"}
 
     analyze_response = client.post("/api/analyze", files=files, data=data)
     returned = analyze_response.json()["pois"]
@@ -99,12 +99,12 @@ def test_analyze_returns_a_stable_id_export_can_exclude_by(monkeypatch, client):
 
 def test_analyze_includes_the_connector_for_map_rendering(monkeypatch, client):
     pois = [
-        Poi(osm_id=1, osm_type="node", lat=48.005, lon=8.005, category_id="water", name="Spring", tags={}),
+        Poi(osm_id=1, osm_type="node", lat=48.005, lon=8.005, category_id="water_tap", name="Spring", tags={}),
     ]
     monkeypatch.setattr(main, "get_poi_source", lambda tier: _fake_source([], pois))
 
     files = {"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")}
-    data = {"categories": "water", "radius_m": "300"}
+    data = {"categories": "water_tap", "radius_m": "300"}
 
     response = client.post("/api/analyze", files=files, data=data)
     poi = response.json()["pois"][0]
@@ -120,12 +120,12 @@ def test_analyze_includes_the_connector_for_map_rendering(monkeypatch, client):
 
 def test_export_without_exclusions_includes_every_poi(monkeypatch, client):
     pois = [
-        Poi(osm_id=1, osm_type="node", lat=48.005, lon=8.005, category_id="water", name="Spring", tags={}),
+        Poi(osm_id=1, osm_type="node", lat=48.005, lon=8.005, category_id="water_tap", name="Spring", tags={}),
     ]
     monkeypatch.setattr(main, "get_poi_source", lambda tier: _fake_source([], pois))
 
     files = {"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")}
-    data = {"categories": "water", "radius_m": "300"}
+    data = {"categories": "water_tap", "radius_m": "300"}
 
     client.post("/api/analyze", files=files, data=data)
     export_response = client.post("/api/export", files=files, data=data)
@@ -139,7 +139,7 @@ def test_analyze_falls_back_to_overpass_when_the_local_index_is_broken(monkeypat
             raise duckdb.Error("mock: local index unreachable")
 
     fallback_pois = [
-        Poi(osm_id=9, osm_type="node", lat=48.005, lon=8.005, category_id="water", name="Fallback", tags={})
+        Poi(osm_id=9, osm_type="node", lat=48.005, lon=8.005, category_id="water_tap", name="Fallback", tags={})
     ]
 
     class FakeOverpassSource:
@@ -150,7 +150,7 @@ def test_analyze_falls_back_to_overpass_when_the_local_index_is_broken(monkeypat
     monkeypatch.setattr(main, "OverpassPoiSource", lambda: FakeOverpassSource())
 
     files = {"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")}
-    data = {"categories": "water", "radius_m": "300"}
+    data = {"categories": "water_tap", "radius_m": "300"}
 
     response = client.post("/api/analyze", files=files, data=data)
 
@@ -169,7 +169,7 @@ def test_export_with_points_uses_them_without_searching(monkeypatch, client):
             "osm_type": "node",
             "lat": 48.004,
             "lon": 8.003,
-            "category_id": "water",
+            "category_id": "water_tap",
             "name": "Saved Spring",
             "distance_to_route_m": 42.0,
             "meeting_point": [48.003, 8.003],
@@ -180,7 +180,7 @@ def test_export_with_points_uses_them_without_searching(monkeypatch, client):
             "osm_type": "node",
             "lat": 48.006,
             "lon": 8.004,
-            "category_id": "food",
+            "category_id": "restaurant",
             "name": "Dropped",
             "distance_to_route_m": 60.0,
             "meeting_point": [48.005, 8.004],
@@ -241,7 +241,7 @@ def test_export_keeps_the_waypoints_the_file_already_had(client):
         "osm_type": "node",
         "lat": 48.004,
         "lon": 8.003,
-        "category_id": "water",
+        "category_id": "water_tap",
         "name": "Saved Spring",
         "distance_to_route_m": 42.0,
         "meeting_point": [48.003, 8.003],
@@ -273,7 +273,7 @@ def test_export_marks_its_own_waypoints_as_generated_by_randoo(client):
         "osm_type": "node",
         "lat": 48.004,
         "lon": 8.003,
-        "category_id": "water",
+        "category_id": "water_tap",
         "name": "Saved Spring",
         "distance_to_route_m": 42.0,
         "meeting_point": [48.003, 8.003],
@@ -419,13 +419,22 @@ def _poi_payload(category_id, osm_id):
 
 def test_export_for_garmin_writes_the_course_point_type_of_each_category(client):
     expected = {
-        "water": "water",
-        "fuel": "store",
+        "water_tap": "water",
+        "cemetery_tap": "water",
+        "restaurant": "food",
+        "snack_bar": "food",
+        "supermarket": "store",
+        "fuel_station": "store",
         "bike_shop": "service",
-        "lodging": "shelter",
-        "hut": "shelter",
-        "food": "food",
-        "rest": "rest_area",
+        "hotel": "shelter",
+        "hut_staffed": "shelter",
+        "camp_site": "campsite",
+        "shelter": "shelter",
+        "bus_stop": "transport",
+        "picnic": "rest_area",
+        "toilet": "toilet",
+        "shower": "shower",
+        "pharmacy": "first_aid",
         "control": "checkpoint",
     }
     points = [_poi_payload(category, i) for i, category in enumerate(expected)]
@@ -456,7 +465,7 @@ def test_shorten_name_cuts_at_a_word_boundary():
 
 
 def test_export_for_garmin_shortens_the_names_and_marks_the_turnoff_markers(client):
-    point = {**_poi_payload("food", 1), "name": "Albert Heijn Rotterdam"}
+    point = {**_poi_payload("restaurant", 1), "name": "Albert Heijn Rotterdam"}
     response = client.post(
         "/api/export",
         files={"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")},
@@ -466,11 +475,11 @@ def test_export_for_garmin_shortens_the_names_and_marks_the_turnoff_markers(clie
     assert "<name>Albert Heijn</name>" in body
     assert "<name>&gt; Albert Heijn</name>" in body
     # the full name is not lost, it leads the comment
-    assert body.count("<cmt>Albert Heijn Rotterdam: food, ") == 2
+    assert body.count("<cmt>Albert Heijn Rotterdam: restaurant, ") == 2
 
 
 def test_export_for_garmin_keeps_short_names_whole(client):
-    point = {**_poi_payload("food", 1), "name": "Friterie"}
+    point = {**_poi_payload("restaurant", 1), "name": "Friterie"}
     response = client.post(
         "/api/export",
         files={"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")},
@@ -479,11 +488,11 @@ def test_export_for_garmin_keeps_short_names_whole(client):
     body = response.content.decode()
     assert "<name>Friterie</name>" in body
     assert "<name>&gt; Friterie</name>" in body
-    assert "<cmt>food, " in body
+    assert "<cmt>restaurant, " in body
 
 
 def test_export_for_other_devices_keeps_the_full_names_and_the_turnoff_suffix(client):
-    point = {**_poi_payload("food", 1), "name": "Albert Heijn Rotterdam"}
+    point = {**_poi_payload("restaurant", 1), "name": "Albert Heijn Rotterdam"}
     response = client.post(
         "/api/export",
         files={"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")},
@@ -508,7 +517,7 @@ def test_export_for_garmin_retypes_a_file_waypoint_with_the_garmin_control_type(
 
 
 def test_export_for_other_devices_writes_only_the_control_type(client):
-    points = [_poi_payload("water", 1), _poi_payload("control", 2)]
+    points = [_poi_payload("water_tap", 1), _poi_payload("control", 2)]
     for device in ({}, {"device_make": "wahoo"}):
         response = client.post(
             "/api/export",
@@ -522,7 +531,7 @@ def test_export_for_other_devices_writes_only_the_control_type(client):
 
 
 def _export_one_point(client, distance_m, **device):
-    point = {**_poi_payload("food", 1), "name": "Friterie", "distance_to_route_m": distance_m}
+    point = {**_poi_payload("restaurant", 1), "name": "Friterie", "distance_to_route_m": distance_m}
     response = client.post(
         "/api/export",
         files={"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")},
@@ -640,8 +649,8 @@ def _premium(monkeypatch, refined: list):
 
 
 TWO_POIS = [
-    Poi(osm_id=1, osm_type="node", lat=48.005, lon=8.005, category_id="water", name="Spring", tags={}),
-    Poi(osm_id=2, osm_type="way", lat=48.006, lon=8.006, category_id="food", name="Cafe", tags={}),
+    Poi(osm_id=1, osm_type="node", lat=48.005, lon=8.005, category_id="water_tap", name="Spring", tags={}),
+    Poi(osm_id=2, osm_type="way", lat=48.006, lon=8.006, category_id="restaurant", name="Cafe", tags={}),
 ]
 
 
@@ -653,7 +662,7 @@ def test_analyze_answers_with_straight_connectors_and_leaves_routing_for_later(m
     response = client.post(
         "/api/analyze",
         files={"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")},
-        data={"categories": ["water", "food"], "radius_m": "300"},
+        data={"categories": ["water_tap", "restaurant"], "radius_m": "300"},
     )
 
     body = response.json()
@@ -670,7 +679,7 @@ def test_route_connectors_routes_only_the_asked_for_points(monkeypatch, client):
     analyze = client.post(
         "/api/analyze",
         files={"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")},
-        data={"categories": ["water", "food"], "radius_m": "300"},
+        data={"categories": ["water_tap", "restaurant"], "radius_m": "300"},
     ).json()
 
     response = client.post(
@@ -690,7 +699,7 @@ def test_route_connectors_does_not_route_a_point_twice(monkeypatch, client):
     _premium(monkeypatch, refined)
     monkeypatch.setattr(main, "get_poi_source", lambda tier: _fake_source([], TWO_POIS))
     files = {"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")}
-    data = {"categories": ["water", "food"], "radius_m": "300"}
+    data = {"categories": ["water_tap", "restaurant"], "radius_m": "300"}
     search_id = client.post("/api/analyze", files=files, data=data).json()["search_id"]
 
     client.post("/api/route-connectors", json={"search_id": search_id, "poi_ids": ["node:1"]})
@@ -714,7 +723,7 @@ def test_route_connectors_is_refused_without_routing(monkeypatch, client):
     analyze = client.post(
         "/api/analyze",
         files={"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")},
-        data={"categories": "water", "radius_m": "300"},
+        data={"categories": "water_tap", "radius_m": "300"},
     ).json()
     assert analyze["routing"] is False
 
@@ -745,7 +754,7 @@ LONG_GPX = b"""<?xml version="1.0" encoding="UTF-8"?>
 """
 
 ALONG_LONG_ROUTE = [
-    Poi(osm_id=i, osm_type="node", lat=lat, lon=8.001, category_id="water", name=f"P{i}", tags={})
+    Poi(osm_id=i, osm_type="node", lat=lat, lon=8.001, category_id="water_tap", name=f"P{i}", tags={})
     for i, lat in enumerate([48.001, 48.015, 48.025, 48.039])
 ]
 
@@ -763,7 +772,7 @@ def test_analyze_leaves_out_the_skipped_start_and_end_of_the_route(monkeypatch, 
     response = client.post(
         "/api/analyze",
         files={"file": ("route.gpx", LONG_GPX, "application/gpx+xml")},
-        data={"categories": "water", "radius_m": "200", "skip_start_pct": "10", "skip_end_pct": "5"},
+        data={"categories": "water_tap", "radius_m": "200", "skip_start_pct": "10", "skip_end_pct": "5"},
     )
 
     pois = response.json()["pois"]
@@ -779,6 +788,55 @@ def test_analyze_rejects_skipping_too_much_of_the_route(client):
     response = client.post(
         "/api/analyze",
         files={"file": ("route.gpx", LONG_GPX, "application/gpx+xml")},
-        data={"categories": "water", "radius_m": "200", "skip_start_pct": "50"},
+        data={"categories": "water_tap", "radius_m": "200", "skip_start_pct": "50"},
     )
     assert response.status_code == 400
+
+
+def test_export_keeps_the_opening_hours_of_a_saved_point_in_the_comment(client):
+    point = {**_poi_payload("bakery", 1), "opening_hours": "Mo-Sa 06:00-18:00", "attributes": {"fee": "no", "x": "y"}}
+    response = client.post(
+        "/api/export",
+        files={"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")},
+        data={"pois": json.dumps([point])},
+    )
+    body = response.content.decode()
+    assert "<cmt>bakery, 42 m from route, Mo-Sa 06:00-18:00</cmt>" in body
+
+
+def test_analyze_returns_the_opening_hours_and_the_whitelisted_attributes(monkeypatch, client):
+    poi = Poi(
+        osm_id=5,
+        osm_type="node",
+        lat=48.005,
+        lon=8.005,
+        category_id="fuel_station",
+        name="Aral",
+        tags={
+            "amenity": "fuel",
+            "shop": "convenience",
+            "opening_hours": "24/7",
+            "operator": "not on the whitelist",
+        },
+    )
+    monkeypatch.setattr(main, "get_poi_source", lambda tier: _fake_source([], [poi]))
+
+    response = client.post(
+        "/api/analyze",
+        files={"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")},
+        data={"categories": "fuel_station", "radius_m": "300"},
+    )
+
+    point = response.json()["pois"][0]
+    assert point["opening_hours"] == "24/7"
+    assert point["attributes"] == {"shop": "convenience"}
+
+
+def test_analyze_rejects_the_ids_of_the_old_flat_categories(client):
+    response = client.post(
+        "/api/analyze",
+        files={"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")},
+        data={"categories": "water", "radius_m": "300"},
+    )
+    assert response.status_code == 400
+    assert "unknown categories" in response.json()["detail"]

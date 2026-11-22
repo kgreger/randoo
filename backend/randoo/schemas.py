@@ -12,6 +12,10 @@ class PoiOut(BaseModel):
     lon: float
     category_id: str
     name: str | None
+    # The opening hours as mapped in OSM, unevaluated, and the few other tags
+    # the interface shows as badges (see categories.ATTRIBUTE_KEYS).
+    opening_hours: str | None = None
+    attributes: dict[str, str] = Field(default_factory=dict)
     distance_to_route_m: float
     # Where this POI's nearest point falls along the route, cumulative
     # across all segments in recording order - what the list is sorted by,
@@ -64,5 +68,7 @@ class ExportPoi(BaseModel):
     lon: float = Field(ge=-180, le=180)
     category_id: str = Field(max_length=40)
     name: str | None = Field(default=None, max_length=200)
+    opening_hours: str | None = Field(default=None, max_length=400)
+    attributes: dict[str, str] = Field(default_factory=dict)
     distance_to_route_m: float
     meeting_point: tuple[float, float]

@@ -159,6 +159,8 @@ async def analyze(
                 lon=r.poi.lon,
                 category_id=r.poi.category_id,
                 name=r.poi.name,
+                opening_hours=categories.poi_opening_hours(r.poi.tags),
+                attributes=categories.poi_attributes(r.poi.tags),
                 distance_to_route_m=round(r.distance_to_route_m, 1),
                 distance_along_route_m=round(r.distance_along_route_m, 1),
                 meeting_point=(r.connector.meeting_point.lat, r.connector.meeting_point.lon),
@@ -238,7 +240,12 @@ def _ranked_from_export(raw: str) -> list[RankedPoi]:
                 lon=p.lon,
                 category_id=p.category_id,
                 name=p.name,
-                tags={},
+                # What the rider saw travels back with the point; only the
+                # whitelisted keys are taken, whatever else the client sent.
+                tags={
+                    **categories.poi_attributes(p.attributes),
+                    **({"opening_hours": p.opening_hours} if p.opening_hours else {}),
+                },
             ),
             distance_to_route_m=p.distance_to_route_m,
             distance_along_route_m=0.0,

@@ -1,13 +1,14 @@
 import { Fragment, useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from "react";
 import { createPortal } from "react-dom";
-import { Check, Eye, EyeOff, Funnel, Pencil } from "lucide-react";
+import { Check, Clock, Eye, EyeOff, Funnel, Pencil } from "lucide-react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import type { Poi } from "../lib/api";
 import type { RouteWaypoint } from "../lib/gpxPreview";
-import { ASSIGNABLE_TYPES, WAYPOINT_TYPE, pointTypeById } from "../lib/categories";
+import { ASSIGNABLE_TYPES, WAYPOINT_TYPE, categoryById, pointTypeById } from "../lib/categories";
 import { poiTypeId, waypointTypeId } from "../lib/pointTypes";
 import { isStackedLayout } from "../lib/layout";
+import { poiBadges } from "../lib/poiBadges";
 
 export type WaypointOnRoute = RouteWaypoint & { alongM: number; offM: number };
 
@@ -452,6 +453,7 @@ export function PoiList({
                     {t("poiList.metaDistance", { distance: Math.round(poi.distance_to_route_m) })}
                     {poi.id in typeOverrides && ` · ${typeLabel}`}
                   </div>
+                  <PoiExtras poi={poi} />
                   <div
                     className="distance-bar"
                     title={t("poiList.distanceBarTitle", {
@@ -670,5 +672,36 @@ function TypeMenu({
       </button>
     </div>,
     document.body,
+  );
+}
+
+// Short notes under a point's name: badges for what the few tags say (a fuel
+// station with a shop, a toilet that costs money, a spring nobody has checked)
+// and its opening hours exactly as mapped, which may be out of date.
+function PoiExtras({ poi }: { poi: Poi }) {
+  const { t } = useTranslation();
+  const badges = poiBadges(poi);
+  const hoursUnknown = !poi.opening_hours && categoryById(poi.category_id)?.hours === true;
+  if (badges.length === 0 && !poi.opening_hours && !hoursUnknown) return null;
+  return (
+    <div className="poi-extras">
+      {badges.map((badge) => (
+        <span key={badge} className={`poi-badge poi-badge-${badge}`}>
+          {t(`badges.${badge}`)}
+        </span>
+      ))}
+      {poi.opening_hours && (
+        <span className="poi-hours" title={t("poiList.openingHours", { hours: poi.opening_hours })}>
+          <Clock size={11} strokeWidth={2} aria-hidden="true" />
+          <span className="poi-hours-text">{poi.opening_hours}</span>
+        </span>
+      )}
+      {hoursUnknown && (
+        <span className="poi-hours poi-hours-unknown" title={t("poiList.hoursUnknownHint")}>
+          <Clock size={11} strokeWidth={2} aria-hidden="true" />
+          <span className="poi-hours-text">{t("poiList.hoursUnknown")}</span>
+        </span>
+      )}
+    </div>
   );
 }

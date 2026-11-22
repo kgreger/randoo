@@ -24,6 +24,8 @@ import {
   type Poi,
 } from "./lib/api";
 import { routeEndsFromUser } from "./lib/routeEnds";
+import { DEFAULT_CATEGORY_IDS, GROUPS, knownCategoryIds, toggleGroupSelection } from "./lib/categories";
+import { defaultCategoriesFromUser, hasSavedDefaultCategories } from "./lib/defaultCategories";
 import { positionOnRoute, routeLengthM } from "./lib/geo";
 import { isStackedLayout } from "./lib/layout";
 import { parseGpxCourseName, parseGpxPreview, parseGpxWaypoints, type LatLon, type RouteWaypoint } from "./lib/gpxPreview";
@@ -92,7 +94,6 @@ function routeEndPoints(
   return points;
 }
 
-const DEFAULT_CATEGORIES = ["water", "food"];
 // Points per routing request. Each point takes several BRouter calls, so
 // this keeps one request well within the reverse proxy's timeout.
 const ROUTE_BATCH = 20;
@@ -123,7 +124,11 @@ export default function App() {
   const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null);
   const [hoveredPoiId, setHoveredPoiId] = useState<string | null>(null);
   const [selectedPoiId, setSelectedPoiId] = useState<string | null>(null);
-  const [selectedCategories, setSelectedCategories] = useState(new Set(DEFAULT_CATEGORIES));
+  const [selectedCategories, setSelectedCategories] = useState(() => new Set<string>(DEFAULT_CATEGORY_IDS));
+  // Whether the rider has picked kinds of place themselves yet, and how the
+  // last attempt to save the selection as their default went.
+  const selectionTouched = useRef(false);
+  const [defaultStatus, setDefaultStatus] = useState<"idle" | "saved" | "reset" | "error">("idle");
   const [radiusM, setRadiusM] = useState(500);
   const [loading, setLoading] = useState(false);
   const [searchElapsedS, setSearchElapsedS] = useState(0);
@@ -258,6 +263,16 @@ export default function App() {
     }
   }, [user, i18n]);
 
+  // A signed-in rider's own default selection replaces Randoo's once per login,
+  // unless they had already started picking kinds of place by then (see the
+  // language sync above for why it is not re-applied on every user update).
+  const defaultsSyncedForUserId = useRef<string | null>(null);
+  useEffect(() => {
+    if (!user || defaultsSyncedForUserId.current === user.id) return;
+    defaultsSyncedForUserId.current = user.id;
+    if (!selectionTouched.current) setSelectedCategories(new Set(defaultCategoriesFromUser(user.user_metadata)));
+  }, [user]);
+
   // Picking the route that is already loaded changes nothing: no results are
   // dropped, no selection is lost.
   async function handlePickedFile(selected: File) {
@@ -297,12 +312,42 @@ export default function App() {
   }
 
   function toggleCategory(id: string) {
+    selectionTouched.current = true;
+    setDefaultStatus("idle");
     setSelectedCategories((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
+  }
+
+  function toggleCategoryGroup(groupId: string) {
+    const group = GROUPS.find((g) => g.id === groupId);
+    if (!group) return;
+    selectionTouched.current = true;
+    setDefaultStatus("idle");
+    setSelectedCategories((prev) => toggleGroupSelection(group, prev));
+  }
+
+  // The selection a signed-in rider starts every search with, kept on the
+  // account like the language and the device.
+  async function saveDefaultCategories() {
+    if (!supabase || selectedCategories.size === 0) return;
+    const { error } = await supabase.auth.updateUser({
+      data: { default_categories: knownCategoryIds(selectedCategories) },
+    });
+    setDefaultStatus(error ? "error" : "saved");
+  }
+
+  async function resetDefaultCategories() {
+    if (!supabase) return;
+    const { error } = await supabase.auth.updateUser({ data: { default_categories: null } });
+    if (!error) {
+      selectionTouched.current = true;
+      setSelectedCategories(new Set(DEFAULT_CATEGORY_IDS));
+    }
+    setDefaultStatus(error ? "error" : "reset");
   }
 
   // A search replaces the shown results, so points of a category that is no
@@ -544,7 +589,8 @@ export default function App() {
     setExcludedPoiIds(new Set(plan.excluded_poi_ids));
     setHideExcluded(plan.hide_excluded);
     setTypeOverrides(plan.type_overrides ?? {});
-    setSelectedCategories(new Set(plan.category_ids));
+    selectionTouched.current = true;
+    setSelectedCategories(new Set(knownCategoryIds(plan.category_ids)));
     setRadiusM(plan.radius_m);
     setSearched({ categoryIds: plan.category_ids, radiusM: plan.radius_m });
     setSavedRouteId(plan.route.id);
@@ -960,8 +1006,19 @@ export default function App() {
                 <CategoryFilter
                   selected={selectedCategories}
                   onToggle={toggleCategory}
+                  onToggleGroup={toggleCategoryGroup}
                   radiusM={radiusM}
                   onRadiusChange={setRadiusM}
+                  defaults={
+                    supabase && user
+                      ? {
+                          hasSaved: hasSavedDefaultCategories(user.user_metadata),
+                          status: defaultStatus,
+                          onSave: saveDefaultCategories,
+                          onReset: resetDefaultCategories,
+                        }
+                      : undefined
+                  }
                 />
                 <button
                   className="btn btn-primary"

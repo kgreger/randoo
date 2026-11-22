@@ -1,6 +1,6 @@
 import xml.etree.ElementTree as ET
 
-from randoo.export import GARMIN_GPXX_NS, GARMIN_PROXIMITY_M, build_gpx
+from randoo.export import GARMIN_GPXX_NS, GARMIN_PROXIMITY_M, GARMIN_SYMBOLS, GARMIN_POINT_TYPES, build_gpx
 from randoo.gpx import Point
 from randoo.overpass import Poi
 from randoo.poi_filter import Connector, RankedPoi
@@ -42,7 +42,7 @@ def test_export_embeds_the_route_as_a_track_with_one_segment_per_input_segment()
 
 def test_export_writes_the_real_poi_and_a_snapped_turnoff_marker():
     on_route = Point(48.005, 8.0)
-    ranked = [_ranked("water", 48.005, 8.0004, 42.0, on_route)]
+    ranked = [_ranked("water_tap", 48.005, 8.0004, 42.0, on_route)]
     xml = build_gpx(ranked, [[Point(48.0, 8.0), Point(48.01, 8.01)]])
     root = ET.fromstring(xml)
 
@@ -75,3 +75,10 @@ def test_export_falls_back_to_a_generic_symbol_for_categories_without_a_garmin_m
 
     wpt = root.find(f"{{{GPX_NS}}}wpt")
     assert wpt.find(f"{{{GPX_NS}}}sym").text == "Flag, Blue"
+
+
+def test_a_fuel_station_keeps_its_own_symbol_inside_the_shops_group():
+    # fuel_station is a leaf of "shops" (Shopping Center, type store) but is shown with the gas pump
+    assert GARMIN_SYMBOLS["fuel_station"] == "Gas Station"
+    assert GARMIN_SYMBOLS["supermarket"] == "Shopping Center"
+    assert GARMIN_POINT_TYPES["fuel_station"] == GARMIN_POINT_TYPES["supermarket"] == "store"
