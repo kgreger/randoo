@@ -150,8 +150,7 @@ button {
   display: contents;
 }
 
-.menu-toggle,
-.controls-toggle {
+.menu-toggle {
   display: none;
 }
 
@@ -1091,6 +1090,101 @@ button {
   flex-direction: column;
   gap: 6px;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+}
+
+/* The panel folds away into a small button, so the map can be seen in full
+   (it is folded after a search, and the button brings it back). */
+.controls-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 0 0 8px;
+  background: none;
+  border: 0;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.controls-toggle-count {
+  margin-left: auto;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11.5px;
+  color: var(--ink-faint);
+}
+
+.controls-toggle-fold {
+  flex: none;
+  color: var(--ink-faint);
+}
+
+.controls-toggle:hover .controls-toggle-fold,
+.controls-toggle:focus-visible .controls-toggle-fold {
+  color: var(--ink);
+}
+
+.controls-panel.collapsed {
+  right: auto;
+  width: auto;
+  padding: 0;
+  border-radius: 12px;
+  overflow: visible;
+}
+
+.controls-panel.collapsed .controls-body,
+.controls-panel.collapsed .controls-toggle-label,
+.controls-panel.collapsed .controls-toggle-fold {
+  display: none;
+}
+
+.controls-panel.collapsed .controls-toggle {
+  position: relative;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 12px;
+}
+
+.controls-panel.collapsed .controls-toggle:hover {
+  background: rgba(255, 143, 107, 0.22);
+}
+
+.controls-panel.collapsed .controls-toggle-count {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  margin: 0;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-align: center;
+}
+
+/* A search is running while the panel is folded: the button's icon pulses. */
+.controls-panel.collapsed.busy .controls-toggle svg {
+  animation: filters-busy 1.2s ease-in-out infinite;
+}
+
+@keyframes filters-busy {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .controls-panel.collapsed.busy .controls-toggle svg {
+    animation: none;
+  }
 }
 
 .controls-panel .section-label {
@@ -2070,81 +2164,6 @@ button {
     border-radius: 16px;
     max-height: calc(100% - 20px);
     overflow-y: auto;
-  }
-
-  .controls-toggle {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 4px 0 6px;
-    background: none;
-    border: 0;
-    color: var(--ink);
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-  }
-
-  .controls-toggle-count {
-    margin-left: auto;
-    font-family: "JetBrains Mono", monospace;
-    font-size: 11.5px;
-    color: var(--ink-faint);
-  }
-
-  /* Folded away, the panel is just a small button (same shape as the menu
-     button) so the map stays free. */
-  .controls-panel.collapsed {
-    right: auto;
-    width: auto;
-    padding: 0;
-    border-radius: 12px;
-    overflow: visible;
-  }
-
-  .controls-panel.collapsed .controls-body,
-  .controls-panel.collapsed .controls-toggle-label {
-    display: none;
-  }
-
-  .controls-panel.collapsed .controls-toggle {
-    position: relative;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-    padding: 0;
-    border-radius: 12px;
-  }
-
-  .controls-panel.collapsed .controls-toggle-count {
-    position: absolute;
-    top: -4px;
-    right: -4px;
-    min-width: 18px;
-    padding: 1px 5px;
-    border-radius: 999px;
-    background: var(--accent);
-    color: var(--accent-ink);
-    font-size: 10.5px;
-    font-weight: 700;
-    line-height: 1.4;
-    text-align: center;
-  }
-
-  .controls-panel.collapsed.busy .controls-toggle svg {
-    animation: filters-busy 1.2s ease-in-out infinite;
-  }
-
-  @keyframes filters-busy {
-    50% {
-      opacity: 0.3;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .controls-panel.collapsed.busy .controls-toggle svg {
-      animation: none;
-    }
   }
 
   .side-panel {

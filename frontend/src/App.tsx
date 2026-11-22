@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Bookmark, Menu, SlidersHorizontal, X } from "lucide-react";
+import { Bookmark, ChevronUp, Menu, SlidersHorizontal, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AccountControl } from "./components/AccountControl";
 import { AccountDialog } from "./components/AccountDialog";
@@ -1016,10 +1016,12 @@ export default function App() {
                 onClick={() => setFiltersOpen((open) => !open)}
                 aria-expanded={filtersOpen}
                 aria-label={t("app.filters")}
+                title={filtersOpen ? t("app.filtersCollapse") : t("app.filtersExpand")}
               >
                 <SlidersHorizontal size={16} strokeWidth={2} aria-hidden="true" />
                 <span className="controls-toggle-label">{t("app.filters")}</span>
                 <span className="controls-toggle-count">{selectedCategories.size}</span>
+                <ChevronUp className="controls-toggle-fold" size={16} strokeWidth={2} aria-hidden="true" />
               </button>
               <div className="controls-body">
                 <CategoryFilter

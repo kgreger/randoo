@@ -84,22 +84,38 @@ const POPUP_OPTIONS_WIDE: L.PopupOptions = { ...POPUP_OPTIONS, minWidth: 320, ma
 
 // The filter panel floats over the map's left edge, above the popups, so a popup
 // that opens under it is half hidden. Leaflet pans the map to bring a popup into
-// view; this is how much of the left side it must keep clear. Read when the
-// popup opens, since the panel can be collapsed or resized by then.
+// view; this is how much of the left side (or of the top, see below) it must keep
+// clear. Read when the popup opens, since the panel can be folded by then.
 const POPUP_PAN_MARGIN = 28;
 function panelClearance(map: L.Map): L.PointTuple {
+  const clear: L.PointTuple = [POPUP_PAN_MARGIN, POPUP_PAN_MARGIN];
   const panel = map.getContainer().closest(".map-panel")?.querySelector<HTMLElement>(".controls-panel");
-  if (!panel) return [POPUP_PAN_MARGIN, POPUP_PAN_MARGIN];
-  const clear = panel.getBoundingClientRect().right - map.getContainer().getBoundingClientRect().left;
-  return [Math.max(POPUP_PAN_MARGIN, clear + 16), POPUP_PAN_MARGIN];
+  if (!panel) return clear;
+  const panelBox = panel.getBoundingClientRect();
+  const mapBox = map.getContainer().getBoundingClientRect();
+  // Folded to its button, or spanning the map along the top edge on a narrow
+  // screen: keep clear of it from above. Open as a side panel: from the left.
+  if (panelBox.width < 120 || panelBox.width > mapBox.width * 0.6) {
+    clear[1] = Math.max(clear[1], panelBox.bottom - mapBox.top + 12);
+  } else {
+    clear[0] = Math.max(clear[0], panelBox.right - mapBox.left + 16);
+  }
+  return clear;
 }
 
 // A popup's content, built when it opens (most points are never clicked), after
-// telling the popup how much of the left side to keep clear.
-function onOpen(map: L.Map, build: () => HTMLElement): (source: L.Layer) => HTMLElement {
+// telling the popup how much of the left side to keep clear and how wide it may
+// be: on a phone the map is narrower than the popup would like to be.
+const POPUP_FRAME = 34; // the popup's own margins and border around its content
+function onOpen(map: L.Map, base: L.PopupOptions, build: () => HTMLElement): (source: L.Layer) => HTMLElement {
   return (source) => {
     const popup = (source as L.Marker).getPopup();
-    if (popup) popup.options.autoPanPaddingTopLeft = panelClearance(map);
+    if (popup) {
+      const room = map.getSize().x - 2 * 16 - POPUP_FRAME;
+      popup.options.autoPanPaddingTopLeft = panelClearance(map);
+      popup.options.maxWidth = Math.min(base.maxWidth ?? 300, room);
+      popup.options.minWidth = Math.min(base.minWidth ?? 50, room);
+    }
     return build();
   };
 }
@@ -354,12 +370,12 @@ export function MapView({
       }).addTo(layer);
 
       const typeId = typeOverrides[poi.id] ?? poi.category_id;
-      const hasHours = Boolean(poi.opening_hours || poi.hours_week);
+      const popupOptions = poi.opening_hours || poi.hours_week ? POPUP_OPTIONS_WIDE : POPUP_OPTIONS;
       const marker = L.marker([poi.lat, poi.lon], { icon: poiDivIcon(poi, excluded, typeId) })
         .bindPopup(
-          onOpen(map, () => poiPopup(poi, typeId, t, i18n.language)),
+          onOpen(map, popupOptions, () => poiPopup(poi, typeId, t, i18n.language)),
           // Room for the week chart; a point without hours keeps the narrow popup.
-          hasHours ? POPUP_OPTIONS_WIDE : POPUP_OPTIONS,
+          popupOptions,
         )
         .on("click", () => onSelectPoiRef.current?.(poi))
         .addTo(layer);
@@ -380,7 +396,7 @@ export function MapView({
       if (excluded && hideExcluded) continue;
       const typeId = typeOverrides[waypoint.id] ?? waypoint.fixedType ?? WAYPOINT_TYPE.id;
       const marker = L.marker([waypoint.lat, waypoint.lon], { icon: waypointDivIcon(typeId, excluded), zIndexOffset: 500 })
-        .bindPopup(onOpen(map, () => waypointPopup(waypoint, typeId, t)), POPUP_OPTIONS)
+        .bindPopup(onOpen(map, POPUP_OPTIONS, () => waypointPopup(waypoint, typeId, t)), POPUP_OPTIONS)
         .on("click", () => onSelectWaypointRef.current?.(waypoint))
         .addTo(layer);
       waypointMarkersRef.current.set(waypoint.id, marker);

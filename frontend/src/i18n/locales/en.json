@@ -3,6 +3,8 @@
     "title": "Randoo",
     "menu": "Menu",
     "filters": "Filters",
+    "filtersCollapse": "Collapse filters",
+    "filtersExpand": "Show filters",
     "ideas": "Ideas",
     "changeRoute": "Change route",
     "uploadGpx": "Upload GPX",
