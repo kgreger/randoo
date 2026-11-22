@@ -41,7 +41,6 @@
     "adminCannotDelete": "Admin accounts can't be deleted."
   },
   "categories": {
-    "active": "Categories active",
     "selectedCount": "{{active}} of {{total}} selected",
     "sectionLabel": "Categories",
     "radius": "Radius",

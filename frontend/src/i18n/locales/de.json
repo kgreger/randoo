@@ -41,7 +41,6 @@
     "adminCannotDelete": "Administrator-Konten können nicht gelöscht werden."
   },
   "categories": {
-    "active": "Aktive Kategorien",
     "selectedCount": "{{active}} von {{total}} ausgewählt",
     "sectionLabel": "Kategorien",
     "radius": "Radius",

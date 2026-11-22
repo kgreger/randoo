@@ -19,14 +19,10 @@ interface Props {
   };
 }
 
-const RING_RADIUS = 24;
-const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
-
 export function CategoryFilter({ selected, onToggle, onToggleGroup, radiusM, onRadiusChange, defaults }: Props) {
   const { t } = useTranslation();
   const active = selected.size;
   const total = CATEGORIES.length;
-  const filled = RING_CIRCUMFERENCE * (active / total);
   // Groups with something selected start open, so the rider sees what a
   // search will look for; the rest stay folded.
   const [open, setOpen] = useState(
@@ -44,32 +40,17 @@ export function CategoryFilter({ selected, onToggle, onToggleGroup, radiusM, onR
 
   return (
     <>
-      <div className="category-ring">
-        <svg width="58" height="58" viewBox="0 0 58 58" style={{ flex: "none" }}>
-          <circle cx="29" cy="29" r={RING_RADIUS} fill="none" stroke="rgba(255,255,255,.12)" strokeWidth="6" />
-          <circle
-            cx="29"
-            cy="29"
-            r={RING_RADIUS}
-            fill="none"
-            stroke="var(--accent)"
-            strokeWidth="6"
-            strokeLinecap="round"
-            strokeDasharray={`${filled} ${RING_CIRCUMFERENCE - filled}`}
-            transform="rotate(-90 29 29)"
-          />
-          <text x="29" y="34" textAnchor="middle" fontFamily="Onest" fontWeight="700" fontSize="15" fill="var(--ink)">
-            {active}/{total}
-          </text>
-        </svg>
-        <div>
-          <div className="label">{t("categories.active")}</div>
-          <div className="sub">{t("categories.selectedCount", { active, total })}</div>
-        </div>
-      </div>
-
       <div>
-        <div className="section-label">{t("categories.sectionLabel")}</div>
+        <div className="section-label category-heading">
+          <span>{t("categories.sectionLabel")}</span>
+          <span
+            className="category-count"
+            title={t("categories.selectedCount", { active, total })}
+            aria-label={t("categories.selectedCount", { active, total })}
+          >
+            {active}/{total}
+          </span>
+        </div>
         <div className="category-tree">
           {GROUPS.map((group) => (
             <CategoryGroup
