@@ -3,6 +3,8 @@
     "title": "Randoo",
     "menu": "Menu",
     "filters": "Filters",
+    "filtersCollapse": "Collapse filters",
+    "filtersExpand": "Show filters",
     "ideas": "Ideas",
     "changeRoute": "Change route",
     "uploadGpx": "Upload GPX",
@@ -106,6 +108,19 @@
     "showExcluded": "Show unticked points",
     "waypoint": "Waypoint"
   },
+  "hours": {
+    "title": "Opening hours",
+    "days": { "mo": "Mon", "tu": "Tue", "we": "Wed", "th": "Thu", "fr": "Fri", "sa": "Sat", "su": "Sun" },
+    "holiday": "Holiday",
+    "holidayHint": "On a public holiday, as far as the entry says anything about it",
+    "noHolidayInfo": "no information",
+    "closed": "closed",
+    "openFrom": "from {{time}}",
+    "unclear": "unclear",
+    "seasonal": "seasonal",
+    "seasonalHint": "The times depend on month or date. Shown is the week of {{date}}.",
+    "rawLabel": "Opening hours according to OSM"
+  },
   "poiList": {
     "filterAll": "All",
     "filter": "Filter types",
@@ -128,7 +143,8 @@
     "originalType": "Original: {{type}}",
     "hoursUnknown": "Opening hours unknown",
     "hoursUnknownHint": "OpenStreetMap has no opening hours for this place. Check on site or with the operator.",
-    "openingHours": "Opening hours as mapped in OpenStreetMap, unchecked: {{hours}}"
+    "hoursChip": "Opening hours",
+    "showHours": "Show opening hours"
   },
   "signInDialog": {
     "recoveryPrompt": "Choose a new password for your account.",

@@ -68,14 +68,17 @@ class LocalPoiSource:
                 row[0]
                 for row in con.execute("DESCRIBE SELECT * FROM read_parquet(?)", [str(self.parquet_path)]).fetchall()
             }
+            # Files built before the weekly build parsed opening hours have no
+            # such column; their POIs simply come without a parsed week.
+            hours = ", hours_week" if "hours_week" in columns else ", NULL"
             if "primary_tags" in columns:
                 # Current format: each row lists the "key=value" pairs that made it
                 # a candidate, so the file can be narrowed to the selection before
                 # the rules decide which category a row really belongs to.
                 pairs = sorted({f"{key}={value}" for c in categories for key, value in c.tags})
                 rows = con.execute(
-                    """
-                    SELECT osm_type, osm_id, name, tags, lat, lon
+                    f"""
+                    SELECT osm_type, osm_id, name, tags, lat, lon{hours}
                     FROM read_parquet(?)
                     WHERE lat BETWEEN ? AND ? AND lon BETWEEN ? AND ?
                       AND list_has_any(primary_tags, ?)
@@ -87,8 +90,8 @@ class LocalPoiSource:
                 # carry the old category column, so everything inside the box is
                 # read and classified from the tags it kept.
                 rows = con.execute(
-                    """
-                    SELECT osm_type, osm_id, name, tags, lat, lon
+                    f"""
+                    SELECT osm_type, osm_id, name, tags, lat, lon{hours}
                     FROM read_parquet(?)
                     WHERE lat BETWEEN ? AND ? AND lon BETWEEN ? AND ?
                     """,
@@ -98,7 +101,7 @@ class LocalPoiSource:
             con.close()
 
         pois = []
-        for osm_type, osm_id, name, tags, lat, lon in rows:
+        for osm_type, osm_id, name, tags, lat, lon, hours_week in rows:
             tag_dict = json.loads(tags) if tags else {}
             if name and "name" not in tag_dict:
                 tag_dict["name"] = name
@@ -114,9 +117,25 @@ class LocalPoiSource:
                     category_id=category.id,
                     name=name,
                     tags=tag_dict,
+                    hours_week=_load_week(hours_week),
                 )
             )
         return overpass.dedupe_pois(pois)
+
+
+def _load_week(raw: str | None) -> dict | None:
+    """The parsed opening-hours week the data build stored as JSON text. The
+    file is our own, but a row the app cannot read just loses its chart (the
+    raw text is still shown) instead of failing the whole search."""
+    if not raw:
+        return None
+    try:
+        week = json.loads(raw)
+    except ValueError:
+        return None
+    if not isinstance(week, dict) or not isinstance(week.get("days"), list) or len(week["days"]) != 7:
+        return None
+    return week
 
 
 def get_poi_source(tier: str) -> PoiSource:

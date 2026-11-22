@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from "react";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from "react";
 import { createPortal } from "react-dom";
 import { Check, Clock, Eye, EyeOff, Funnel, Pencil } from "lucide-react";
 import type { TFunction } from "i18next";
@@ -9,6 +9,7 @@ import { ASSIGNABLE_TYPES, WAYPOINT_TYPE, categoryById, pointTypeById } from "..
 import { poiTypeId, waypointTypeId } from "../lib/pointTypes";
 import { isStackedLayout } from "../lib/layout";
 import { poiBadges } from "../lib/poiBadges";
+import { buildHoursPanel } from "../lib/hoursChart";
 
 export type WaypointOnRoute = RouteWaypoint & { alongM: number; offM: number };
 
@@ -121,6 +122,9 @@ export function PoiList({
   const [filterRect, setFilterRect] = useState<DOMRect | null>(null);
   const closeFilterMenu = useCallback(() => setFilterRect(null), []);
   const closeTypeMenu = useCallback(() => setTypeMenu(null), []);
+  // The opening-hours popover of one point (clock chip on its card).
+  const [hoursTarget, setHoursTarget] = useState<{ rect: DOMRect; poi: Poi } | null>(null);
+  const closeHours = useCallback(() => setHoursTarget(null), []);
   // Found points and file waypoints in route order (the sort is stable, so
   // the found points keep their own order).
   const rows: Row[] = [
@@ -453,7 +457,7 @@ export function PoiList({
                     {t("poiList.metaDistance", { distance: Math.round(poi.distance_to_route_m) })}
                     {poi.id in typeOverrides && ` · ${typeLabel}`}
                   </div>
-                  <PoiExtras poi={poi} />
+                  <PoiExtras poi={poi} onOpenHours={(rect) => setHoursTarget({ rect, poi })} />
                   <div
                     className="distance-bar"
                     title={t("poiList.distanceBarTitle", {
@@ -479,6 +483,7 @@ export function PoiList({
           onClose={closeFilterMenu}
         />
       )}
+      {hoursTarget && <HoursPopover target={hoursTarget} onClose={closeHours} />}
       {typeMenu && (
         <TypeMenu
           target={typeMenu}
@@ -675,14 +680,76 @@ function TypeMenu({
   );
 }
 
+// The opening hours of one point next to its clock chip: the week chart when
+// the data build parsed them, the value as mapped (wrapped) when it did not or
+// when the search came from the free tier, which never has a parsed week.
+function HoursPopover({ target, onClose }: { target: { rect: DOMRect; poi: Poi }; onClose: () => void }) {
+  const { t, i18n } = useTranslation();
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const [top, setTop] = useState(target.rect.bottom + 6);
+
+  useEffect(() => {
+    function handlePointerDown(e: MouseEvent) {
+      if (!popoverRef.current?.contains(e.target as Node)) onClose();
+    }
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    function handleScroll(e: Event) {
+      if (!popoverRef.current?.contains(e.target as Node)) onClose();
+    }
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKey);
+    window.addEventListener("scroll", handleScroll, true);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKey);
+      window.removeEventListener("scroll", handleScroll, true);
+    };
+  }, [onClose]);
+
+  // Filled before the position is measured below, which needs its height.
+  useLayoutEffect(() => {
+    const panel = buildHoursPanel(target.poi, t, i18n.language);
+    bodyRef.current?.replaceChildren(...(panel ? [panel] : []));
+  }, [target.poi, t, i18n.language]);
+
+  // Below the chip, or above it when the popover would run off the screen
+  // (known only once it is drawn).
+  useLayoutEffect(() => {
+    const height = popoverRef.current?.offsetHeight ?? 0;
+    const below = target.rect.bottom + 6;
+    setTop(below + height > window.innerHeight - 8 ? Math.max(8, target.rect.top - height - 6) : below);
+  }, [target.rect, target.poi, i18n.language]);
+
+  const width = Math.min(360, window.innerWidth - 16);
+  const left = Math.max(8, Math.min(target.rect.left, window.innerWidth - width - 8));
+
+  return createPortal(
+    <div
+      className="hours-popover"
+      ref={popoverRef}
+      role="dialog"
+      aria-label={t("hours.title")}
+      style={{ left, top, width }}
+    >
+      <div className="hours-popover-title">{target.poi.name ?? t(`categories.${target.poi.category_id}`)}</div>
+      <div ref={bodyRef} />
+    </div>,
+    document.body,
+  );
+}
+
 // Short notes under a point's name: badges for what the few tags say (a fuel
 // station with a shop, a toilet that costs money, a spring nobody has checked)
 // and its opening hours exactly as mapped, which may be out of date.
-function PoiExtras({ poi }: { poi: Poi }) {
+function PoiExtras({ poi, onOpenHours }: { poi: Poi; onOpenHours: (rect: DOMRect) => void }) {
   const { t } = useTranslation();
   const badges = poiBadges(poi);
-  const hoursUnknown = !poi.opening_hours && categoryById(poi.category_id)?.hours === true;
-  if (badges.length === 0 && !poi.opening_hours && !hoursUnknown) return null;
+  const hasHours = Boolean(poi.opening_hours || poi.hours_week);
+  const hoursUnknown = !hasHours && categoryById(poi.category_id)?.hours === true;
+  if (badges.length === 0 && !hasHours && !hoursUnknown) return null;
   return (
     <div className="poi-extras">
       {badges.map((badge) => (
@@ -690,11 +757,20 @@ function PoiExtras({ poi }: { poi: Poi }) {
           {t(`badges.${badge}`)}
         </span>
       ))}
-      {poi.opening_hours && (
-        <span className="poi-hours" title={t("poiList.openingHours", { hours: poi.opening_hours })}>
+      {hasHours && (
+        <button
+          type="button"
+          className="poi-hours poi-hours-button"
+          title={t("poiList.showHours")}
+          aria-haspopup="dialog"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenHours(e.currentTarget.getBoundingClientRect());
+          }}
+        >
           <Clock size={11} strokeWidth={2} aria-hidden="true" />
-          <span className="poi-hours-text">{poi.opening_hours}</span>
-        </span>
+          <span className="poi-hours-text">{t("poiList.hoursChip")}</span>
+        </button>
       )}
       {hoursUnknown && (
         <span className="poi-hours poi-hours-unknown" title={t("poiList.hoursUnknownHint")}>

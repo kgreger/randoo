@@ -160,6 +160,7 @@ async def analyze(
                 category_id=r.poi.category_id,
                 name=r.poi.name,
                 opening_hours=categories.poi_opening_hours(r.poi.tags),
+                hours_week=r.poi.hours_week,
                 attributes=categories.poi_attributes(r.poi.tags),
                 distance_to_route_m=round(r.distance_to_route_m, 1),
                 distance_along_route_m=round(r.distance_along_route_m, 1),

@@ -106,7 +106,7 @@ A `tourism=alpine_hut` is staffed (`hut_staffed`) when it is not `self_service=y
 
 ## Extra information on a POI
 
-- `opening_hours` is passed through as the raw string and appended to the comment in the GPX export. It is not evaluated ("open now") yet.
+- `opening_hours` is passed through as the raw string and appended to the comment in the GPX export. For premium searches the list and the map also show it as a week chart, parsed by the weekly data build (see [opening-hours.md](opening-hours.md)). It is not evaluated ("open now") yet.
 - For the kinds of place where being open matters (`HOURS_MATTER` in `categories.py`: restaurants, fast food, snack bars, cafés, ice cream, bakeries, butchers, supermarkets, kiosks, small shops, fuel stations, bike shops, pharmacies) the list shows "Opening hours unknown" when OpenStreetMap has none. About 30 to 60 percent of these places have hours mapped, so the note is common. The flag is `hours` in `taxonomy.json`.
 - A whitelist of tags (`ATTRIBUTE_KEYS`: `drinking_water`, `fee`, `shop`, `access`, `seasonal`) is returned as `PoiOut.attributes`. The frontend shows short badges from them (`lib/poiBadges.ts`):
   - `shop`: a fuel station with a shop (`shop` set and not `no`)
@@ -168,12 +168,12 @@ Provisional: the `<type>` assignment has not been confirmed yet, the `<sym>` nam
 - Review multiple assignment
 - Merge nearby bus stops and shelters
 - A "tap (unchecked)" type for water points without `drinking_water`
-- Evaluate opening hours
+- Evaluate opening hours (open now, arrival times); showing them as a week is done
 - Rework of the profile and settings area
 
 ## After merging
 
-- Run the `randoo-infra` tests and pipeline and rebuild `pois.parquet`
+- Run the `randoo-infra` tests and pipeline and rebuild `pois.parquet` (the opening-hours charts need the rebuilt file; without it the popovers show only the text)
 - Copy `taxonomy.json` to `randoo-infra` whenever it changes
 - Check the Garmin symbols and `coffee_shop` on a device
 - Mention `user_metadata.default_categories` in the privacy text
