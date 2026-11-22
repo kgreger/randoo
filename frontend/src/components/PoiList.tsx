@@ -5,7 +5,7 @@ import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import type { Poi } from "../lib/api";
 import type { RouteWaypoint } from "../lib/gpxPreview";
-import { ASSIGNABLE_TYPES, WAYPOINT_TYPE, pointTypeById } from "../lib/categories";
+import { ASSIGNABLE_TYPES, WAYPOINT_TYPE, categoryById, pointTypeById } from "../lib/categories";
 import { poiTypeId, waypointTypeId } from "../lib/pointTypes";
 import { isStackedLayout } from "../lib/layout";
 import { poiBadges } from "../lib/poiBadges";
@@ -681,7 +681,8 @@ function TypeMenu({
 function PoiExtras({ poi }: { poi: Poi }) {
   const { t } = useTranslation();
   const badges = poiBadges(poi);
-  if (badges.length === 0 && !poi.opening_hours) return null;
+  const hoursUnknown = !poi.opening_hours && categoryById(poi.category_id)?.hours === true;
+  if (badges.length === 0 && !poi.opening_hours && !hoursUnknown) return null;
   return (
     <div className="poi-extras">
       {badges.map((badge) => (
@@ -693,6 +694,12 @@ function PoiExtras({ poi }: { poi: Poi }) {
         <span className="poi-hours" title={t("poiList.openingHours", { hours: poi.opening_hours })}>
           <Clock size={11} strokeWidth={2} aria-hidden="true" />
           <span className="poi-hours-text">{poi.opening_hours}</span>
+        </span>
+      )}
+      {hoursUnknown && (
+        <span className="poi-hours poi-hours-unknown" title={t("poiList.hoursUnknownHint")}>
+          <Clock size={11} strokeWidth={2} aria-hidden="true" />
+          <span className="poi-hours-text">{t("poiList.hoursUnknown")}</span>
         </span>
       )}
     </div>

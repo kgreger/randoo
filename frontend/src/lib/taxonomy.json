@@ -6,6 +6,7 @@
         {
           "id": "water_tap",
           "default": false,
+          "hours": false,
           "primary": [
             {
               "key": "amenity",
@@ -32,6 +33,7 @@
         {
           "id": "fountain",
           "default": false,
+          "hours": false,
           "primary": [
             {
               "key": "amenity",
@@ -58,6 +60,7 @@
         {
           "id": "spring",
           "default": false,
+          "hours": false,
           "primary": [
             {
               "key": "natural",
@@ -70,6 +73,7 @@
         {
           "id": "cemetery_tap",
           "default": false,
+          "hours": false,
           "primary": [
             {
               "key": "amenity",
@@ -101,6 +105,7 @@
         {
           "id": "restaurant",
           "default": false,
+          "hours": true,
           "primary": [
             {
               "key": "amenity",
@@ -121,6 +126,7 @@
         {
           "id": "fast_food",
           "default": false,
+          "hours": true,
           "primary": [
             {
               "key": "amenity",
@@ -133,6 +139,7 @@
         {
           "id": "snack_bar",
           "default": false,
+          "hours": true,
           "primary": [
             {
               "key": "amenity",
@@ -145,6 +152,7 @@
         {
           "id": "cafe",
           "default": false,
+          "hours": true,
           "primary": [
             {
               "key": "amenity",
@@ -157,6 +165,7 @@
         {
           "id": "ice_cream",
           "default": false,
+          "hours": true,
           "primary": [
             {
               "key": "amenity",
@@ -173,6 +182,7 @@
         {
           "id": "bakery",
           "default": true,
+          "hours": true,
           "primary": [
             {
               "key": "shop",
@@ -185,6 +195,7 @@
         {
           "id": "butcher",
           "default": false,
+          "hours": true,
           "primary": [
             {
               "key": "shop",
@@ -202,6 +213,7 @@
         {
           "id": "supermarket",
           "default": false,
+          "hours": true,
           "primary": [
             {
               "key": "shop",
@@ -214,6 +226,7 @@
         {
           "id": "kiosk",
           "default": false,
+          "hours": true,
           "primary": [
             {
               "key": "shop",
@@ -230,6 +243,7 @@
         {
           "id": "grocery",
           "default": false,
+          "hours": true,
           "primary": [
             {
               "key": "shop",
@@ -250,6 +264,7 @@
         {
           "id": "fuel_station",
           "default": true,
+          "hours": true,
           "primary": [
             {
               "key": "amenity",
@@ -267,6 +282,7 @@
         {
           "id": "bike_shop",
           "default": true,
+          "hours": true,
           "primary": [
             {
               "key": "shop",
@@ -279,6 +295,7 @@
         {
           "id": "bike_repair",
           "default": false,
+          "hours": false,
           "primary": [
             {
               "key": "amenity",
@@ -296,6 +313,7 @@
         {
           "id": "hotel",
           "default": false,
+          "hours": false,
           "primary": [
             {
               "key": "tourism",
@@ -312,6 +330,7 @@
         {
           "id": "guest_house",
           "default": false,
+          "hours": false,
           "primary": [
             {
               "key": "tourism",
@@ -332,6 +351,7 @@
         {
           "id": "hostel",
           "default": false,
+          "hours": false,
           "primary": [
             {
               "key": "tourism",
@@ -344,6 +364,7 @@
         {
           "id": "camp_site",
           "default": false,
+          "hours": false,
           "primary": [
             {
               "key": "tourism",
@@ -356,6 +377,7 @@
         {
           "id": "hut_staffed",
           "default": false,
+          "hours": false,
           "primary": [
             {
               "key": "tourism",
@@ -373,6 +395,7 @@
         {
           "id": "shelter",
           "default": false,
+          "hours": false,
           "primary": [
             {
               "key": "amenity",
@@ -385,6 +408,7 @@
         {
           "id": "hut_open",
           "default": false,
+          "hours": false,
           "primary": [
             {
               "key": "tourism",
@@ -408,6 +432,7 @@
         {
           "id": "bus_stop",
           "default": false,
+          "hours": false,
           "primary": [
             {
               "key": "highway",
@@ -434,6 +459,7 @@
         {
           "id": "train_station",
           "default": false,
+          "hours": false,
           "primary": [
             {
               "key": "railway",
@@ -450,6 +476,7 @@
         {
           "id": "picnic",
           "default": false,
+          "hours": false,
           "primary": [
             {
               "key": "leisure",
@@ -466,6 +493,7 @@
         {
           "id": "toilet",
           "default": false,
+          "hours": false,
           "primary": [
             {
               "key": "amenity",
@@ -478,6 +506,7 @@
         {
           "id": "shower",
           "default": false,
+          "hours": false,
           "primary": [
             {
               "key": "amenity",
@@ -490,6 +519,7 @@
         {
           "id": "pharmacy",
           "default": false,
+          "hours": true,
           "primary": [
             {
               "key": "amenity",
@@ -502,6 +532,7 @@
         {
           "id": "atm",
           "default": false,
+          "hours": false,
           "primary": [
             {
               "key": "amenity",

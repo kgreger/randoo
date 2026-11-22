@@ -343,6 +343,27 @@ DEFAULT_CATEGORY_IDS: tuple[str, ...] = tuple(c.id for c in CATEGORIES if c.defa
 # nobody has checked).
 ATTRIBUTE_KEYS: tuple[str, ...] = ("drinking_water", "fee", "shop", "access", "seasonal")
 
+# The kinds of place where it matters whether they are open when the rider
+# gets there. For these the interface says so when OpenStreetMap has no
+# opening hours (taxonomy.json: "hours"); a tap or a shelter is always there.
+HOURS_MATTER: frozenset[str] = frozenset(
+    {
+        "restaurant",
+        "fast_food",
+        "snack_bar",
+        "cafe",
+        "ice_cream",
+        "bakery",
+        "butcher",
+        "supermarket",
+        "kiosk",
+        "grocery",
+        "fuel_station",
+        "bike_shop",
+        "pharmacy",
+    }
+)
+
 # The order in which categories are tried when classifying an element: lowest
 # priority number first, definition order among equals.
 _BY_PRIORITY: tuple[Category, ...] = tuple(sorted(CATEGORIES, key=lambda c: c.priority))
@@ -422,6 +443,7 @@ def taxonomy_dict() -> dict:
                     {
                         "id": c.id,
                         "default": c.default,
+                        "hours": c.id in HOURS_MATTER,
                         "primary": [
                             {"key": p.key, "value": p.value, **({"where": dict(p.where)} if p.where else {})}
                             for p in c.primary

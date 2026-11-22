@@ -1551,6 +1551,13 @@ button {
   color: var(--ink-faint);
 }
 
+/* No opening hours in OpenStreetMap for a place where they matter: said
+ * plainly, in the interface's own type rather than the mono of real hours. */
+.poi-hours-unknown {
+  font-family: inherit;
+  font-style: italic;
+}
+
 .poi-hours svg {
   flex: none;
 }

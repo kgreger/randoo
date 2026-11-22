@@ -107,6 +107,7 @@ A `tourism=alpine_hut` is staffed (`hut_staffed`) when it is not `self_service=y
 ## Extra information on a POI
 
 - `opening_hours` is passed through as the raw string and appended to the comment in the GPX export. It is not evaluated ("open now") yet.
+- For the kinds of place where being open matters (`HOURS_MATTER` in `categories.py`: restaurants, fast food, snack bars, cafés, ice cream, bakeries, butchers, supermarkets, kiosks, small shops, fuel stations, bike shops, pharmacies) the list shows "Opening hours unknown" when OpenStreetMap has none. About 30 to 60 percent of these places have hours mapped, so the note is common. The flag is `hours` in `taxonomy.json`.
 - A whitelist of tags (`ATTRIBUTE_KEYS`: `drinking_water`, `fee`, `shop`, `access`, `seasonal`) is returned as `PoiOut.attributes`. The frontend shows short badges from them (`lib/poiBadges.ts`):
   - `shop`: a fuel station with a shop (`shop` set and not `no`)
   - `fee`: `fee=yes`

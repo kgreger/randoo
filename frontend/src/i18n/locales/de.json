@@ -126,6 +126,8 @@
     "waypointFromFile": "Wegpunkt aus der Datei",
     "changeType": "Typ ändern",
     "originalType": "Original: {{type}}",
+    "hoursUnknown": "Öffnungszeiten unbekannt",
+    "hoursUnknownHint": "In OpenStreetMap sind keine Öffnungszeiten eingetragen. Vor Ort oder beim Betreiber nachsehen.",
     "openingHours": "Öffnungszeiten laut OpenStreetMap, nicht geprüft: {{hours}}"
   },
   "signInDialog": {

@@ -170,3 +170,13 @@ def test_every_category_and_group_has_a_german_and_an_english_label():
         # the ids of the old flat categories must not linger as labels of something else
         for old in ("water", "fuel", "hut", "food", "rest", "lodging"):
             assert old not in texts["categories"], f"{language}: categories.{old} is left over"
+
+
+def test_hours_matter_names_known_categories_and_reaches_the_taxonomy():
+    from randoo.categories import HOURS_MATTER, taxonomy_dict
+
+    assert HOURS_MATTER <= set(CATEGORIES_BY_ID)
+    flagged = {c["id"] for g in taxonomy_dict()["groups"] for c in g["categories"] if c["hours"]}
+    assert flagged == set(HOURS_MATTER)
+    # what is open all the time or needs no one does not get a note
+    assert not {"water_tap", "shelter", "picnic", "toilet", "bus_stop"} & HOURS_MATTER

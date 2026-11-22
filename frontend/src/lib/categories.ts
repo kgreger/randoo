@@ -53,6 +53,8 @@ export interface LeafDef extends CategoryDef {
   groupId: string;
   /** Selected for a rider who has not chosen their own default. */
   default: boolean;
+  /** Whether being open matters here, so a missing opening hours is worth a note. */
+  hours: boolean;
 }
 
 export interface GroupDef extends CategoryDef {
@@ -110,6 +112,7 @@ export const GROUPS: GroupDef[] = taxonomy.groups.map((group) => ({
     icon: LEAF_ICONS[category.id] ?? GROUP_ICONS[group.id] ?? Flag,
     groupId: group.id,
     default: category.default,
+    hours: category.hours,
   })),
 }));
 
