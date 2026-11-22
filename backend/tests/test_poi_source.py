@@ -158,3 +158,52 @@ def test_get_poi_source_uses_local_for_premium_tier_with_data_configured(monkeyp
     source = get_poi_source("premium")
     assert isinstance(source, LocalPoiSource)
     assert source.parquet_path == tmp_path / "pois.parquet"
+
+
+WEEK = (
+    '{"v":1,"ws":"2026-11-23","days":[[{"s":540,"e":1080}],[],[],[],[],[],[]],"ph":null}'
+)
+
+
+async def test_local_poi_source_passes_the_parsed_week_through(tmp_path: Path):
+    path = tmp_path / "pois.parquet"
+    _write(
+        path,
+        f"""
+        ('node', 1, 'Tap', '{{"amenity":"drinking_water","opening_hours":"Mo 09:00-18:00"}}',
+            ['amenity=drinking_water'], 51.225, 6.775, '{WEEK}', 'osm'),
+        ('node', 2, 'Other tap', '{{"amenity":"drinking_water"}}',
+            ['amenity=drinking_water'], 51.226, 6.776, NULL, NULL)
+        """,
+        "osm_type, osm_id, name, tags, primary_tags, lat, lon, hours_week, hours_source",
+    )
+
+    results = await LocalPoiSource(path).query(SEGMENTS, radius_m=2000, categories=WATER)
+
+    by_name = {p.name: p for p in results}
+    assert by_name["Tap"].hours_week["days"][0] == [{"s": 540, "e": 1080}]
+    assert by_name["Tap"].tags["opening_hours"] == "Mo 09:00-18:00"
+    assert by_name["Other tap"].hours_week is None
+
+
+async def test_local_poi_source_reads_a_file_built_before_hours_were_parsed(parquet_path: Path):
+    results = await LocalPoiSource(parquet_path).query(SEGMENTS, radius_m=2000, categories=WATER)
+
+    assert [p.hours_week for p in results] == [None]
+
+
+@pytest.mark.parametrize("broken", ["not json", "[]", '{"days": []}', '{"days": [[], []]}'])
+async def test_a_week_the_app_cannot_read_only_loses_the_chart(tmp_path: Path, broken: str):
+    path = tmp_path / "pois.parquet"
+    _write(
+        path,
+        f"""
+        ('node', 1, 'Tap', '{{"amenity":"drinking_water"}}',
+            ['amenity=drinking_water'], 51.225, 6.775, '{broken}')
+        """,
+        "osm_type, osm_id, name, tags, primary_tags, lat, lon, hours_week",
+    )
+
+    results = await LocalPoiSource(path).query(SEGMENTS, radius_m=2000, categories=WATER)
+
+    assert [(p.name, p.hours_week) for p in results] == [("Tap", None)]

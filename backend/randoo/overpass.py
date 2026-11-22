@@ -21,6 +21,7 @@ import time
 import asyncio
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import httpx
 
@@ -77,6 +78,10 @@ class Poi:
     category_id: str
     name: str | None
     tags: dict[str, str]
+    # The parsed week of the POI's opening hours, exactly as the data
+    # pipeline stored it (randoo-infra's hours.py). Only the local premium
+    # source has it; Overpass results carry the raw text in tags alone.
+    hours_week: dict[str, Any] | None = None
 
 
 def _build_query(
