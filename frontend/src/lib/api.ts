@@ -2,6 +2,31 @@ import type { RouteEnds } from "./routeEnds";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
+// One stretch of a day, in minutes since midnight (1440 = midnight at the
+// day's end). `c` is the value's own comment, `u` means the state is unknown
+// rather than open, `oe` an open end such as "11:00+": open from `s` with no
+// known closing time (`e` is then only where the day ends).
+export interface HoursSegment {
+  s: number;
+  e: number;
+  c?: string;
+  u?: 1;
+  oe?: 1;
+}
+
+// The parsed week the weekly data build stores (randoo-infra, hours.py).
+// `days` runs Monday to Sunday. `ph` is only what the value itself says about
+// a public holiday: null = nothing, [] = closed, segments = its own hours.
+// `ws` is the Monday of the build week the pattern was read for; `seasonal`
+// says the value depends on month or date, so this week is an example.
+export interface HoursWeek {
+  v: number;
+  ws: string;
+  days: HoursSegment[][];
+  ph: HoursSegment[] | null;
+  seasonal?: boolean;
+}
+
 export interface Poi {
   id: string;
   osm_id: number;
@@ -14,6 +39,9 @@ export interface Poi {
   // evaluated) and the few other tags shown as badges. Points saved in a plan
   // before these existed have neither.
   opening_hours?: string | null;
+  // The same hours parsed into a week, for premium searches that read the
+  // local data (null or missing: only the text above is known).
+  hours_week?: HoursWeek | null;
   attributes?: Record<string, string>;
   distance_to_route_m: number;
   // How far along the route (cumulative across all recorded segments) this

@@ -2,9 +2,13 @@ import { useEffect, useRef } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { useTranslation } from "react-i18next";
 import L from "leaflet";
+import type { TFunction } from "i18next";
+import { Clock, type LucideIcon } from "lucide-react";
 import "leaflet/dist/leaflet.css";
 import type { LatLon, RouteWaypoint } from "../lib/gpxPreview";
 import type { Poi } from "../lib/api";
+import { buildHoursPanel } from "../lib/hoursChart";
+import { poiBadges } from "../lib/poiBadges";
 import { popupContent } from "../lib/popupContent";
 import { WAYPOINT_TYPE, categoryById, pointTypeById } from "../lib/categories";
 
@@ -64,6 +68,94 @@ function waypointDivIcon(typeId: string, excluded: boolean): L.DivIcon {
     iconSize: [22, 22],
     iconAnchor: [11, 11],
     popupAnchor: [0, -13],
+  });
+}
+
+function iconMarkup(Icon: LucideIcon | undefined, size: number): string | null {
+  return Icon ? renderToStaticMarkup(<Icon size={size} strokeWidth={2.2} aria-hidden="true" />) : null;
+}
+
+const CLOCK_MARKUP = renderToStaticMarkup(<Clock size={12} strokeWidth={2.2} aria-hidden="true" />);
+
+// The popup is as wide as its content wants within these bounds; with the week
+// chart it needs room for the bars and the times beside them.
+const POPUP_OPTIONS: L.PopupOptions = { minWidth: 230, maxWidth: 320, autoPanPadding: [28, 28] };
+const POPUP_OPTIONS_WIDE: L.PopupOptions = { ...POPUP_OPTIONS, minWidth: 320, maxWidth: 380 };
+
+// The filter panel floats over the map's left edge, above the popups, so a popup
+// that opens under it is half hidden. Leaflet pans the map to bring a popup into
+// view; this is how much of the left side (or of the top, see below) it must keep
+// clear. Read when the popup opens, since the panel can be folded by then.
+const POPUP_PAN_MARGIN = 28;
+function panelClearance(map: L.Map): L.PointTuple {
+  const clear: L.PointTuple = [POPUP_PAN_MARGIN, POPUP_PAN_MARGIN];
+  const panel = map.getContainer().closest(".map-panel")?.querySelector<HTMLElement>(".controls-panel");
+  if (!panel) return clear;
+  const panelBox = panel.getBoundingClientRect();
+  const mapBox = map.getContainer().getBoundingClientRect();
+  // Folded to its button, or spanning the map along the top edge on a narrow
+  // screen: keep clear of it from above. Open as a side panel: from the left.
+  if (panelBox.width < 120 || panelBox.width > mapBox.width * 0.6) {
+    clear[1] = Math.max(clear[1], panelBox.bottom - mapBox.top + 12);
+  } else {
+    clear[0] = Math.max(clear[0], panelBox.right - mapBox.left + 16);
+  }
+  return clear;
+}
+
+// A popup's content, built when it opens (most points are never clicked), after
+// telling the popup how much of the left side to keep clear and how wide it may
+// be: on a phone the map is narrower than the popup would like to be.
+const POPUP_FRAME = 34; // the popup's own margins and border around its content
+function onOpen(map: L.Map, base: L.PopupOptions, build: () => HTMLElement): (source: L.Layer) => HTMLElement {
+  return (source) => {
+    const popup = (source as L.Marker).getPopup();
+    if (popup) {
+      const room = map.getSize().x - 2 * 16 - POPUP_FRAME;
+      popup.options.autoPanPaddingTopLeft = panelClearance(map);
+      popup.options.maxWidth = Math.min(base.maxWidth ?? 300, room);
+      popup.options.minWidth = Math.min(base.minWidth ?? 50, room);
+    }
+    return build();
+  };
+}
+
+// What a found point shows when it is clicked: its type, how far it is from
+// the route and where along it, the same notes as on its list card, and the
+// opening hours.
+function poiPopup(poi: Poi, typeId: string, t: TFunction, language: string): HTMLElement {
+  const type = pointTypeById(typeId) ?? categoryById(poi.category_id);
+  const typeLabel = pointTypeById(typeId) ? t(`categories.${typeId}`) : poi.category_id;
+  const hours = buildHoursPanel(poi, t, language);
+  // A place where hours usually matter and none are mapped says so, instead of
+  // leaving the question open.
+  const section = hours
+    ? { title: t("hours.title"), iconSvg: CLOCK_MARKUP, body: hours }
+    : categoryById(poi.category_id)?.hours === true
+      ? { title: t("hours.title"), iconSvg: CLOCK_MARKUP, body: t("poiList.hoursUnknownHint"), muted: true }
+      : null;
+  return popupContent({
+    title: poi.name ?? typeLabel,
+    subtitle: poi.name ? typeLabel : null,
+    iconSvg: iconMarkup(type?.icon, 17),
+    facts: [
+      t("poiList.metaKm", { km: (poi.distance_along_route_m / 1000).toFixed(1) }),
+      t("map.popupDistance", { distance: Math.round(poi.distance_to_route_m) }),
+    ],
+    badges: poiBadges(poi).map((badge) => ({ label: t(`badges.${badge}`), className: `poi-badge-${badge}` })),
+    section,
+  });
+}
+
+// A waypoint the file came with: its name and type, and the description it
+// carried.
+function waypointPopup(waypoint: RouteWaypoint, typeId: string, t: TFunction): HTMLElement {
+  const typeLabel = t(`categories.${typeId}`);
+  return popupContent({
+    title: waypoint.name ?? typeLabel,
+    subtitle: waypoint.name ? typeLabel : null,
+    iconSvg: iconMarkup((pointTypeById(typeId) ?? WAYPOINT_TYPE).icon, 17),
+    description: waypoint.description,
   });
 }
 
@@ -277,9 +369,13 @@ export function MapView({
         dashArray: poi.is_routed ? undefined : "2 6",
       }).addTo(layer);
 
-      const marker = L.marker([poi.lat, poi.lon], { icon: poiDivIcon(poi, excluded, typeOverrides[poi.id] ?? poi.category_id) })
+      const typeId = typeOverrides[poi.id] ?? poi.category_id;
+      const popupOptions = poi.opening_hours || poi.hours_week ? POPUP_OPTIONS_WIDE : POPUP_OPTIONS;
+      const marker = L.marker([poi.lat, poi.lon], { icon: poiDivIcon(poi, excluded, typeId) })
         .bindPopup(
-          popupContent(poi.name ?? poi.category_id, t("map.popupDistance", { distance: Math.round(poi.distance_to_route_m) })),
+          onOpen(map, popupOptions, () => poiPopup(poi, typeId, t, i18n.language)),
+          // Room for the week chart; a point without hours keeps the narrow popup.
+          popupOptions,
         )
         .on("click", () => onSelectPoiRef.current?.(poi))
         .addTo(layer);
@@ -290,17 +386,17 @@ export function MapView({
   // The waypoints the file came with, drawn apart from the found points (a
   // flag in a light square) so they read as reference marks, not results.
   useEffect(() => {
+    const map = mapRef.current;
     const layer = waypointLayerRef.current;
-    if (!layer) return;
+    if (!map || !layer) return;
     layer.clearLayers();
     waypointMarkersRef.current.clear();
     for (const waypoint of waypoints) {
       const excluded = excludedIds?.has(waypoint.id) ?? false;
       if (excluded && hideExcluded) continue;
       const typeId = typeOverrides[waypoint.id] ?? waypoint.fixedType ?? WAYPOINT_TYPE.id;
-      const label = waypoint.name ?? t(`categories.${typeId}`);
       const marker = L.marker([waypoint.lat, waypoint.lon], { icon: waypointDivIcon(typeId, excluded), zIndexOffset: 500 })
-        .bindPopup(popupContent(label, waypoint.description))
+        .bindPopup(onOpen(map, POPUP_OPTIONS, () => waypointPopup(waypoint, typeId, t)), POPUP_OPTIONS)
         .on("click", () => onSelectWaypointRef.current?.(waypoint))
         .addTo(layer);
       waypointMarkersRef.current.set(waypoint.id, marker);
