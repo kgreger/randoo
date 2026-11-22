@@ -117,7 +117,7 @@
     "unclear": "unclear",
     "seasonal": "seasonal",
     "seasonalHint": "The times depend on month or date. Shown is the week of {{date}}.",
-    "rawLabel": "Entry in OpenStreetMap, unchecked"
+    "rawLabel": "Opening hours according to OSM"
   },
   "poiList": {
     "filterAll": "All",

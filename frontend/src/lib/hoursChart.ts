@@ -134,8 +134,9 @@ export function buildHoursChart(week: HoursWeek, t: TFunction, language: string)
 }
 
 /** What to show for a point's opening hours: the chart when the data build
- * parsed them, and the value as mapped (wrapped, so a long one stays readable).
- * Null when there is nothing to show. */
+ * parsed them. Only when it could not, the value as mapped (wrapped, so a long
+ * one stays readable), labelled as coming from OpenStreetMap. Null when there
+ * is nothing to show. */
 export function buildHoursPanel(
   poi: Pick<Poi, "opening_hours" | "hours_week">,
   t: TFunction,
@@ -145,8 +146,9 @@ export function buildHoursPanel(
   const raw = poi.opening_hours?.trim();
   if (!week && !raw) return null;
   const panel = el("div", "hours-panel");
-  if (week) panel.append(buildHoursChart(week, t, language));
-  if (raw) {
+  if (week) {
+    panel.append(buildHoursChart(week, t, language));
+  } else if (raw) {
     const block = el("div", "hours-raw");
     block.append(el("span", "hours-raw-label", t("hours.rawLabel")), el("span", "hours-raw-text", raw));
     panel.append(block);
