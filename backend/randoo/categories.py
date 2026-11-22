@@ -1,4 +1,4 @@
-"""Randoo's POI categories: seven groups, each with a few specific kinds of place.
+"""Randoo's POI categories: six groups, each with a few specific kinds of place.
 
 A category (a "leaf" of the tree the rider sees) is defined by
 
@@ -220,15 +220,9 @@ GROUPS: tuple[Group, ...] = (
                 (_p("shop", "greengrocer"), _p("shop", "farm"), _p("shop", "general")),
                 priority=60,
             ),
-        ),
-    ),
-    Group(
-        "fuel",
-        "Fuel",
-        (
             Category(
                 "fuel_station",
-                "fuel",
+                "shops",
                 "Fuel station",
                 (_p("amenity", "fuel"),),
                 ~NO_PUBLIC_ACCESS,

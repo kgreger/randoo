@@ -37,7 +37,7 @@ import {
 } from "lucide-react";
 import taxonomy from "./taxonomy.json";
 
-// The category tree - seven groups with a few kinds of place each - comes from
+// The category tree - six groups with a few kinds of place each - comes from
 // taxonomy.json, which is generated from backend/randoo/categories.py (a
 // backend test fails when the two differ), so the ids and the defaults cannot
 // drift. Only what is about looks lives here: an icon per group and per kind
@@ -63,7 +63,6 @@ const GROUP_ICONS: Record<string, LucideIcon> = {
   water: Droplet,
   food: Utensils,
   shops: ShoppingCart,
-  fuel: Fuel,
   bike: Bike,
   lodging: BedDouble,
   rest: Umbrella,

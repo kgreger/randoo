@@ -1,6 +1,6 @@
 import xml.etree.ElementTree as ET
 
-from randoo.export import GARMIN_GPXX_NS, GARMIN_PROXIMITY_M, build_gpx
+from randoo.export import GARMIN_GPXX_NS, GARMIN_PROXIMITY_M, GARMIN_SYMBOLS, GARMIN_POINT_TYPES, build_gpx
 from randoo.gpx import Point
 from randoo.overpass import Poi
 from randoo.poi_filter import Connector, RankedPoi
@@ -75,3 +75,10 @@ def test_export_falls_back_to_a_generic_symbol_for_categories_without_a_garmin_m
 
     wpt = root.find(f"{{{GPX_NS}}}wpt")
     assert wpt.find(f"{{{GPX_NS}}}sym").text == "Flag, Blue"
+
+
+def test_a_fuel_station_keeps_its_own_symbol_inside_the_shops_group():
+    # fuel_station is a leaf of "shops" (Shopping Center, type store) but is shown with the gas pump
+    assert GARMIN_SYMBOLS["fuel_station"] == "Gas Station"
+    assert GARMIN_SYMBOLS["supermarket"] == "Shopping Center"
+    assert GARMIN_POINT_TYPES["fuel_station"] == GARMIN_POINT_TYPES["supermarket"] == "store"

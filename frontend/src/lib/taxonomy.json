@@ -246,12 +246,7 @@
           ],
           "rule": "always",
           "priority": 60
-        }
-      ]
-    },
-    {
-      "id": "fuel",
-      "categories": [
+        },
         {
           "id": "fuel_station",
           "default": true,

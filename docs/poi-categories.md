@@ -1,6 +1,6 @@
 # POI categories
 
-Randoo sorts OpenStreetMap objects into a tree of 7 groups and 31 categories (the leaves). This document describes the tree, how an object is classified, how the data flows from OSM to the app, the Garmin mapping, and what is deliberately left open.
+Randoo sorts OpenStreetMap objects into a tree of 6 groups and 31 categories (the leaves). This document describes the tree, how an object is classified, how the data flows from OSM to the app, the Garmin mapping, and what is deliberately left open.
 
 The code is authoritative, not this document:
 
@@ -14,8 +14,7 @@ The code is authoritative, not this document:
 | --- | --- |
 | Drinking water (`water`) | `water_tap`, `fountain`, `spring`, `cemetery_tap` |
 | Food & drink (`food`) | `restaurant`, `fast_food`, `snack_bar`, `cafe`, `ice_cream`, `bakery`, `butcher` |
-| Shopping (`shops`) | `supermarket`, `kiosk`, `grocery` |
-| Fuel (`fuel`) | `fuel_station` |
+| Shopping (`shops`) | `supermarket`, `kiosk`, `grocery`, `fuel_station` |
 | Bike (`bike`) | `bike_shop`, `bike_repair` |
 | Sleeping (`lodging`) | `hotel`, `guest_house`, `hostel`, `camp_site`, `hut_staffed` |
 | Shelter, rest & services (`rest`) | `shelter`, `hut_open`, `bus_stop`, `train_station`, `picnic`, `toilet`, `shower`, `pharmacy`, `atm` |
@@ -141,7 +140,7 @@ Garmin Connect reads only `<type>` when it imports a course (the FIT course poin
 | `fast_food`, `snack_bar` | `food` | Fast Food |
 | group `shops` | `store` | Shopping Center |
 | `kiosk` | `store` | Convenience Store |
-| group `fuel` | `store` | Gas Station |
+| `fuel_station` | `store` | Gas Station |
 | group `bike` | `service` | Flag, Blue |
 | group `lodging` | `shelter` | Lodging |
 | `camp_site` | `campsite` | Campground |

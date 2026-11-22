@@ -22,7 +22,7 @@ def test_resolve_rejects_the_ids_of_the_old_flat_categories():
 
 def test_every_category_belongs_to_one_group_and_ids_are_unique():
     assert len(CATEGORIES) == len(CATEGORIES_BY_ID) == 31
-    assert [g.id for g in GROUPS] == ["water", "food", "shops", "fuel", "bike", "lodging", "rest"]
+    assert [g.id for g in GROUPS] == ["water", "food", "shops", "bike", "lodging", "rest"]
     for group in GROUPS:
         assert group.categories, group.id
         assert all(c.group == group.id for c in group.categories)
