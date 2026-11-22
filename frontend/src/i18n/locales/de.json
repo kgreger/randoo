@@ -141,7 +141,8 @@
     "originalType": "Original: {{type}}",
     "hoursUnknown": "Öffnungszeiten unbekannt",
     "hoursUnknownHint": "In OpenStreetMap sind keine Öffnungszeiten eingetragen. Vor Ort oder beim Betreiber nachsehen.",
-    "openingHours": "Öffnungszeiten laut OpenStreetMap, nicht geprüft: {{hours}}"
+    "hoursChip": "Öffnungszeiten",
+    "showHours": "Öffnungszeiten anzeigen"
   },
   "signInDialog": {
     "recoveryPrompt": "Wähle ein neues Passwort für dein Konto.",

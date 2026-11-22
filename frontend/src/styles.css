@@ -1570,18 +1570,24 @@ button {
 }
 
 /* The hours chip opens a popover with the week chart. */
+/* A chip like the badges, but one that can be clicked. */
 .poi-hours-button {
-  padding: 0;
+  padding: 0 8px 0 6px;
   border: 0;
-  background: transparent;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--ink-muted);
+  font-family: inherit;
+  font-size: 10.5px;
+  line-height: 1.5;
   text-align: left;
   cursor: pointer;
 }
 
-.poi-hours-button:hover .poi-hours-text,
-.poi-hours-button:focus-visible .poi-hours-text {
+.poi-hours-button:hover,
+.poi-hours-button:focus-visible {
+  background: rgba(255, 255, 255, 0.17);
   color: var(--ink);
-  text-decoration: underline;
 }
 
 .hours-popover {

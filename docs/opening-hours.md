@@ -24,7 +24,8 @@ Only in the weekly data build of the private `randoo-infra` repository (`randoo_
 
 ## In the interface
 
-- List: the clock chip on a card opens a popover (`HoursPopover` in `PoiList.tsx`). Map: the popup of a point carries the same panel.
+- List: a card shows only a small "Opening hours" chip when the point has a value (the raw text is mostly cut off there anyway). Clicking it opens a popover (`HoursPopover` in `PoiList.tsx`). A point of a category that usually has hours but no value shows "Opening hours unknown" instead.
+- Map: the popup of a point carries the same panel. Its content is built lazily when the popup opens (`bindPopup` with a function). `App.tsx` memoises the `pois` and `waypoints` arrays it hands to `MapView`; the markers are rebuilt whenever those change, and a new array on every render closed the popup right after a marker click.
 - Both are built by `lib/hoursChart.ts` from DOM nodes with all text set as text, since the value and its comments come from OpenStreetMap. The chart takes its colours from the surrounding text colour, so it reads on the dark popover and the light map popup.
 - Bars are minute-exact on a 0 to 24 h axis with a line per hour. The times stand next to each bar, an open end reads "ab 11:00" and fades out, an unknown state is hatched.
 - Where there is no parsed week (free tier, a value the build could not parse, a saved plan from before this existed) the popover shows only the value as mapped, wrapped. The text is always shown below the chart too, labelled as unchecked.

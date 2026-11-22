@@ -747,8 +747,9 @@ function HoursPopover({ target, onClose }: { target: { rect: DOMRect; poi: Poi }
 function PoiExtras({ poi, onOpenHours }: { poi: Poi; onOpenHours: (rect: DOMRect) => void }) {
   const { t } = useTranslation();
   const badges = poiBadges(poi);
-  const hoursUnknown = !poi.opening_hours && categoryById(poi.category_id)?.hours === true;
-  if (badges.length === 0 && !poi.opening_hours && !hoursUnknown) return null;
+  const hasHours = Boolean(poi.opening_hours || poi.hours_week);
+  const hoursUnknown = !hasHours && categoryById(poi.category_id)?.hours === true;
+  if (badges.length === 0 && !hasHours && !hoursUnknown) return null;
   return (
     <div className="poi-extras">
       {badges.map((badge) => (
@@ -756,11 +757,11 @@ function PoiExtras({ poi, onOpenHours }: { poi: Poi; onOpenHours: (rect: DOMRect
           {t(`badges.${badge}`)}
         </span>
       ))}
-      {poi.opening_hours && (
+      {hasHours && (
         <button
           type="button"
           className="poi-hours poi-hours-button"
-          title={t("poiList.openingHours", { hours: poi.opening_hours })}
+          title={t("poiList.showHours")}
           aria-haspopup="dialog"
           onClick={(e) => {
             e.stopPropagation();
@@ -768,7 +769,7 @@ function PoiExtras({ poi, onOpenHours }: { poi: Poi; onOpenHours: (rect: DOMRect
           }}
         >
           <Clock size={11} strokeWidth={2} aria-hidden="true" />
-          <span className="poi-hours-text">{poi.opening_hours}</span>
+          <span className="poi-hours-text">{t("poiList.hoursChip")}</span>
         </button>
       )}
       {hoursUnknown && (

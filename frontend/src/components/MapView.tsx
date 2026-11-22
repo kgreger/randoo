@@ -278,16 +278,18 @@ export function MapView({
         dashArray: poi.is_routed ? undefined : "2 6",
       }).addTo(layer);
 
-      const hours = buildHoursPanel(poi, t, i18n.language);
+      const hasHours = Boolean(poi.opening_hours || poi.hours_week);
       const marker = L.marker([poi.lat, poi.lon], { icon: poiDivIcon(poi, excluded, typeOverrides[poi.id] ?? poi.category_id) })
         .bindPopup(
-          popupContent(
-            poi.name ?? poi.category_id,
-            t("map.popupDistance", { distance: Math.round(poi.distance_to_route_m) }),
-            hours,
-          ),
+          // Built when the popup opens: most points are never clicked.
+          () =>
+            popupContent(
+              poi.name ?? poi.category_id,
+              t("map.popupDistance", { distance: Math.round(poi.distance_to_route_m) }),
+              buildHoursPanel(poi, t, i18n.language),
+            ),
           // Room for the week chart; a point without hours keeps the narrow popup.
-          hours ? { minWidth: 300, maxWidth: 380 } : undefined,
+          hasHours ? { minWidth: 300, maxWidth: 380 } : undefined,
         )
         .on("click", () => onSelectPoiRef.current?.(poi))
         .addTo(layer);

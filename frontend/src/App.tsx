@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Bookmark, Menu, SlidersHorizontal, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AccountControl } from "./components/AccountControl";
@@ -693,11 +693,17 @@ export default function App() {
     window.open(url.toString(), "_blank", "noopener,noreferrer");
   }
 
-  const routeEnds = routeEndPoints(route, waypoints, {
-    start: t("route.start"),
-    end: t("route.end"),
-  });
-  const shownWaypoints = [...routeEnds, ...waypoints];
+  // The map redraws all its markers when the arrays it gets change identity,
+  // and that closes an open popup. So what goes to the map is memoised and only
+  // changes when its content does, not on every render (a click on a marker,
+  // a hover over a list card).
+  const startLabel = t("route.start");
+  const endLabel = t("route.end");
+  const routeEnds = useMemo(
+    () => routeEndPoints(route, waypoints, { start: startLabel, end: endLabel }),
+    [route, waypoints, startLabel, endLabel],
+  );
+  const shownWaypoints = useMemo(() => [...routeEnds, ...waypoints], [routeEnds, waypoints]);
 
   // Each waypoint with its place along the route, for the list's order.
   // The route's own start and end sit at 0 and at the full length, whatever
@@ -721,6 +727,19 @@ export default function App() {
   ]);
   const hiddenNow = new Set(typeCounts.map((entry) => entry.typeId).filter((typeId) => hiddenTypes.has(typeId)));
   const isShown = (typeId: string) => !hiddenNow.has(typeId);
+  const hiddenKey = [...hiddenNow].sort().join("\n");
+  const mapPois = useMemo(
+    () => pois.filter((poi) => isShown(poiTypeId(poi, typeOverrides))),
+    // isShown follows hiddenKey; a new function each render would defeat the memo.
+    [pois, typeOverrides, hiddenKey],
+  );
+  const mapWaypoints = useMemo(
+    () =>
+      shownWaypoints.filter(
+        (waypoint) => waypoint.fixedType !== undefined || isShown(waypointTypeId(waypoint, typeOverrides)),
+      ),
+    [shownWaypoints, typeOverrides, hiddenKey],
+  );
 
   // One type, or null for all at once: all shown becomes all hidden, anything
   // else all shown.
@@ -1038,13 +1057,11 @@ export default function App() {
 
           <MapView
             route={route}
-            pois={pois.filter((poi) => isShown(poiTypeId(poi, typeOverrides)))}
+            pois={mapPois}
             excludedIds={excludedPoiIds}
             hideExcluded={hideExcluded}
             onToggleHideExcluded={() => setHideExcluded((hidden) => !hidden)}
-            waypoints={shownWaypoints.filter(
-              (waypoint) => waypoint.fixedType !== undefined || isShown(waypointTypeId(waypoint, typeOverrides)),
-            )}
+            waypoints={mapWaypoints}
             typeOverrides={typeOverrides}
             focusRequest={focusRequest}
             hoveredId={hoveredPoiId}
