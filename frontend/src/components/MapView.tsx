@@ -5,6 +5,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { LatLon, RouteWaypoint } from "../lib/gpxPreview";
 import type { Poi } from "../lib/api";
+import { buildHoursPanel } from "../lib/hoursChart";
 import { popupContent } from "../lib/popupContent";
 import { WAYPOINT_TYPE, categoryById, pointTypeById } from "../lib/categories";
 
@@ -277,9 +278,16 @@ export function MapView({
         dashArray: poi.is_routed ? undefined : "2 6",
       }).addTo(layer);
 
+      const hours = buildHoursPanel(poi, t, i18n.language);
       const marker = L.marker([poi.lat, poi.lon], { icon: poiDivIcon(poi, excluded, typeOverrides[poi.id] ?? poi.category_id) })
         .bindPopup(
-          popupContent(poi.name ?? poi.category_id, t("map.popupDistance", { distance: Math.round(poi.distance_to_route_m) })),
+          popupContent(
+            poi.name ?? poi.category_id,
+            t("map.popupDistance", { distance: Math.round(poi.distance_to_route_m) }),
+            hours,
+          ),
+          // Room for the week chart; a point without hours keeps the narrow popup.
+          hours ? { minWidth: 300, maxWidth: 380 } : undefined,
         )
         .on("click", () => onSelectPoiRef.current?.(poi))
         .addTo(layer);

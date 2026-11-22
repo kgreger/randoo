@@ -106,6 +106,19 @@
     "showExcluded": "Show unticked points",
     "waypoint": "Waypoint"
   },
+  "hours": {
+    "title": "Opening hours",
+    "days": { "mo": "Mon", "tu": "Tue", "we": "Wed", "th": "Thu", "fr": "Fri", "sa": "Sat", "su": "Sun" },
+    "holiday": "Holiday",
+    "holidayHint": "On a public holiday, as far as the entry says anything about it",
+    "noHolidayInfo": "no information",
+    "closed": "closed",
+    "openFrom": "from {{time}}",
+    "unclear": "unclear",
+    "seasonal": "seasonal",
+    "seasonalHint": "The times depend on month or date. Shown is the week of {{date}}.",
+    "rawLabel": "Entry in OpenStreetMap, unchecked"
+  },
   "poiList": {
     "filterAll": "All",
     "filter": "Filter types",
