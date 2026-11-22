@@ -1,5 +1,7 @@
 """Pydantic models for API responses."""
 
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -15,6 +17,11 @@ class PoiOut(BaseModel):
     # The opening hours as mapped in OSM, unevaluated, and the few other tags
     # the interface shows as badges (see categories.ATTRIBUTE_KEYS).
     opening_hours: str | None = None
+    # The same hours parsed into a week for the chart, as the weekly data
+    # build stored them (randoo-infra's hours.py documents the layout), passed
+    # through untouched. Null when the POI has none or the source cannot say:
+    # the free tier reads Overpass live and only ever has the text above.
+    hours_week: dict[str, Any] | None = None
     attributes: dict[str, str] = Field(default_factory=dict)
     distance_to_route_m: float
     # Where this POI's nearest point falls along the route, cumulative

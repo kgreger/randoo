@@ -832,6 +832,25 @@ def test_analyze_returns_the_opening_hours_and_the_whitelisted_attributes(monkey
     assert point["attributes"] == {"shop": "convenience"}
 
 
+def test_analyze_passes_the_parsed_week_through_and_is_null_without_one(monkeypatch, client):
+    week = {"v": 1, "ws": "2026-11-23", "days": [[{"s": 540, "e": 1080}], [], [], [], [], [], []], "ph": None}
+    base = dict(osm_type="node", lat=48.005, lon=8.005, category_id="fuel_station", name="Aral")
+    with_week = Poi(osm_id=5, tags={"amenity": "fuel", "opening_hours": "Mo 09:00-18:00"}, hours_week=week, **base)
+    without = Poi(osm_id=6, tags={"amenity": "fuel", "opening_hours": "derzeit geschlossen"}, **base)
+    monkeypatch.setattr(main, "get_poi_source", lambda tier: _fake_source([], [with_week, without]))
+
+    response = client.post(
+        "/api/analyze",
+        files={"file": ("route.gpx", SAMPLE_GPX, "application/gpx+xml")},
+        data={"categories": "fuel_station", "radius_m": "300"},
+    )
+
+    points = {p["osm_id"]: p for p in response.json()["pois"]}
+    assert points[5]["hours_week"] == week
+    assert points[6]["hours_week"] is None
+    assert points[6]["opening_hours"] == "derzeit geschlossen"
+
+
 def test_analyze_rejects_the_ids_of_the_old_flat_categories(client):
     response = client.post(
         "/api/analyze",

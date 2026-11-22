@@ -3,6 +3,8 @@
     "title": "Randoo",
     "menu": "Menü",
     "filters": "Filter",
+    "filtersCollapse": "Filter einklappen",
+    "filtersExpand": "Filter ausklappen",
     "ideas": "Ideen",
     "changeRoute": "Route ändern",
     "uploadGpx": "GPX hochladen",
@@ -106,6 +108,19 @@
     "showExcluded": "Abgewählte Punkte einblenden",
     "waypoint": "Wegpunkt"
   },
+  "hours": {
+    "title": "Öffnungszeiten",
+    "days": { "mo": "Mo", "tu": "Di", "we": "Mi", "th": "Do", "fr": "Fr", "sa": "Sa", "su": "So" },
+    "holiday": "Feiertag",
+    "holidayHint": "An einem gesetzlichen Feiertag, soweit der Eintrag etwas dazu sagt",
+    "noHolidayInfo": "keine Angabe",
+    "closed": "geschlossen",
+    "openFrom": "ab {{time}}",
+    "unclear": "unklar",
+    "seasonal": "saisonal",
+    "seasonalHint": "Die Zeiten hängen von Monat oder Datum ab. Gezeigt ist die Woche ab {{date}}",
+    "rawLabel": "Öffnungszeiten laut OSM"
+  },
   "poiList": {
     "filterAll": "Alle",
     "filter": "Typen filtern",
@@ -128,7 +143,8 @@
     "originalType": "Original: {{type}}",
     "hoursUnknown": "Öffnungszeiten unbekannt",
     "hoursUnknownHint": "In OpenStreetMap sind keine Öffnungszeiten eingetragen. Vor Ort oder beim Betreiber nachsehen.",
-    "openingHours": "Öffnungszeiten laut OpenStreetMap, nicht geprüft: {{hours}}"
+    "hoursChip": "Öffnungszeiten",
+    "showHours": "Öffnungszeiten anzeigen"
   },
   "signInDialog": {
     "recoveryPrompt": "Wähle ein neues Passwort für dein Konto.",
